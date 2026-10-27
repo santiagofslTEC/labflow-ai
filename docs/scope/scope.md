@@ -14,7 +14,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | # | Feature | Phase | Status |
 |---|---------|-------|--------|
 | 1 | Stack & architecture | Foundation | done |
-| 2 | Coding standards & tooling | Foundation | planned |
+| 2 | Coding standards & tooling | Foundation | done |
 | 3 | Data model | Foundation | planned |
 | 4 | Design system & UI foundation | Foundation | planned |
 | 5 | Experiments: create and list | Release 1 | planned |
@@ -43,10 +43,12 @@ spec [0001](../specs/0001-stack-architecture/index.md) · code in `web/`, `api/`
 - [x] Verify it: `/check verify stack & architecture`
 - [ ] Test it: `/test stack & architecture`
 
-### 2. Coding standards & tooling
+### 2. Coding standards & tooling · done
 Capture conventions and tooling from the real scaffold, then install lint, format, and pre commit checks.
 **Done when:** root `AGENTS.md` reflects the real stack, and lint and format run clean.
-- [ ] Capture conventions + tooling choices: `/audit`
+code in `lefthook.yml`, `.github/workflows/ci.yml`, `Makefile`, `api/pyproject.toml`, `web/eslint.config.mjs`
+- [x] Capture conventions + tooling choices: `/audit`
+- [x] Install the tooling: `/develop tooling`
 
 ### 3. Data model · needs a decision
 Experiment, Variable, Trial, Measurement, with every measurement keeping its original phrase, source (voice or text), time, and state (proposed or confirmed). Protocol comes later.
