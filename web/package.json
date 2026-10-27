@@ -10,7 +10,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gen:api": "openapi-typescript ../api/openapi.json -o src/api/schema.d.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "prepare": "cd .. && lefthook install || echo \"lefthook: no git repo, hooks skipped\""
   },
   "dependencies": {
