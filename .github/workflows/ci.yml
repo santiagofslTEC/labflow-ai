@@ -12,6 +12,10 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-latest
+    # next.config.ts refuses a production build without API_URL, and both `next typegen`
+    # (in typecheck) and `next build` load it; any URL works here.
+    env:
+      API_URL: http://localhost:8000
     defaults:
       run:
         working-directory: web
@@ -29,10 +33,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
-      # next.config.ts refuses a production build without API_URL; any URL works here.
       - run: pnpm build
-        env:
-          API_URL: http://localhost:8000
 
   api:
     runs-on: ubuntu-latest
