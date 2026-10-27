@@ -65,13 +65,13 @@ spec [0002](../specs/0002-data-model/index.md) · code in `api/app/models/`, `ap
 ### 4. Design system & UI foundation · in-progress
 A small visual language and base pieces: layout, buttons, form fields, the proposal card, an always visible mic state. The proposal card is the star of the demo.
 **Done when:** `design.md` covers type, color, spacing, and the card; base components work by keyboard and show focus.
-spec [0003](../specs/0003-design-system-ui-foundation/index.md)
+spec [0003](../specs/0003-design-system-ui-foundation/index.md) · code in `web/src/components/`, `web/src/app/globals.css`, `web/src/app/dev/ui/`, `web/design.md`
 - [x] Design it (spec): `/architect design system & UI foundation`
-- [ ] Build it: `/develop design system & UI foundation`
-  - [ ] Test setup, tokens, fonts, contrast and raw color tests, first `web/design.md` (AC-1 to AC-4, AC-6)
-  - [ ] Base components, number formatting, app shell, workspace layout, home page, manifest (AC-5, AC-7, AC-13, AC-14, AC-17, AC-18)
-  - [ ] Proposal card and mic dock in every state (AC-8 to AC-12)
-  - [ ] Motion, the card to table flight, `/dev/ui`, finished `web/design.md` (AC-2, AC-15, AC-16)
+- [x] Build it: `/develop design system & UI foundation`
+  - [x] Test setup, tokens, fonts, contrast and raw color tests, first `web/design.md` (AC-1 to AC-4, AC-6)
+  - [x] Base components, number formatting, app shell, workspace layout, home page, manifest (AC-5, AC-7, AC-13, AC-14, AC-17, AC-18)
+  - [x] Proposal card and mic dock in every state (AC-8 to AC-12)
+  - [x] Motion, the card to table flight, `/dev/ui`, finished `web/design.md` (AC-2, AC-15, AC-16)
 - [ ] Verify it: `/check verify design system & UI foundation`
 
 ### 19. Access code gate · from spec 0002
