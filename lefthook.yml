@@ -1,0 +1,38 @@
+# Pre commit checks for both apps. Installed by `pnpm install` in web/ (its `prepare` script).
+# Jobs run in order so a formatter and a linter never write the same file at once.
+# Skip once with `LEFTHOOK=0 git commit ...`.
+pre-commit:
+  jobs:
+    - name: web format
+      root: web/
+      glob: "*.{ts,tsx,js,mjs,json,css,md,yaml,yml}"
+      run: pnpm exec prettier --write --ignore-unknown {staged_files}
+      stage_fixed: true
+
+    - name: web lint
+      root: web/
+      glob: "*.{ts,tsx,js,mjs}"
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+
+    - name: web typecheck
+      root: web/
+      glob: "*.{ts,tsx}"
+      run: pnpm typecheck
+
+    - name: api format
+      root: api/
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+    - name: api lint
+      root: api/
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+
+    - name: api typecheck
+      root: api/
+      glob: "*.py"
+      run: uv run pyright

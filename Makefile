@@ -1,4 +1,4 @@
-.PHONY: dev api web openapi
+.PHONY: dev api web openapi format lint typecheck check
 
 # Start the API (port 8000) and the web app (port 3000) together. Ctrl+C stops both.
 dev:
@@ -15,3 +15,21 @@ web:
 openapi:
 	cd api && uv run python scripts/export_openapi.py
 	cd web && pnpm gen:api
+
+# Format both apps in place.
+format:
+	cd api && uv run ruff format . && uv run ruff check --fix .
+	cd web && pnpm format
+
+lint:
+	cd api && uv run ruff check .
+	cd web && pnpm lint
+
+typecheck:
+	cd api && uv run pyright
+	cd web && pnpm typecheck
+
+# What CI runs (minus the web build): format check, lint and typecheck in both apps.
+check:
+	cd api && uv run ruff format --check . && uv run ruff check . && uv run pyright
+	cd web && pnpm format:check && pnpm lint && pnpm typecheck
