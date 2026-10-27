@@ -1,6 +1,7 @@
 """Pure rules of the proposal lifecycle (spec 0002). Given rows the repository already
 loaded and locked, decide the next step or the typed error. No I/O here."""
 
+import math
 from dataclasses import dataclass
 
 from app.models import Proposal, Trial, Turn, Variable
@@ -8,7 +9,9 @@ from app.models.enums import ProposalStatus, Role
 from app.services.results import (
     Confirmed,
     EmptyProposal,
+    InvalidTrialNumber,
     InvalidTurn,
+    InvalidValue,
     MissingTrialNumber,
     NotPending,
     PendingError,
@@ -43,6 +46,19 @@ class ValueSources:
 type ConfirmPlan = (
     Confirmed | UseTrial | CreateTrial | NotPending | EmptyProposal | MissingTrialNumber
 )
+
+
+def check_trial_number(number: int | None) -> int | InvalidTrialNumber | None:
+    """No number yet is fine; a given one must be above zero (the CHECK is the backstop)."""
+    if number is not None and number <= 0:
+        return InvalidTrialNumber()
+    return number
+
+
+def check_value(value: float) -> float | InvalidValue:
+    if not math.isfinite(value):
+        return InvalidValue()
+    return value
 
 
 def check_pending(proposal: Proposal | None) -> Proposal | PendingError:

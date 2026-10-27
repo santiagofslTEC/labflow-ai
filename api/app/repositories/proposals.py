@@ -20,6 +20,8 @@ from app.services.proposal_rules import (
     ValueSources,
     check_pending,
     check_target_trial,
+    check_trial_number,
+    check_value,
     check_value_sources,
     plan_confirm,
 )
@@ -27,10 +29,13 @@ from app.services.results import (
     Confirmed,
     ConfirmError,
     ExperimentNotFound,
+    InvalidTrialNumber,
+    InvalidValue,
     PendingError,
     ProposalNotFound,
     SetTrialError,
     SetValueError,
+    StartError,
     TrialExists,
 )
 
@@ -46,19 +51,30 @@ def get_pending(session: Session, experiment_id: int) -> Proposal | None:
 
 def start_proposal(
     session: Session, experiment_id: int, trial_number: int | None
-) -> Proposal | ExperimentNotFound:
+) -> Proposal | StartError:
     """Open a new card. The previous pending card, if any, becomes superseded (AC-6)."""
+    if isinstance(checked := check_trial_number(trial_number), InvalidTrialNumber):
+        return checked
     # The experiment lock serializes card starts even when no card is pending, so the
-    # partial unique index stays a backstop that normal use never hits.
+    # partial unique index stays a backstop that normal use never hits. It is
+    # `FOR NO KEY UPDATE` so a concurrent confirm's trial insert (an FK key share on the
+    # experiment) does not deadlock against it.
     experiment = session.exec(
-        select(Experiment).where(Experiment.id == experiment_id).with_for_update()
+        select(Experiment).where(Experiment.id == experiment_id).with_for_update(key_share=True)
     ).first()
     if experiment is None:
         session.rollback()
         return ExperimentNotFound()
 
     now = utc_now()
-    current = get_pending(session, experiment_id)
+    # Locked and re-read: a card a concurrent confirm or discard just resolved is skipped.
+    current = session.exec(
+        select(Proposal)
+        .where(Proposal.experiment_id == experiment_id)
+        .where(Proposal.status == ProposalStatus.PENDING)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).first()
     if current is not None:
         current.status = ProposalStatus.SUPERSEDED
         current.resolved_at = now
@@ -86,6 +102,9 @@ def set_trial(
         return proposal
 
     if target_trial_id is None:
+        if isinstance(checked := check_trial_number(trial_number), InvalidTrialNumber):
+            session.rollback()
+            return checked
         proposal.target_trial_id = None
         proposal.trial_number = trial_number
     else:
@@ -108,6 +127,8 @@ def set_value(
 ) -> ProposalValue | SetValueError:
     """Put a value on the card, replacing any earlier value for the same variable (AC-5).
     The phrase, source, and time come from the turn; the unit from the variable."""
+    if isinstance(checked := check_value(value), InvalidValue):
+        return checked
     proposal = check_pending(_lock_proposal(session, proposal_id))
     if not isinstance(proposal, Proposal):
         session.rollback()

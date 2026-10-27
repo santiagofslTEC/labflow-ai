@@ -52,6 +52,18 @@ class MissingTrialNumber(_Result):
     code: Literal["missing_trial_number"] = "missing_trial_number"
 
 
+class InvalidTrialNumber(_Result):
+    """A trial number must be a whole number above zero."""
+
+    code: Literal["invalid_trial_number"] = "invalid_trial_number"
+
+
+class InvalidValue(_Result):
+    """A measured value must be a finite number (not NaN or infinity)."""
+
+    code: Literal["invalid_value"] = "invalid_value"
+
+
 class TrialExists(_Result):
     """The dictated trial number is already saved; ask whether it is a correction (RN-02)."""
 
@@ -59,7 +71,8 @@ class TrialExists(_Result):
     trial_id: int
 
 
+type StartError = ExperimentNotFound | InvalidTrialNumber
 type PendingError = ProposalNotFound | NotPending
-type SetTrialError = PendingError | TrialNotInExperiment
-type SetValueError = PendingError | VariableNotInExperiment | InvalidTurn
+type SetTrialError = PendingError | TrialNotInExperiment | InvalidTrialNumber
+type SetValueError = PendingError | VariableNotInExperiment | InvalidTurn | InvalidValue
 type ConfirmError = PendingError | EmptyProposal | MissingTrialNumber | TrialExists
