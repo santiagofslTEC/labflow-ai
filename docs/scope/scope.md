@@ -54,11 +54,11 @@ code in `lefthook.yml`, `.github/workflows/ci.yml`, `Makefile`, `api/pyproject.t
 ### 3. Data model · in-progress
 Experiment, Variable, Trial, Measurement, with every measurement keeping its original phrase, source (voice or text), time, and state (proposed or confirmed). Protocol comes later.
 **Done when:** a proposal can exist without appearing in the table, confirming it makes it a saved measurement, and later releases (ranges, edits, protocol) fit without a breaking change.
-spec [0002](../specs/0002-data-model/index.md)
+spec [0002](../specs/0002-data-model/index.md) · code in `api/app/models/`, `api/app/repositories/`, `api/app/services/`, `api/migrations/`, `api/scripts/seed.py`
 - [x] Design it (spec): `/architect data model`
 - [ ] Build it: `/develop data model`
-  - [ ] Database connection, seven tables, and the hand checked migration with RLS (AC-1, AC-11, AC-12, AC-15)
-  - [ ] Proposal lifecycle and conversation turns: start, set value, confirm, discard, last turns (AC-2 to AC-10, AC-14)
+  - [x] Database connection, seven tables, and the hand checked migration with RLS (AC-1, AC-11, AC-12, AC-15)
+  - [x] Proposal lifecycle and conversation turns: start, set value, confirm, discard, last turns (AC-2 to AC-10, AC-14)
   - [ ] Seed the sample experiment with `make seed` and run it against the dev database (AC-13)
 - [ ] Verify it: `/check verify data model`
 
