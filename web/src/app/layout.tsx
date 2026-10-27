@@ -1,5 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+
+import { AppShell } from "@/components/app-shell/app-shell";
+import { MotionProvider } from "@/components/app-shell/motion-provider";
+import { Toaster } from "@/components/ui/sonner";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,13 +29,25 @@ export const metadata: Metadata = {
   description: "Cuaderno de laboratorio por voz",
 };
 
+// `cover` lets the fixed dock pad itself by env(safe-area-inset-bottom).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body>
+        <MotionProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster />
+        </MotionProvider>
+      </body>
     </html>
   );
 }

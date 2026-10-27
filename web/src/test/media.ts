@@ -18,6 +18,11 @@ export const stubMatchMedia = (matches: (query: string) => boolean): void => {
   });
 };
 
+// Motion asks "(prefers-reduced-motion)"; CSS style queries add ": reduce".
 export const stubReducedMotion = (): void => {
-  stubMatchMedia((query) => query.includes("prefers-reduced-motion: reduce"));
+  stubMatchMedia(
+    (query) =>
+      query.includes("prefers-reduced-motion") &&
+      !query.includes("no-preference"),
+  );
 };
