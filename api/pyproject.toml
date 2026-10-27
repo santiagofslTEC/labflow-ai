@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "LabFlow AI backend: data, AI calls, and every secret key"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.20.1",
     "fastapi[standard]>=0.162.0",
+    "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.16.1",
+    "sqlmodel>=0.0.45",
 ]
 
 [tool.fastapi]

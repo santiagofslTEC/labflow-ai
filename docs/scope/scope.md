@@ -15,7 +15,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 |---|---------|-------|--------|
 | 1 | Stack & architecture | Foundation | done |
 | 2 | Coding standards & tooling | Foundation | done |
-| 3 | Data model | Foundation | planned |
+| 3 | Data model | Foundation | in-progress |
 | 4 | Design system & UI foundation | Foundation | planned |
 | 5 | Experiments: create and list | Release 1 | planned |
 | 6 | Text capture and confirm card | Release 1 | planned |
@@ -31,6 +31,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 16 | CSV export | Later | planned |
 | 17 | Protocol PDF questions | Later | planned |
 | 18 | Draft report | Later | planned |
+| 19 | Access code gate | Foundation | planned |
 
 ## Foundations
 
@@ -50,15 +51,28 @@ code in `lefthook.yml`, `.github/workflows/ci.yml`, `Makefile`, `api/pyproject.t
 - [x] Capture conventions + tooling choices: `/audit`
 - [x] Install the tooling: `/develop tooling`
 
-### 3. Data model · needs a decision
+### 3. Data model · in-progress
 Experiment, Variable, Trial, Measurement, with every measurement keeping its original phrase, source (voice or text), time, and state (proposed or confirmed). Protocol comes later.
 **Done when:** a proposal can exist without appearing in the table, confirming it makes it a saved measurement, and later releases (ranges, edits, protocol) fit without a breaking change.
-- [ ] Design it (spec): `/architect data model`
+spec [0002](../specs/0002-data-model/index.md) · code in `api/app/models/`, `api/app/repositories/`, `api/app/services/`, `api/migrations/`, `api/scripts/seed.py`
+- [x] Design it (spec): `/architect data model`
+- [x] Build it: `/develop data model`
+  - [x] Database connection, seven tables, and the hand checked migration with RLS (AC-1, AC-11, AC-12, AC-15)
+  - [x] Proposal lifecycle and conversation turns: start, set value, confirm, discard, last turns (AC-2 to AC-10, AC-14)
+  - [x] Seed the sample experiment with `make seed` and run it against the dev database (AC-13)
+- [x] Verify it: `/check verify data model`
 
 ### 4. Design system & UI foundation · needs a decision
 A small visual language and base pieces: layout, buttons, form fields, the proposal card, an always visible mic state. The proposal card is the star of the demo.
 **Done when:** `design.md` covers type, color, spacing, and the card; base components work by keyboard and show focus.
 - [ ] Design it (spec): `/architect design system & UI foundation`
+
+### 19. Access code gate · from spec 0002
+The personal access code gate already designed in spec 0001: `POST /api/access`, the signed `labflow_session` cookie, the FastAPI dependency that returns 401, and the Next.js redirect to `/access`. Feature 5 needs its holder name for `experiment.created_by`.
+**Done when:** without a valid code every route except `/api/health` and `/api/access` returns 401, the web app redirects to `/access`, and a valid code lets you in with your holder name available to routes.
+spec [0001](../specs/0001-stack-architecture/index.md)
+- [ ] Build it: `/develop access code gate`
+- [ ] Verify it: `/check verify access code gate`
 
 ## Release 1: Typed notebook (smallest usable whole)
 

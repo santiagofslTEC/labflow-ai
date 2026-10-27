@@ -9,10 +9,13 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    env: Literal["dev", "prod"] = "dev"
+    # Required, never defaulted: `make seed` and the cookie `Secure` flag trust it.
+    env: Literal["dev", "prod"]
     log_level: str = "INFO"
+    # Supavisor session pooler, port 5432: postgresql+psycopg://…?sslmode=require (spec 0001)
+    database_url: str
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # pyright: ignore[reportCallIssue]  # required keys come from the env
