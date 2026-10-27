@@ -1,4 +1,4 @@
-"""Write the API contract to api/openapi.json so the web app can generate types without a live API."""
+"""Write the API contract to api/openapi.json so the web app can type it without a live API."""
 
 import json
 import sys
