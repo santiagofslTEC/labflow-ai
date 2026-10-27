@@ -16,7 +16,7 @@ openapi:
 	cd api && uv run python scripts/export_openapi.py
 	cd web && pnpm gen:api
 
-# Apply every pending database migration to DATABASE_URL (Railway runs this before each deploy).
+# Apply every pending database migration to DATABASE_URL (Railway runs `alembic upgrade head` before each deploy).
 migrate:
 	cd api && uv run alembic upgrade head
 

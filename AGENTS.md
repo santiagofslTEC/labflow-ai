@@ -8,7 +8,7 @@ A voice first lab notebook: dictate a measurement, confirm what LabFlow understo
 - **API** (`api/`): Python 3.13, FastAPI, SQLModel + Alembic on Supabase Postgres, pydantic-settings. uv.
 - **AI**: Ollama Cloud first, Claude (`claude-opus-5-5`) as automatic fallback, behind one `LLMProvider` interface. ElevenLabs Scribe for speech to text.
 - **Contract**: Pydantic models are the source of truth; `make openapi` writes `api/openapi.json` and `web/src/api/schema.d.ts` (both committed). The browser only calls `/api/*` on its own origin; Next.js rewrites it to FastAPI.
-- **Hosting**: Vercel (web), Railway (api). Full decision: [spec 0001](docs/specs/0001-stack-architecture/index.md).
+- **Hosting**: Vercel (web), Railway (api, https://labflow-ai-production.up.railway.app; settings live in the Railway service, not in a file). Full decision: [spec 0001](docs/specs/0001-stack-architecture/index.md).
 
 ## Build approach
 
