@@ -9,7 +9,7 @@ from sqlmodel import Session, create_engine
 from app.core.settings import get_settings
 
 
-@lru_cache
+@lru_cache  # the one allowed process singleton: a connection pool, not app state
 def get_engine() -> Engine:
     """One pool per process, sized for the Supavisor session pooler (spec 0001)."""
     return create_engine(

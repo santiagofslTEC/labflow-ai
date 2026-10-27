@@ -295,12 +295,24 @@ def upgrade() -> None:
 
     # The API connects as `postgres`, which bypasses RLS. RLS with no policies plus the
     # revokes means the Supabase Data API (anon, authenticated) sees nothing (AC-12).
-    for table in TABLES:
+    # The identity sequences keep Supabase's default grants: without table access, a
+    # sequence only hands out ids, so they are left alone on purpose.
+    for table in (*TABLES, "alembic_version"):  # alembic_version sits in `public` too
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        op.execute(f"REVOKE ALL ON {table} FROM anon, authenticated")
-    # Alembic's own bookkeeping table sits in `public` too; keep it off the Data API.
-    op.execute("ALTER TABLE alembic_version ENABLE ROW LEVEL SECURITY")
-    op.execute("REVOKE ALL ON alembic_version FROM anon, authenticated")
+        op.execute(revoke_data_api(table))
+
+
+def revoke_data_api(table: str) -> str:
+    """The revoke, skipped where the Supabase roles do not exist (a plain local or CI
+    Postgres), so the migration runs anywhere."""
+    return f"""
+        DO $$ BEGIN
+            IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon')
+               AND EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+                REVOKE ALL ON {table} FROM anon, authenticated;
+            END IF;
+        END $$
+    """
 
 
 def downgrade() -> None:

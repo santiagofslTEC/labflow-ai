@@ -88,8 +88,8 @@ def seed(session: Session) -> int:
 
 
 def main() -> None:
-    if get_settings().env == "prod":
-        sys.exit("seed refuses to run with ENV=prod")
+    if get_settings().env != "dev":
+        sys.exit("seed runs only with ENV=dev")
     with Session(get_engine()) as session:
         experiment_id = seed(session)
     print(f"Seeded experiment {experiment_id}: {TITLE!r}, trials 1 to {len(TRIALS)}")
