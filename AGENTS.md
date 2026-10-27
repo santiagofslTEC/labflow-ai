@@ -35,7 +35,7 @@ Stored in `docs/specs/`, one folder per decision: `docs/specs/NNNN-title/index.m
 - Prefer plain functions and composition over classes. Exception: the `LLMProvider` interface and SQLModel tables.
 - Expected failures are explicit return values (a result union in TS, a typed result in Python), not exceptions. Exceptions are for bugs and are turned into HTTP errors only at the router edge.
 - One API error shape everywhere: `{"code": "<snake_case>", "message": "<Spanish, shown to the user>"}` with a fitting status. No bare `except`; every LLM fallback is logged.
-- Folders by layer: `api/app/{routers,models,services,core}/`, `web/src/{app,components,hooks,api,lib}/`.
+- Folders by layer: `api/app/{routers,models,services,repositories,core}/` (`repositories/` holds the DB I/O, spec 0002), `web/src/{app,components,hooks,api,lib}/`.
 - Types are strict: TS `strict`, no `any`; every Python function fully type hinted and checked by pyright in strict mode.
 - Env is validated at startup: `api/app/core/settings.py` fails fast on a missing key; `web/next.config.ts` refuses a production build without `API_URL`. Secrets never get a `NEXT_PUBLIC_` prefix.
 - Named exports only in `web/`, except files Next.js needs as default exports (`page`, `layout`, `route`, `next.config`, and similar).

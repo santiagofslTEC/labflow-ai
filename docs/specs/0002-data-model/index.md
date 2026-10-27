@@ -29,7 +29,7 @@ LabFlow keeps what the AI understood (a proposal) in its own tables, apart from 
 - **AC-10**: Discarding a pending proposal marks it `discarded` with `resolved_at` and saves nothing. Confirm or discard on a proposal that is `discarded` or `superseded` returns `not_pending`. Confirm with no values returns `empty_proposal`. Confirm with no trial number and no target returns `missing_trial_number`.
 - **AC-11**: The database rejects: two variable names in one experiment that differ only by case; `min_value` greater than `max_value`; a trial number of 0 or less; a value that is NaN or ±Infinity; a status, source, or role outside its allowed values. Deleting a variable that has measurements fails; deleting an experiment removes everything under it.
 - **AC-12**: Every table has row level security (RLS, Postgres rules on which rows a role may see) enabled with no policies, and all privileges revoked from the `anon` and `authenticated` roles, so the Supabase Data API returns nothing for them, while the API (connected as the `postgres` role) still reads and writes.
-- **AC-13**: `make seed` loads the sample experiment from the product doc (3 variables, trials 1 to 5 with the doc's values) through the proposal lifecycle, so every measurement has a phrase, source, and turn. Running it twice leaves exactly one copy. It refuses to run when `ENV=prod`.
+- **AC-13**: `make seed` loads the sample experiment from the product doc (3 variables, trials 1 to 5 with the doc's values) through the proposal lifecycle, so every measurement has a phrase, source, and turn. Running it twice leaves exactly one copy. It runs only when `ENV=dev` (`ENV` is required, with no default).
 - **AC-14**: Turns are stored with role, text, source, and time, and `last_turns(experiment_id, 10)` returns the latest 10 in the order they happened.
 - **AC-15**: Later releases need no breaking change: ranges (feature 11) use the existing `min_value`/`max_value`; edits (feature 14) use `edited_at` and the cascades; "terminar" (feature 15) uses `experiment.status` and `variable.required`; protocols (feature 17) add a new table only.
 
@@ -46,7 +46,7 @@ Unconfirmed data lives only in `proposal` and `proposal_value`; `trial` and `mea
 - **Query code in `api/app/repositories/`** (functions that take an explicit `session`, as spec 0001 lays out), with the pure rules in `api/app/services/`. Runner up: queries inside `services/`.
 - **The proposal lifecycle is built here, not in feature 6.** The scope's done line ("confirming makes it a saved measurement") needs it, and its invariants live in the schema. Feature 6 adds the LLM and the routes on top. Runner up: leave confirm to feature 6.
 - **The same experiment check runs in code**, inside the lifecycle functions (the only writers). Runner up: composite foreign keys carrying `experiment_id`.
-- **Race safety comes from row locks** (`SELECT ... FOR UPDATE` on the experiment in `start_proposal`, and on the proposal in every other mutating function), with `INSERT ... ON CONFLICT` as the single statement backstop for the new trial and the upserts. Runner up: catching `IntegrityError` inside savepoints.
+- **Race safety comes from row locks** (`SELECT ... FOR NO KEY UPDATE` on the experiment in `start_proposal`, and `FOR UPDATE` on the proposal in every mutating function), with `INSERT ... ON CONFLICT` as the single statement backstop for the new trial and the upserts. Runner up: catching `IntegrityError` inside savepoints.
 - **The first migration is written by hand.** Use autogenerate as a draft, then hand edit, because autogenerate misses functional and partial indexes and RLS.
 
 ## Feature design
@@ -142,14 +142,14 @@ Confirming an already `confirmed` proposal is not a transition. It returns the s
 | `turns.add_turn` | `session`, `experiment_id: int`, `role: Role`, `text: str`, `source: Source \| None`, `tool_name: str \| None` | `Turn` | the caller's route sits behind the access gate | `experiment_not_found` (a bad role/source pairing is a bug, the CHECK raises) |
 | `turns.last_turns` | `session`, `experiment_id: int`, `limit: int = 10` | `list[Turn]`: the `limit` highest `id`s, returned in ascending `id` order | same | none |
 | `proposals.get_pending` | `session`, `experiment_id: int` | `Proposal \| None` | same | none |
-| `proposals.start_proposal` | `session`, `experiment_id: int`, `trial_number: int \| None` | `Proposal` (pending); the previous pending one becomes superseded | same | `experiment_not_found` |
-| `proposals.set_trial` | `session`, `proposal_id: int`, `trial_number: int \| None`, `target_trial_id: int \| None` | `Proposal` | same | `proposal_not_found`, `not_pending`, `trial_not_in_experiment` |
-| `proposals.set_value` | `session`, `proposal_id: int`, `variable_id: int`, `value: float`, `turn_id: int` | `ProposalValue` (upserted) | same | `proposal_not_found`, `not_pending`, `variable_not_in_experiment`, `invalid_turn` |
+| `proposals.start_proposal` | `session`, `experiment_id: int`, `trial_number: int \| None` | `Proposal` (pending); the previous pending one becomes superseded | same | `experiment_not_found`, `invalid_trial_number` (zero or less) |
+| `proposals.set_trial` | `session`, `proposal_id: int`, `trial_number: int \| None`, `target_trial_id: int \| None` | `Proposal` | same | `proposal_not_found`, `not_pending`, `trial_not_in_experiment`, `invalid_trial_number` |
+| `proposals.set_value` | `session`, `proposal_id: int`, `variable_id: int`, `value: float`, `turn_id: int` | `ProposalValue` (upserted) | same | `proposal_not_found`, `not_pending`, `variable_not_in_experiment`, `invalid_turn`, `invalid_value` (NaN or infinity) |
 | `proposals.confirm` | `session`, `proposal_id: int` | `Confirmed(trial_id, created_trial: bool)` | same | `proposal_not_found`, `not_pending`, `empty_proposal`, `missing_trial_number`, `trial_exists(trial_id)` |
 | `proposals.discard` | `session`, `proposal_id: int` | `Proposal` (discarded) | same | `proposal_not_found`, `not_pending` |
 
 Locking (every mutating function that touches a proposal takes its lock before any check, so a `not_pending` answer is never stale):
-- `start_proposal` first runs `SELECT … FROM experiment WHERE id = :id FOR UPDATE` (missing: `experiment_not_found`). This serializes card starts per experiment even when no card is pending, so the partial unique index never fires in normal use (it stays as the backstop). It then marks the current pending row `superseded` and inserts the new one.
+- `start_proposal` first runs `SELECT … FROM experiment WHERE id = :id FOR NO KEY UPDATE` (missing: `experiment_not_found`). This serializes card starts per experiment even when no card is pending, so the partial unique index never fires in normal use (it stays as the backstop). It is `NO KEY` so a concurrent confirm's trial insert, whose foreign key check takes a key share lock on the experiment, does not deadlock against it. It then reads the pending row with `FOR UPDATE` (re-read after any wait, so a card a concurrent confirm or discard just resolved is skipped), marks it `superseded`, and inserts the new one.
 - `set_trial`, `set_value`, `confirm`, `discard` start with `SELECT … FROM proposal WHERE id = :id FOR UPDATE`.
 - `set_value` writes with `INSERT INTO proposal_value … ON CONFLICT (proposal_id, variable_id) DO UPDATE`, and sets `proposal.updated_at = now()` in the same transaction.
 - `set_trial` with `target_trial_id` set ignores the passed `trial_number` and copies the target trial's `number` into `proposal.trial_number`, so the two never disagree. With `target_trial_id=None` it clears the target and stores the passed `trial_number`.
@@ -188,7 +188,7 @@ The pure rules live in `api/app/services/proposal_rules.py`: given the loaded ro
 - Only `proposals.confirm` inserts into `trial` or writes `measurement`; feature 14 (edit and delete) adds the only other writers. Nothing in feature 6 to 10 writes them.
 - `measurement` contains only confirmed data, so every read of saved data (table, chart, questions) needs no state filter.
 - One value per variable per trial, and one per variable per proposal (unique indexes).
-- At most one `pending` proposal per experiment (partial unique index as the backstop); `start_proposal` locks the experiment row with `FOR UPDATE` before superseding, so two starts never race.
+- At most one `pending` proposal per experiment (partial unique index as the backstop); `start_proposal` locks the experiment row with `FOR NO KEY UPDATE` before superseding, so two starts never race.
 - A proposal with `target_trial_id` set has `trial_number` equal to that trial's `number` (`set_trial` copies it).
 - Stored values are finite numbers (CHECK), so JSON and Plotly never see NaN or Infinity.
 - `proposal.status = 'pending'` exactly when `resolved_at` is null (CHECK).
@@ -222,7 +222,7 @@ Skateboard: one migration with the whole target model (it is small, and later re
 3. Set up Alembic in `api/` (`alembic.ini` with no URL, `env.py` reading `get_settings().database_url` with `target_metadata = SQLModel.metadata`, and `script.py.mako` importing `sqlmodel`). Write the first migration by hand from an autogenerate draft: add the `lower(name)` and partial unique indexes, `ALTER TABLE … ENABLE ROW LEVEL SECURITY` and `REVOKE ALL ON … FROM anon, authenticated` for all seven tables, `server_default now()` on timestamps, and a full `downgrade`. Add `"preDeployCommand": "uv run alembic upgrade head"` to `api/railway.json` and a `migrate` target to the `Makefile`. Satisfies **AC-1**, **AC-11**, **AC-12**, **AC-15**.
 4. Write `api/app/services/proposal_rules.py` (pure rules) and the frozen result models (`Confirmed` and the error union with the codes from the API surface table). Satisfies **AC-4**, **AC-8**, **AC-10**.
 5. Write `api/app/repositories/turns.py` and `api/app/repositories/proposals.py` (`get_pending`, `start_proposal`, `set_trial`, `set_value`, `confirm`, `discard`) with the locking, `ON CONFLICT`, and rollback rules from *API surface*. Satisfies **AC-2**, **AC-3**, **AC-4**, **AC-5**, **AC-6**, **AC-7**, **AC-8**, **AC-9**, **AC-10**, **AC-14**.
-6. Write `api/scripts/seed.py` and a `make seed` target. It refuses when `ENV=prod`, deletes any experiment titled `Ejemplo: rendimiento vs. temperatura` (cascade), then creates it with Temperatura (°C, 20 to 100, aliases `temp`, `T`), Duración (min, 0 to 180), and Rendimiento (%, 0 to 100), all required. For each trial 1 to 5, in order, it adds one user turn with source `text` ("Ensayo 1: temperatura 40 grados, duración 15 minutos, rendimiento 58 por ciento", and so on), calls `start_proposal(trial_number=n)`, then `set_value` three times with that same turn, then `confirm`, before moving to the next trial. Seed times are all "now". `created_by` is `seed`. Satisfies **AC-13**.
+6. Write `api/scripts/seed.py` and a `make seed` target. It runs only when `ENV=dev`, deletes any experiment titled `Ejemplo: rendimiento vs. temperatura` (cascade), then creates it with Temperatura (°C, 20 to 100, aliases `temp`, `T`), Duración (min, 0 to 180), and Rendimiento (%, 0 to 100), all required. For each trial 1 to 5, in order, it adds one user turn with source `text` ("Ensayo 1: temperatura 40 grados, duración 15 minutos, rendimiento 58 por ciento", and so on), calls `start_proposal(trial_number=n)`, then `set_value` three times with that same turn, then `confirm`, before moving to the next trial. Seed times are all "now". `created_by` is `seed`. Satisfies **AC-13**.
 7. Run `make migrate` and `make seed` against the Supabase `dev` project, then `make check`. Satisfies **AC-1**, **AC-12**, **AC-13**.
 
 ## Consequences
@@ -249,10 +249,11 @@ Skateboard: one migration with the whole target model (it is small, and later re
 ## Follow-up
 
 - [x] The access code gate from spec 0001 is not built yet; feature 5 needs its holder name for `created_by`. Enrolled as scope feature 19 (Access code gate).
-- [ ] Add `repositories/` to the AGENTS.md folder rule (`api/app/{routers,models,services,repositories,core}/`) once built (`/sync`).
+- [x] Add `repositories/` to the AGENTS.md folder rule (`api/app/{routers,models,services,repositories,core}/`) once built (`/sync`).
 - [ ] Feature 6 decides how the card tells the user a pending card was superseded, and runs these sync DB calls from its async route (threadpool or Asyncer).
 - [ ] Feature 14 decides whether edits need a `measurement_revision` table with old values.
 - [ ] Feature 15 decides whether a `closed` experiment refuses new turns and proposals (an `experiment_closed` result in `start_proposal` and `add_turn`); until then the status is shown, not enforced.
+- [ ] Feature 6 validates dictated numbers at the route too; `invalid_trial_number` and `invalid_value` here are the typed backstop.
 - [ ] Review every later autogenerated migration so it does not drop the hand written indexes or RLS.
 - [ ] Switch the same experiment check to composite foreign keys if a second writer of `measurement` ever appears.
 

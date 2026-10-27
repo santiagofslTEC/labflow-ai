@@ -56,11 +56,11 @@ Experiment, Variable, Trial, Measurement, with every measurement keeping its ori
 **Done when:** a proposal can exist without appearing in the table, confirming it makes it a saved measurement, and later releases (ranges, edits, protocol) fit without a breaking change.
 spec [0002](../specs/0002-data-model/index.md) · code in `api/app/models/`, `api/app/repositories/`, `api/app/services/`, `api/migrations/`, `api/scripts/seed.py`
 - [x] Design it (spec): `/architect data model`
-- [ ] Build it: `/develop data model`
+- [x] Build it: `/develop data model`
   - [x] Database connection, seven tables, and the hand checked migration with RLS (AC-1, AC-11, AC-12, AC-15)
   - [x] Proposal lifecycle and conversation turns: start, set value, confirm, discard, last turns (AC-2 to AC-10, AC-14)
-  - [ ] Seed the sample experiment with `make seed` and run it against the dev database (AC-13)
-- [ ] Verify it: `/check verify data model`
+  - [x] Seed the sample experiment with `make seed` and run it against the dev database (AC-13)
+- [x] Verify it: `/check verify data model`
 
 ### 4. Design system & UI foundation · needs a decision
 A small visual language and base pieces: layout, buttons, form fields, the proposal card, an always visible mic state. The proposal card is the star of the demo.
