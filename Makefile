@@ -1,4 +1,4 @@
-.PHONY: dev api web openapi migrate format lint typecheck check
+.PHONY: dev api web openapi migrate seed format lint typecheck check
 
 # Start the API (port 8000) and the web app (port 3000) together. Ctrl+C stops both.
 dev:
@@ -19,6 +19,10 @@ openapi:
 # Apply every pending database migration to DATABASE_URL (Railway runs this before each deploy).
 migrate:
 	cd api && uv run alembic upgrade head
+
+# Load the sample experiment (replaces the previous copy). Refuses to run with ENV=prod.
+seed:
+	cd api && uv run python scripts/seed.py
 
 # Format both apps in place.
 format:
