@@ -18,7 +18,7 @@ const eslintConfig = defineConfig([
       "src/app/**/{page,layout,template,loading,error,global-error,not-found,default,route}.tsx",
       "src/app/**/route.ts",
       "src/app/**/{opengraph-image,icon,apple-icon,sitemap,robots,manifest}.{ts,tsx}",
-      "*.config.{ts,mjs}",
+      "*.config.{ts,mjs,mts}",
     ],
     rules: { "import/no-default-export": "off" },
   },

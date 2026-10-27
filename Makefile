@@ -37,7 +37,7 @@ typecheck:
 	cd api && uv run pyright
 	cd web && pnpm typecheck
 
-# What CI runs (minus the web build): format check, lint and typecheck in both apps.
+# What CI runs (minus the web build): format check, lint and typecheck in both apps, plus the web tests.
 check:
 	cd api && uv run ruff format --check . && uv run ruff check . && uv run pyright
-	cd web && pnpm format:check && pnpm lint && pnpm typecheck
+	cd web && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test
