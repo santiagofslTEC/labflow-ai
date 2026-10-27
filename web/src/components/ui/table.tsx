@@ -2,11 +2,20 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+// containerClassName: the card to table flight needs `overflow-visible` while a
+// value flies in, or the scroll container clips it.
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<"table"> & { readonly containerClassName?: string }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-card border border-line bg-surface"
+      className={cn(
+        "relative w-full overflow-x-auto rounded-card border border-line bg-surface",
+        containerClassName,
+      )}
     >
       <table
         data-slot="table"
