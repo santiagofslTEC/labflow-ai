@@ -32,6 +32,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 17 | Protocol PDF questions | Later | planned |
 | 18 | Draft report | Later | planned |
 | 19 | Access code gate | Foundation | planned |
+| 20 | Push to talk main page | Release 1 (mic live in Release 2) | in-progress |
 
 ## Foundations
 
@@ -97,6 +98,18 @@ The heart of LabFlow. You type a sentence, the AI turns it into trial, variable,
 The table of confirmed trials in the workspace (P3), updating the moment you confirm. RF-09.
 **Done when:** the table matches exactly what is saved, and refreshes right after each confirmation.
 - [ ] Build it: `/develop trials table`
+
+### 20. Push to talk main page · in-progress · from spec 0004
+`/` becomes one big mic: hold to talk (tap fallback), dictating into the active notebook picked at the top and remembered on this device, with the last saved trial shown and a lab quote over a soft teal glow. You stay on the page after each confirm. Release 1 ships the typed path; the mic goes live with feature 8.
+**Done when:** on `/` you pick a notebook, type a trial, confirm the card, and "Último" shows it with focus back on the input; in Release 2 holding the mic shows live words, then the card (spec 0004, AC-1 to AC-20).
+spec [0004](../specs/0004-push-to-talk-main-page/index.md) · code in `web/src/app/page.tsx`, `web/src/components/push-to-talk/`, `api/app/routers/`, `api/app/repositories/`
+- [x] Design it (spec): `/architect push to talk main page`
+- [ ] Build it: `/develop push to talk main page`
+  - [ ] Slice A: the summary endpoint and the active notebook picker (AC-2, AC-5, AC-13, AC-20)
+  - [ ] Slice A: the page, the typed path, wake lock, phone and accessibility pass (AC-1, AC-3, AC-4, AC-6, AC-10 to AC-12, AC-14 to AC-18)
+  - [ ] Slice B (with feature 8): live words, `onInterrupt`, the 60 s cap, answering a card by voice, failure states (AC-6 to AC-9, AC-11, AC-16)
+  - [ ] Slice B: the notebook page dock's press rules (AC-19)
+- [ ] Verify it: `/check verify push to talk main page`
 
 ## Release 2: Hands free
 

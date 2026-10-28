@@ -5,7 +5,7 @@
 
 ## Summary
 
-LabFlow gets one visual language that every screen builds on. It has a warm cream canvas, near black ink, Instrument Serif for titles, Geist for the interface, and big Geist Mono numbers, like a lab instrument's display. Unsaved values look clearly different from saved ones (a dashed amber edge, a tint, and a "SIN GUARDAR" label), because trusting what gets saved is the whole product. This feature builds the tokens (named colors, sizes, and timings), `web/design.md`, the base components (shadcn/ui on Radix, restyled), the proposal card and the mic dock in every state with sample data, expressive Motion animations, and a `/dev/ui` preview page. Features 5 to 11 then reuse these pieces instead of inventing their own look.
+LabFlow gets one visual language that every screen builds on. It has a warm near white canvas inside a sidebar app shell (a quiet document app, like Notion or Linear), near black ink, Instrument Serif for titles, Geist for the interface, and big Geist Mono numbers, like a lab instrument's display. Unsaved values look clearly different from saved ones (a dashed amber edge, a tint, and a "Sin guardar" label), because trusting what gets saved is the whole product. This feature builds the tokens (named colors, sizes, and timings), `web/design.md`, the base components (shadcn/ui on Radix, restyled), the proposal card and the mic dock in every state with sample data, expressive Motion animations, and a `/dev/ui` preview page. Features 5 to 11 then reuse these pieces instead of inventing their own look. Amended 2026-10-28 after a design review: the sidebar shell, quieter colors, ink and outline buttons with no red fills, soft dot badges, and the `PushToTalk` mic (AC-17, AC-19, AC-20); the voice first main page itself is spec [0004](../0004-push-to-talk-main-page/index.md).
 
 ## Requirements
 
@@ -24,7 +24,7 @@ LabFlow gets one visual language that every screen builds on. It has a warm crea
 - **AC-6**: `vitest-axe` reports zero violations for every component state rendered in the tests.
 - **AC-7**: Confirmar, Editar, Descartar, and the mic pill are at least 48px tall; every other control is at least 40px tall.
 - **AC-8**: `ProposalCard` renders each of these states from props alone, with no network: `proposed`, `editing` (one value in an inline field), `saving`, `saved`, `needs_clarification` (missing values as empty slots plus the question), `correction` (old and new value side by side plus "¿Reemplazo el ensayo N?"), and `save_error` (message plus Reintentar). Any value can also show a range warning row. A value whose variable has no unit (pH) shows the number alone.
-- **AC-9**: In every unsaved state (`proposed`, `editing`, `saving`, `needs_clarification`, `correction`, `save_error`) the card shows the "SIN GUARDAR" badge, a dashed `--color-unsaved-border` edge, and the `--color-unsaved` tint. In `saved` it shows a solid border, the teal check, and "Guardado". The two can be told apart in grayscale.
+- **AC-9**: In every unsaved state (`proposed`, `editing`, `saving`, `needs_clarification`, `correction`, `save_error`) the card shows the "Sin guardar" badge, a dashed `--color-unsaved-border` edge, and the `--color-unsaved` tint. In `saved` it shows a solid border, the teal check, and "Guardado". The two can be told apart in grayscale.
 - **AC-10**: Focus moves to the card's primary action (Confirmar or Reemplazar, or the first empty slot in `needs_clarification`) only when the card mounts or its state kind changes from anything other than `editing`, and only if no text field (`input`, `textarea`, `[contenteditable]`) currently has focus. Leaving `editing` (Guardar, Enter, Cancelar, or Esc) returns focus to that value's Editar. Entering `save_error` focuses Reintentar. After `onSettled` the card is gone and the parent moves focus to the dock's text field. Enter on the focused primary action triggers it. There are no global shortcuts, and typing in the dock's text field never triggers a card action.
 - **AC-11**: The card holds one polite `aria-live` region that is rendered empty on mount and then updated with the announcement for each state from the copy table (for example "Propuesta del ensayo 3, sin guardar", "Ensayo 3 guardado"). The `save_error` message is rendered in a `role="alert"` element instead.
 - **AC-12**: `MicDock` renders each of these states from props: `idle` (black pill "Dictar"), `requesting_permission` ("Permite el micrófono"), `listening` (5 level bars, each a fixed height envelope `[0.5, 0.8, 1, 0.8, 0.5]` times `level` (0 to 1, clamped), with a 0.15 floor; a gentle CSS pulse when `level` is absent; an `mm:ss` timer from `elapsedMs`, clamped to `00:00`..`99:59`; and Detener), `processing` ("Transcribiendo…"), `unavailable` (muted pill with the reason string for `denied`, `no_device`, or `insecure`; entering it moves focus to the text field), and `service_error` (headline "No te escuché bien" plus `message` as a second line, plus Reintentar; in a `role="alert"` element). The dock's text field is a single line Input that stays usable in every state; Enter or the Enviar button submits; Enviar is disabled when `text` is blank. The dock holds its own polite live region, rendered empty on mount, announcing each state from the copy table. The dock is `position: fixed` to the bottom with `env(safe-area-inset-bottom)` padding, page content reserves its height as bottom padding, and layouts use `dvh` so the phone keyboard does not hide it.
@@ -32,14 +32,16 @@ LabFlow gets one visual language that every screen builds on. It has a warm crea
 - **AC-14**: `WorkspaceLayout` renders each slot (`conversation`, `card`, `table`, `chart`, `dock`) exactly once and switches layout with CSS only. At 1024px and wider: two columns (left: conversation with the card below it, just above the dock; right: table above chart), tab list hidden. Below 1024px: one column with a tab list (Conversación · Tabla · Gráfico) under the header; Radix tab panels use `forceMount` and are hidden with CSS, so nothing mounts twice; the card lives in the Conversación panel, and when `card` is present while another tab is active, the Conversación tab shows a dot with the accessible label "Propuesta pendiente". The dock stays pinned to the bottom on every size. From 320px to 1920px wide no page scrolls sideways (checked by hand; jsdom cannot measure layout).
 - **AC-15**: With motion allowed, the card rises and fades in on a spring, its state changes animate, and in `saved` it shows the check, then collapses and calls `onSettled` once when the exit finishes (about 1.2 s; under reduced motion right after a fade of 150ms or less). The dock morphs between states. On `/dev/ui`, confirming the sample card makes each value fly into its cell of a sample table row: the row mounts when the card reaches `saved`, each value and its cell share the `layoutId` `${layoutIdPrefix}-${variableId}` inside one `LayoutGroup`, the number moves with `layout="position"` and crossfades between the 32px and 15px sizes (no scale stretch), and the card collapses only after the flight. With `prefers-reduced-motion: reduce`, every one of these becomes an opacity fade of 150ms or less, or no animation at all, and animated components set `data-motion="reduced"` so tests can check it. The movement itself is checked by hand on `/dev/ui`.
 - **AC-16**: `/dev/ui` shows every base component and every card and dock state, using the demo experiment's sample data (Temperatura °C, Duración min, Rendimiento %, trials 1 to 5), in whichever theme the system uses. It returns 404 when `VERCEL_ENV` is `production`, and renders locally and on Vercel preview deploys. The rule lives in a pure `isDevUiEnabled(vercelEnv: string | undefined): boolean` in `web/src/lib/dev-ui.ts`.
-- **AC-17**: The root layout applies the fonts, tokens, and `AppShell` (header with the wordmark, content area, and the slot for the dock). The home page shows the wordmark, the serif greeting from the copy table, and the API status as a `Badge`, keeping its three current outcomes: connecting (`neutral`), connected with the env name (`saved`), not responding (`danger`).
+- **AC-17**: The root layout applies the fonts, tokens, and `AppShell`. At 1024px and wider `AppShell` shows a 240px `Sidebar` on the `canvas` (the `BrandMark` wordmark, Inicio, the Experimentos list or its empty line, and the dev pages when `isDevUiEnabled`) beside a `surface` content sheet inset from the window; below 1024px a 56px sticky top bar holds a menu button that opens the same sidebar as a sheet (`MobileNav`) and the wordmark. The content area pads its bottom by `--dock-height`. Until spec 0004 replaces it, the home page shows the serif greeting from the copy table and the API status as a `Badge`, keeping its three outcomes: connecting (`neutral`), connected with the env name (`saved`), not responding (`danger`).
 - **AC-18**: `web/src/app/manifest.ts` sets `name: "LabFlow AI"`, `short_name: "LabFlow"`, `lang: "es"`, `start_url: "/"`, `display: "standalone"`, `background_color` from the light canvas and `theme_color` from the light ink (a test checks both equal the `globals.css` tokens), and points to `/icons/icon-192.png`, `/icons/icon-512.png`, and `/icons/icon-maskable-512.png` (purposes `any`, `any`, `maskable`; files you provide). `BrandMark` renders the text wordmark "LabFlow" in Instrument Serif until `web/public/brand/logo.svg` exists, then switching to the logo is a one line change.
+- **AC-19**: `PushToTalk` (`web/src/components/push-to-talk/`) is a pure presentational big mic (96px round, ink fill) that takes `MicDockState` plus `onStart`, `onStop`, `onCancel`, `onKeyboard`, and `onInterrupt(elapsedMs)`, which it calls instead of a release when a press is cancelled (`pointercancel`), so the parent can apply its own rule (spec 0004, AC-9). A press held 350 ms or more stops on release; a shorter press is a tap that keeps listening until the next press (`releaseOutcome` in `press.ts`, unit tested). Space acts as a hold; Enter and assistive tech clicks (a click with `detail` 0) toggle. While listening it shows level bars, the `mm:ss` timer, a visible Cancelar, and the hint "Suelta para enviar" or "Toca otra vez para terminar"; it ignores presses while `requesting_permission`, `processing`, or `unavailable` (`aria-disabled`), shows the unavailable reason, and reads `service_error` in a `role="alert"`. It has a polite live region like `MicDock`, suppresses the long press callout, and vitest-axe finds no violations in idle, listening, processing, and unavailable.
+- **AC-20**: Buttons follow four variants: `primary` (ink fill), `secondary` (surface with a hairline `line` border), `ghost` (muted text), and `danger`, which looks like `secondary` with only its icon in `danger`; no button has a red or bright fill. Badges are soft sentence case pills with a status dot (hidden when an icon leads), with no outline. Section labels and table headers are sentence case, never letter spaced uppercase. Error rows in the card and dock use a `sunken` fill with a small `danger` icon, the headline in ink, and the message muted.
 
 ## Decision
 
 **Chosen option**: Option 1: Warm paper with instrument readouts, built on shadcn/ui and Radix, animated with Motion.
 
-LabFlow uses a warm cream and near black palette with one teal "saved" accent and an amber "unsaved" signal, Instrument Serif titles over Geist and Geist Mono, restyled shadcn/ui components, and Motion for expressive but reduced motion safe animation.
+LabFlow uses a warm near white and near black palette in a sidebar app shell, with one teal "saved" accent and an amber "unsaved" signal, Instrument Serif titles over Geist and Geist Mono, restyled shadcn/ui components, and Motion for expressive but reduced motion safe animation.
 
 **Implementation skills**: `shadcn` (`shadcn-ui/ui`, `.claude/skills/shadcn/`) · `vercel-react-best-practices` (`vercel-labs/agent-skills`, `.claude/skills/vercel-react-best-practices/`). Where the shadcn skill's defaults differ from this spec (Base UI, a new app scaffold, an uppercase `DESIGN.md`), this spec wins: Radix, the existing `web/` app, and `web/design.md`.
 
@@ -59,23 +61,23 @@ LabFlow uses a warm cream and near black palette with one teal "saved" accent an
 
 **Data model sketch**: none. This feature stores nothing. The card's props mirror spec 0002's `proposal` and `proposal_value` (see *Value sourcing*), so feature 6 maps data straight in.
 
-**Design tokens** (light on `:root`, dark under `prefers-color-scheme: dark`; names become Tailwind classes such as `bg-canvas`, `text-ink-muted`, `border-unsaved-border`):
+**Design tokens** (values amended 2026-10-28; light on `:root`, dark under `prefers-color-scheme: dark`; names become Tailwind classes such as `bg-canvas`, `text-ink-muted`, `border-unsaved-border`):
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-canvas` | `#F6F3EE` | `#171512` | page background (cream paper / warm charcoal) |
-| `--color-surface` | `#FFFFFF` | `#211E1A` | cards, dock, table |
-| `--color-sunken` | `#EFEAE2` | `#2A2621` | inputs at rest, table header, tabs track |
-| `--color-ink` | `#1F1B16` | `#F3EEE6` | text, primary button fill |
-| `--color-ink-muted` | `#6B6358` | `#A89F92` | secondary text, labels |
+| `--color-canvas` | `#FBFAF8` | `#191817` | sidebar and window behind the content sheet (warm near white / soft charcoal) |
+| `--color-surface` | `#FFFFFF` | `#201F1D` | content sheet, cards, composer, dialogs |
+| `--color-sunken` | `#F3F1EC` | `#292725` | hover, view chips, badges, tabs track, error rows |
+| `--color-ink` | `#1F1B16` | `#F1EEE9` | text, primary button fill |
+| `--color-ink-muted` | `#6B6358` | `#A39D94` | secondary text, labels |
 | `--color-on-ink` | `#FAF8F4` | `#1F1B16` | text on the primary button |
-| `--color-line` | `#E3DDD3` | `#3A352E` | decorative dividers (not a control boundary) |
-| `--color-control` | `#8C8377` | `#7A7266` | input and select borders (≥3:1) |
+| `--color-line` | `#EBE7E0` | `#33302C` | decorative dividers (not a control boundary) |
+| `--color-control` | `#8C8377` | `#7D7569` | input and select borders (≥3:1) |
 | `--color-saved` | `#0E6B6B` | `#4FB3A9` | saved check, saved accents |
-| `--color-unsaved` | `#FBF3E2` | `#2B2418` | unsaved card tint |
-| `--color-unsaved-border` | `#B7791F` | `#E0A84A` | dashed unsaved edge, SIN GUARDAR badge |
+| `--color-unsaved` | `#FDF6E7` | `#2B2418` | unsaved card tint |
+| `--color-unsaved-border` | `#B7791F` | `#E0A84A` | dashed unsaved edge, unsaved badge dot |
 | `--color-warning-ink` | `#8A5A00` | `#F0C27A` | range warning text |
-| `--color-danger` | `#B42318` | `#F2867A` | Descartar emphasis, save error |
+| `--color-danger` | `#B42318` | `#F2867A` | error and destructive icons, badge dots (never a button fill) |
 | `--color-focus` | `#0E6B6B` | `#4FB3A9` | focus ring |
 | `--color-chart-1` to `-4` | `#0E6B6B`, `#B7791F`, `#5B5BD6`, `#C2410C` | `#4FB3A9`, `#E0A84A`, `#9B9BF0`, `#F4875A` | Plotly series (feature 9) |
 
@@ -83,7 +85,7 @@ Token plumbing in `globals.css` (Tailwind v4): the `--color-*`, `--radius-*`, an
 
 Badge variants (text / background / border): `neutral` `ink-muted` / `sunken` / none; `saved` `saved` / `surface` / `saved`; `unsaved` `warning-ink` / `unsaved` / `unsaved-border`; `warning` same as `unsaved` with a warning icon; `danger` `danger` / `surface` / `danger`. Placeholder text uses `ink-muted`. Disabled controls use 50% opacity (exempt from contrast under WCAG).
 
-Type scale (Tailwind `@theme` font and size tokens): display `Instrument Serif` 40/44 at `lg`, 32/36 below; title serif 28/32; body Geist 16/24; small 14/20; label Geist 12/16, uppercase, 0.06em tracking; readout Geist Mono 32/36 at `lg`, 28/32 below, `tabular-nums`; table numbers Geist Mono 15/20 `tabular-nums`, right aligned. Spacing: Tailwind's 4px scale. Radius: `--radius-card` 20px, `--radius-control` 12px, pills full. Shadow: `--shadow-card` `0 1px 2px rgb(31 27 22 / 0.06), 0 8px 24px rgb(31 27 22 / 0.08)` (dark: `0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35)`); `--shadow-dock` a stronger version. Targets: `h-12` (48px) for card actions and the mic pill, `h-10` (40px) minimum elsewhere.
+Type scale (Tailwind `@theme` font and size tokens): display `Instrument Serif` 40/44 at `lg`, 32/36 below; title serif 28/32; body Geist 16/24; small 14/20; label Geist 12/16 or 14/20, sentence case (no uppercase labels); readout Geist Mono 32/36 at `lg`, 28/32 below, `tabular-nums`; table numbers Geist Mono 15/20 `tabular-nums`, right aligned. Spacing: Tailwind's 4px scale. Radius: `--radius-card` 14px, `--radius-control` 10px, pills full. Shadow: `--shadow-control` a 1px lift for buttons, inputs, and the sheet; `--shadow-card` `0 1px 2px rgb(31 27 22 / 0.04), 0 4px 12px rgb(31 27 22 / 0.05)` (dark: `0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25)`); `--shadow-dock` a stronger version for the floating composer and the push to talk mic. Targets: `h-12` (48px) for card actions and the mic pill, `h-10` (40px) minimum elsewhere.
 
 Motion tokens (`web/src/lib/motion.ts`, constants only): `spring.snappy` `{ type: "spring", stiffness: 420, damping: 34 }` for state changes and the dock morph; `spring.gentle` `{ type: "spring", stiffness: 220, damping: 26 }` for the card entering and the flight; `duration.fade` 0.15 s. The root wraps the app in `<MotionConfig reducedMotion="user">`, and every animated component also checks `useReducedMotion()` so movement becomes a fade.
 
@@ -100,7 +102,8 @@ Motion tokens (`web/src/lib/motion.ts`, constants only): `spring.snappy` `{ type
 | Dialog | `web/src/components/ui/dialog.tsx` | shadcn `dialog` (Radix) | focus trap and return |
 | Toaster | `web/src/components/ui/sonner.tsx` | shadcn `sonner` | mounted once in the root layout |
 | Skeleton, EmptyState | `web/src/components/ui/` | shadcn `skeleton`; EmptyState hand written | EmptyState: icon, serif title, one line, optional action |
-| AppShell, PageHeader, BrandMark | `web/src/components/app-shell/` | hand written | header 64px, serif title slot, content `max-w-7xl`, dock slot |
+| AppShell, Sidebar, MobileNav, PageHeader, PanelHeading, BrandMark | `web/src/components/app-shell/` | hand written + Radix Dialog | sidebar and content sheet, 56px phone top bar, content `max-w-6xl`, dock slot (AC-17) |
+| PushToTalk | `web/src/components/push-to-talk/` | Button, `mic-dock/meter` | pure presentational big mic, press rule in `press.ts` (AC-19) |
 | WorkspaceLayout | `web/src/components/app-shell/workspace-layout.tsx` | hand written + Tabs | props `conversation`, `card?`, `table`, `chart`, `dock` as React nodes; each rendered once (AC-14) |
 | ProposalCard | `web/src/components/proposal-card/` | Card, Button, Badge, Input | pure presentational, contract below |
 | MicDock | `web/src/components/mic-dock/` | Button, Input | pure presentational, contract below; single line text field |
@@ -197,7 +200,7 @@ A row with `warning` set shows a warning row under it (warning icon + text, `war
 
 | Where | Text |
 |---|---|
-| Card badge (unsaved states) / saved label | "SIN GUARDAR" / "Guardado" |
+| Card badge (unsaved states) / saved label | "Sin guardar" / "Guardado" |
 | Card header / unknown trial | "Ensayo {n}" / "Ensayo ?" (the "?" styled as an empty slot) |
 | Card prompt (`proposed`) | "¿Lo guardo?" |
 | Card prompt (`correction`) | "¿Reemplazo el ensayo {n}?" |
@@ -248,7 +251,7 @@ A row with `warning` set shows a warning row under it (warning icon + text, `war
 
 **Key invariants**:
 - Components never render a raw color; every color comes from a token (AC-1).
-- Contrast pairs checked by the test (AC-4), in both themes. Text, ≥4.5:1: `ink` on `canvas`, `surface`, `unsaved`; `ink-muted` on `canvas`, `surface`, `sunken`, `unsaved`; `on-ink`/`ink`; `warning-ink`/`unsaved`; `danger` on `surface`, `canvas`, `unsaved`; `saved` on `surface`, `canvas`, `unsaved`. UI boundaries, ≥3:1: `control` on `surface`, `sunken`, `canvas`; `unsaved-border` on `surface`, `canvas`, `unsaved`; `focus` on `canvas`, `surface`, `sunken`, `unsaved`. These cover every Badge variant and the placeholder. All values were computed while writing this spec and pass; the tightest are light `control`/`sunken` 3.12:1, light `unsaved-border`/`canvas` 3.29:1, and light `ink-muted`/`sunken` 4.94:1, so do not lighten those tokens.
+- Contrast pairs checked by the test (AC-4), in both themes. Text, ≥4.5:1: `ink` on `canvas`, `surface`, `unsaved`; `ink-muted` on `canvas`, `surface`, `sunken`, `unsaved`; `on-ink`/`ink`; `warning-ink`/`unsaved`; `danger` on `surface`, `canvas`, `unsaved`; `saved` on `surface`, `canvas`, `unsaved`. UI boundaries, ≥3:1: `control` on `surface`, `sunken`, `canvas`; `unsaved-border` on `surface`, `canvas`, `unsaved`; `focus` on `canvas`, `surface`, `sunken`, `unsaved`. These cover every Badge variant and the placeholder. All values pass (recomputed 2026-10-28 for the amended tokens); the tightest are dark `control`/`sunken` 3.27:1, light `control`/`sunken` 3.31:1, light `unsaved-border`/`unsaved` 3.38:1, and light `ink-muted`/`sunken` 5.24:1, so do not lighten `control` or `unsaved-border`.
 - Unsaved always shows three signals (badge, dashed edge, tint); color is never the only signal (AC-9).
 - Every number shown to a user goes through `formatQuantity` (AC-13).
 - `ProposalCard` and `MicDock` do no I/O and hold no state beyond the inline edit draft; same props give the same output.
@@ -261,7 +264,7 @@ A row with `warning` set shows a warning row under it (warning icon + text, `war
 
 **Critical test scenarios** (Vitest + Testing Library + vitest-axe, tests colocated as `*.test.ts(x)` beside the code, plus a manual pass on `/dev/ui`). What jsdom cannot check, and is therefore manual: contrast as rendered (the token test covers it), layout and horizontal scroll, the animations themselves, and dark mode rendering.
 - Happy path: render `ProposalCard` in `proposed` with the trial 3 sample, check that focus lands on Confirmar, press Enter, `onConfirm` is called once, and axe finds nothing; verifies **AC-8**, **AC-10**, **AC-6**.
-- Unsaved vs saved: `proposed` has the SIN GUARDAR badge and the dashed class; `saved` has neither and shows "Guardado"; verifies **AC-9**.
+- Unsaved vs saved: `proposed` has the Sin guardar badge and the dashed class; `saved` has neither and shows "Guardado"; verifies **AC-9**.
 - Edit failure: in `editing`, type `abc`; the Field shows an error and `onCommitEdit` is not called; Esc calls `onCancelEdit` and focus returns to Editar; verifies **AC-8**, **AC-10**.
 - No stray saves: with a card in `proposed`, typing "sí" plus Enter in the dock's text field calls `onSubmitText`, never `onConfirm`; verifies **AC-10**, **AC-12**.
 - Mic unavailable: `MicDock` in `unavailable` (`denied`) shows the reason, focus moves to the text field, and the field accepts typing; verifies **AC-12**.
@@ -288,7 +291,8 @@ Skateboard: the smallest usable whole first. Tokens, fonts, and the core compone
 7. Build `MicDock` with all six states, level bars, the timer, the always usable text field, and `aria-live`, plus tests. Satisfies **AC-12**, **AC-7**, **AC-6**.
 8. Add `motion` and `web/src/lib/motion.ts`; animate the card (enter, state changes, saved collapse) and the dock morph; build the card to table flight with `layoutIdPrefix`, `layout="position"` plus a size crossfade, in one `LayoutGroup` (the table row mounts at `saved`, the card collapses after the flight, then `onSettled`); make every animation fall back under reduced motion and set `data-motion="reduced"`. If this step runs late, ship the card's fade and collapse without the flight; nothing else depends on it. Satisfies **AC-15**.
 9. Write `isDevUiEnabled` in `web/src/lib/dev-ui.ts` with its unit test, then build `/dev/ui` (`web/src/app/dev/ui/page.tsx` plus `sample-data.ts`), showing every component and state with interactive demos and the flight, calling `notFound()` when the gate is off. Before writing it, read `node_modules/next/dist/docs/` on `notFound()` during static prerender with `cacheComponents`. Finish `web/design.md` (card anatomy, dock states, layout, motion, references). Satisfies **AC-16**, **AC-2**.
-10. Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` in `web/`. Satisfies **AC-1** to **AC-18** (regression gate).
+10. Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` in `web/`. Satisfies **AC-1** to **AC-20** (regression gate).
+11. (Amendment, 2026-10-28) Restyle to the reviewed direction: the new token values, `Sidebar`, `MobileNav`, the content sheet, `PanelHeading`, the borderless table, button and badge variants per AC-20, the transcript and composer on `/dev/ui/workspace`, and a hydration safe `useReducedMotion` in `web/src/hooks/`. Build `PushToTalk` with its press rule and tests, and the `/dev/ui/home` preview of spec 0004. Satisfies **AC-17**, **AC-19**, **AC-20**.
 
 ## Consequences
 
