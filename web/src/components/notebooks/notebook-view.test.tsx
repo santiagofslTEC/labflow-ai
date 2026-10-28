@@ -14,6 +14,11 @@ vi.mock("@/api/experiments", async (importOriginal) => ({
   getExperiment: vi.fn(),
 }));
 
+vi.mock("@/api/capture", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/api/capture")>()),
+  getProposal: vi.fn().mockResolvedValue({ ok: true, data: null }),
+}));
+
 const getMock = vi.mocked(getExperiment);
 
 beforeEach(() => {
@@ -110,5 +115,29 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
       screen.getByRole("heading", { name: "Este cuaderno no existe" }),
     ).toBeInTheDocument();
     await waitFor(() => expect(getMock).not.toHaveBeenCalled());
+  });
+});
+
+describe("Typed capture in the notebook (spec 0006)", () => {
+  it("shows the text box on an open notebook", async () => {
+    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    renderWithQuery(<NotebookView rawId="7" />);
+    expect(
+      await screen.findByRole("textbox", { name: "Escribe una medición" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides it on a closed notebook", async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      data: { ...sampleDetail, status: "closed" },
+    });
+    renderWithQuery(<NotebookView rawId="7" />);
+    expect(
+      await screen.findByText("Este cuaderno está cerrado"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Escribe una medición" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -9,9 +9,11 @@ import {
   MessagesSquareIcon,
   RotateCwIcon,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
-import type { ExperimentDetail } from "@/api/experiments";
+import { experimentKeys, type ExperimentDetail } from "@/api/experiments";
+import { CaptureStage } from "@/components/capture-stage/capture-stage";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,9 +75,11 @@ function BackLink() {
 
 // The notebook workspace (2026-10-28 redesign): the conversation column on the
 // left and a data panel on the right with the trials table and the variables.
-// The conversation stays empty until text capture (feature 6) lands.
+// The conversation column holds typed capture (feature 6): a sentence in, the
+// confirm card out. A save refreshes the notebook list's trial count.
 function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const now = useNow();
+  const queryClient = useQueryClient();
   const created = new Date(experiment.created_at);
   const closed = experiment.status === "closed";
   const trialCount = useExperiments().data?.find(
@@ -129,12 +133,32 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
           />
         </div>
 
-        <EmptyState
-          icon={MessagesSquareIcon}
-          title="Aquí verás cada medición"
-          description="Dicta o escribe un ensayo y LabFlow te mostrará lo que entendió antes de guardarlo."
-          className="flex-1 justify-center"
-        />
+        {closed ? (
+          <EmptyState
+            icon={MessagesSquareIcon}
+            title="Este cuaderno está cerrado"
+            description="Ya no recibe mediciones nuevas."
+            className="flex-1 justify-center"
+          />
+        ) : (
+          <section
+            aria-label="Registrar una medición"
+            className="flex flex-col gap-3"
+          >
+            <p className="text-sm text-ink-muted">
+              Escribe un ensayo y LabFlow te mostrará lo que entendió antes de
+              guardarlo.
+            </p>
+            <CaptureStage
+              experimentId={experiment.id}
+              onSaved={() =>
+                void queryClient.invalidateQueries({
+                  queryKey: experimentKeys.all,
+                })
+              }
+            />
+          </section>
+        )}
       </div>
 
       <NotebookInspector experiment={experiment} trialCount={trialCount} />
