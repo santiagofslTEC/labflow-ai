@@ -31,7 +31,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 16 | CSV export | Later | planned |
 | 17 | Protocol PDF questions | Later | planned |
 | 18 | Draft report | Later | planned |
-| 19 | Access code gate | Foundation | planned |
+| 19 | Access code gate | Foundation | in-progress |
 | 20 | Push to talk main page | Release 1 (mic live in Release 2) | in-progress |
 
 ## Foundations
@@ -75,11 +75,11 @@ spec [0003](../specs/0003-design-system-ui-foundation/index.md) · code in `web/
   - [x] Motion, the card to table flight, `/dev/ui`, finished `web/design.md` (AC-2, AC-15, AC-16)
 - [x] Verify it: `/check verify design system & UI foundation`
 
-### 19. Access code gate · from spec 0002
+### 19. Access code gate · from spec 0002 · in-progress
 The personal access code gate already designed in spec 0001: `POST /api/access`, the signed `labflow_session` cookie, the FastAPI dependency that returns 401, and the Next.js redirect to `/access`. Feature 5 needs its holder name for `experiment.created_by`.
 **Done when:** without a valid code every route except `/api/health` and `/api/access` returns 401, the web app redirects to `/access`, and a valid code lets you in with your holder name available to routes.
-spec [0001](../specs/0001-stack-architecture/index.md)
-- [ ] Build it: `/develop access code gate`
+spec [0001](../specs/0001-stack-architecture/index.md) · code in `api/app/core/{access,gate,errors}.py`, `api/app/routers/access.py`, `web/src/proxy.ts`, `web/src/app/access/`
+- [x] Build it: `/develop access code gate`
 - [ ] Verify it: `/check verify access code gate`
 
 ## Release 1: Typed notebook (smallest usable whole)

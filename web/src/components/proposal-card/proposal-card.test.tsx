@@ -8,7 +8,7 @@ import {
   SAMPLE_PH_VALUE,
   SAMPLE_PHRASE,
   SAMPLE_PROPOSAL_VALUES,
-} from "@/app/dev/ui/sample-data";
+} from "@/app/(app)/dev/ui/sample-data";
 
 import { ProposalCard } from "./proposal-card";
 import type { ProposalCardProps, ProposalCardState } from "./types";

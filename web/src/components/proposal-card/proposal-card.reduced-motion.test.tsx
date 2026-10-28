@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import {
   SAMPLE_PHRASE,
   SAMPLE_PROPOSAL_VALUES,
-} from "@/app/dev/ui/sample-data";
+} from "@/app/(app)/dev/ui/sample-data";
 import { stubReducedMotion } from "@/test/media";
 
 import { ProposalCard } from "./proposal-card";
