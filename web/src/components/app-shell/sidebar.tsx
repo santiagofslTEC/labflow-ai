@@ -8,6 +8,7 @@ import {
   MicIcon,
   PaletteIcon,
   PlusIcon,
+  SettingsIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +30,10 @@ type NavLink = {
 
 const MAIN_LINKS: readonly NavLink[] = [
   { href: "/", label: "Inicio", icon: HouseIcon },
+];
+
+const FOOTER_LINKS: readonly NavLink[] = [
+  { href: "/configuracion", label: "Configuración", icon: SettingsIcon },
 ];
 
 // Only outside production, like /dev/ui itself (AC-16).
@@ -96,7 +101,7 @@ function SidebarNav({
   const { pathname } = location;
 
   return (
-    <nav aria-label="Principal" className="flex flex-col gap-6">
+    <nav aria-label="Principal" className="flex flex-1 flex-col gap-6">
       <NavList links={MAIN_LINKS} pathname={pathname} onNavigate={onNavigate} />
 
       <SidebarNotebooks location={location} onNavigate={onNavigate} />
@@ -116,6 +121,14 @@ function SidebarNav({
           />
         </section>
       ) : null}
+
+      <div className="mt-auto border-t border-line pt-3">
+        <NavList
+          links={FOOTER_LINKS}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
+      </div>
     </nav>
   );
 }

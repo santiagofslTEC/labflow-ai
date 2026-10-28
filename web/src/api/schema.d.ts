@@ -28,11 +28,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Access
+         * @description Who is signed in, for the settings page.
+         */
+        get: operations["read_access_api_access_get"];
         put?: never;
         /** Grant Access */
         post: operations["grant_access_api_access_post"];
-        delete?: never;
+        /**
+         * Revoke Access
+         * @description Sign out: the cookie is httpOnly, so only the API can clear it.
+         */
+        delete: operations["revoke_access_api_access_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -223,6 +231,35 @@ export interface operations {
             };
         };
     };
+    read_access_api_access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessGranted"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
     grant_access_api_access_post: {
         parameters: {
             query?: never;
@@ -271,6 +308,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
+            };
+        };
+    };
+    revoke_access_api_access_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

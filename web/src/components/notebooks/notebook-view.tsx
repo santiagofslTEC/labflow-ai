@@ -1,35 +1,27 @@
 "use client";
 
 import {
+  ChartColumnIcon,
   ChevronRightIcon,
   CloudOffIcon,
+  DownloadIcon,
   FileQuestionIcon,
   MessagesSquareIcon,
   RotateCwIcon,
-  TableIcon,
-  VariableIcon,
 } from "lucide-react";
 import Link from "next/link";
 
 import type { ExperimentDetail } from "@/api/experiments";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { PanelHeading } from "@/components/app-shell/panel-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useExperiment } from "@/hooks/use-experiments";
+import { useExperiment, useExperiments } from "@/hooks/use-experiments";
 import { useNow } from "@/hooks/use-now";
-import { formatRange } from "@/lib/format";
 import { formatShortDate } from "@/lib/relative-time";
+
+import { downloadNotebookCsv, NotebookInspector } from "./notebook-inspector";
 
 // A route segment that can name a notebook; anything else is "no existe"
 // without asking the API (AC-11).
@@ -85,8 +77,10 @@ function BackLink() {
 function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const now = useNow();
   const created = new Date(experiment.created_at);
-  const variables = experiment.variables;
   const closed = experiment.status === "closed";
+  const trialCount = useExperiments().data?.find(
+    (notebook) => notebook.id === experiment.id,
+  )?.trial_count;
 
   return (
     <div className="flex flex-1 flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
@@ -95,6 +89,23 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
           <BackLink />
           <PageHeader
             title={experiment.title}
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => downloadNotebookCsv(experiment)}
+                >
+                  <DownloadIcon aria-hidden />
+                  Exportar datos
+                </Button>
+                <Button asChild>
+                  <a href="#inspector">
+                    <ChartColumnIcon aria-hidden />
+                    Ver resultados
+                  </a>
+                </Button>
+              </>
+            }
             description={
               <div className="flex flex-col gap-3">
                 {experiment.goal ? (
@@ -126,72 +137,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
         />
       </div>
 
-      <aside
-        aria-label="Datos del cuaderno"
-        className="flex min-w-0 flex-col gap-8 lg:border-l lg:border-line lg:pl-8"
-      >
-        <section aria-labelledby="ensayos" className="flex flex-col gap-2">
-          <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  {variables.map((variable) => (
-                    <TableHead key={variable.id} className="text-right">
-                      {variable.name}
-                      {variable.unit ? (
-                        <span className="font-mono"> ({variable.unit})</span>
-                      ) : null}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-            </Table>
-          </div>
-          <p className="px-1 py-3 text-sm text-ink-muted">
-            <span className="font-medium text-ink">Aún no hay ensayos</span>.
-            Cada medición que confirmes será una fila.
-          </p>
-        </section>
-
-        <section aria-labelledby="variables" className="flex flex-col gap-2">
-          <PanelHeading
-            id="variables"
-            icon={VariableIcon}
-            title="Variables"
-            meta={<span className="tabular-nums">{variables.length}</span>}
-          />
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead>Rango</TableHead>
-                <TableHead>Tipo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {variables.map((variable) => (
-                <TableRow key={variable.id}>
-                  <TableCell className="font-medium text-ink">
-                    {variable.name}
-                  </TableCell>
-                  <TableCell className="font-mono">
-                    {variable.unit ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-mono tabular-nums">
-                    {formatRange(variable.min_value, variable.max_value)}
-                  </TableCell>
-                  <TableCell className="text-ink-muted">
-                    {variable.required ? "Requerida" : "Opcional"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </section>
-      </aside>
+      <NotebookInspector experiment={experiment} trialCount={trialCount} />
     </div>
   );
 }

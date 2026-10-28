@@ -27,6 +27,36 @@
       }
     },
     "/api/access": {
+      "get": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Read Access",
+        "description": "Who is signed in, for the settings page.",
+        "operationId": "read_access_api_access_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessGranted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "access"
@@ -83,6 +113,19 @@
                 }
               }
             }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Revoke Access",
+        "description": "Sign out: the cookie is httpOnly, so only the API can clear it.",
+        "operationId": "revoke_access_api_access_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           }
         }
       }
