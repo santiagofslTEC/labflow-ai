@@ -2,11 +2,14 @@
 adapters must return a `ToolCall`. The model picks what to do and quotes the words it read;
 code checks, converts, decides, and replies."""
 
+import unicodedata
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+from app.services.text import fold
 
 
 class _Frozen(BaseModel):
@@ -97,10 +100,22 @@ def arguments_schema(name: str) -> dict[str, object]:
     return {**schema, "properties": properties, "required": required}
 
 
+# Spellings models use for `elegir_ensayo.kind` besides the schema's own.
+_KIND_SPELLINGS: Mapping[str, str] = MappingProxyType(
+    {"correccion": "correccion", "correction": "correccion", "nuevo": "nuevo", "new": "nuevo"}
+)
+
+
 def parse_tool_call(name: str, arguments: Mapping[str, object]) -> ToolCall:
     """Validate a model's tool call. A tool outside the union (including `consultar_dato`
     and `graficar`, kept for features 9 and 10) becomes `not_supported_yet`, never a failure.
     Raises `pydantic.ValidationError` on bad arguments for a known tool."""
     if name not in TOOLS:
         return PedirAclaracion(reason="not_supported_yet")
+    kind = arguments.get("kind")
+    if name == "elegir_ensayo" and isinstance(kind, str):
+        arguments = {
+            **arguments,
+            "kind": _KIND_SPELLINGS.get(fold(unicodedata.normalize("NFC", kind.strip())), kind),
+        }
     return TOOL_CALL.validate_python({**arguments, "tool": name})

@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     llm_provider: Literal["fallback", "ollama", "anthropic", "fake"] = "fallback"
     ollama_host: str = "https://ollama.com"
     ollama_api_key: str | None = None
-    ollama_model: str = "gpt-oss:120b"
+    ollama_model: str = "deepseek-v4.1-flash"  # 50/50 on the live smoke test (spec 0006)
     ollama_hedge_s: float = Field(default=1.5, gt=0)
     llm_deadline_s: float = Field(default=4.5, gt=0)
     anthropic_api_key: str | None = None

@@ -11,7 +11,8 @@ def _fold_char(char: str) -> str:
 
 def fold(text: str) -> str:
     """Lowercase without accents, one character per character, so every index in the folded
-    text points at the same character in the original."""
+    text points at the same character in the original. Expects NFC text (the routes
+    normalize it), where each accented letter is one character."""
     return "".join(_fold_char(char) for char in text)
 
 

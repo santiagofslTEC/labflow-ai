@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from app.ai.prompt import system_prompt
 from app.ai.provider import Decision, ProviderFailure
 from app.ai.tools import TOOLS, arguments_schema, parse_tool_call
+from app.services.numbers import parse_number
 from app.services.turn_plan import TurnContext
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,27 @@ def _arguments(raw: object) -> Mapping[str, object]:
     if not isinstance(raw, Mapping):
         raise TypeError("tool arguments are not an object")
     return {str(k): v for k, v in cast(Mapping[object, object], raw).items()}
+
+
+def _read_value(value: dict[str, object]) -> dict[str, object]:
+    """gpt-oss sometimes sends `value` as words ("setenta y cuatro"); read it in code.
+    Grounding still checks it against the sentence, so nothing new can slip in."""
+    raw = value.get("value")
+    if isinstance(raw, str):
+        number = parse_number(raw)
+        return {**value, "value": raw if number is None else number}
+    return value
+
+
+def _with_read_values(arguments: Mapping[str, object]) -> Mapping[str, object]:
+    values = arguments.get("values")
+    if not isinstance(values, list):
+        return arguments
+    read = [
+        _read_value(cast(dict[str, object], v)) if isinstance(v, dict) else v
+        for v in cast(list[object], values)
+    ]
+    return {**arguments, "values": read}
 
 
 class OllamaProvider:
@@ -66,7 +88,7 @@ class OllamaProvider:
             return ProviderFailure(self.name, "invalid_output", "no tool call")
         first = calls[0].function
         try:
-            call = parse_tool_call(first.name, _arguments(first.arguments))
+            call = parse_tool_call(first.name, _with_read_values(_arguments(first.arguments)))
         except (ValidationError, ValueError, TypeError) as exc:
             return ProviderFailure(self.name, "invalid_output", type(exc).__name__)
         return Decision(call=call, provider=self.name)

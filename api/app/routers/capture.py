@@ -3,6 +3,7 @@ access session. Only `/utterances` awaits the model; the buttons are plain `def`
 store no turn (except the hand edit's "Editado" turn) and reply from the templates."""
 
 import math
+import unicodedata
 from typing import Literal
 
 from fastapi import APIRouter
@@ -158,7 +159,8 @@ async def post_utterance(
     provider: ProviderDep,
     holder: HolderDep,
 ) -> TurnResponse:
-    text = body.text.strip()
+    # NFC so every accent is one character: the number reader slices the text by index.
+    text = unicodedata.normalize("NFC", body.text).strip()
     if not 1 <= len(text) <= TEXT_MAX:
         raise _fail("invalid_text")
     if not 1 <= experiment_id <= _ID_MAX:

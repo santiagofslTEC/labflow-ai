@@ -42,4 +42,5 @@ include = ["app", "scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra -m 'not live'"
+markers = ["live: calls the real AI providers; run with `uv run pytest -m live` (needs keys)"]

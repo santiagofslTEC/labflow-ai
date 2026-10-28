@@ -11,7 +11,7 @@ from app.ai.provider import Decision, ProviderFailure
 from app.ai.providers.anthropic import tool_definitions as claude_tools
 from app.ai.providers.fake import FakeProvider, read_by_rules
 from app.ai.providers.fallback import FallbackProvider
-from app.ai.tools import Confirmar, Descartar, ProponerMedicion
+from app.ai.tools import Confirmar, Descartar, ElegirEnsayo, ProponerMedicion, parse_tool_call
 from app.core.settings import Settings
 from app.services.card_state import VariableInfo
 from app.services.turn_plan import TurnContext
@@ -148,3 +148,18 @@ def test_claude_tools_are_strict_and_closed() -> None:
         assert tool.get("strict") is True
         schema = tool["input_schema"]
         assert schema.get("additionalProperties") is False  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+
+
+def test_english_kind_spellings_are_read() -> None:
+    assert parse_tool_call("elegir_ensayo", {"kind": "correction"}) == ElegirEnsayo(
+        kind="correccion"
+    )
+    assert parse_tool_call("elegir_ensayo", {"kind": "new"}) == ElegirEnsayo(kind="nuevo")
+
+
+def test_accented_kind_in_either_unicode_form() -> None:
+    import unicodedata
+
+    for form in ("NFC", "NFD"):
+        kind = unicodedata.normalize(form, "corrección")
+        assert parse_tool_call("elegir_ensayo", {"kind": kind}) == ElegirEnsayo(kind="correccion")

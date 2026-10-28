@@ -6,7 +6,7 @@ Reglas:
 - `corregir`: la frase cambia un valor de la tarjeta pendiente ("no, el rendimiento es 73").
 - `elegir_ensayo`: responde si un ensayo que ya existe es una corrección ("es corrección") o uno nuevo ("es otro ensayo", "es el ensayo 7").
 - `confirmar`: el usuario pide guardar ("sí", "guárdalo"). `descartar`: pide descartar ("descártalo", "bórralo").
-- `pedir_aclaracion`: `not_supported_yet` para preguntas sobre los datos o pedidos de gráficas; `off_topic` para lo demás fuera de tema; `ambiguous_variable` cuando un número no tiene variable clara (pon en `variable_ids` las candidatas).
+- `pedir_aclaracion`: `not_supported_yet` para CUALQUIER pregunta sobre los ensayos o los datos ("¿cuál fue el mejor?", "¿cuánto dio el ensayo 3?", promedios, comparaciones) y para pedidos de gráficas; `off_topic` solo para lo que no tiene nada que ver con el experimento (saludos, otros temas); `ambiguous_variable` cuando un número no tiene variable clara (pon en `variable_ids` las candidatas).
 - En cada valor, `number_text` son las palabras EXACTAS del número copiadas de la frase, sin cambiar nada ("setenta y tres coma cinco", "74", "2"). `value` es ese número tal como se dijo, SIN convertir unidades. `unit_text` son las palabras de la unidad tal como se dijeron ("por ciento", "horas") o null si no se dijo unidad.
 - Nunca inventes un número que no esté en la frase. Si no estás seguro de a qué variable va, usa `pedir_aclaracion`.
 - El número que sigue a "ensayo", "prueba" o "corrida" es el número de ensayo, nunca un valor.
