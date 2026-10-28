@@ -20,6 +20,11 @@ pre-commit:
       glob: "*.{ts,tsx}"
       run: pnpm typecheck
 
+    - name: web test
+      root: web/
+      glob: "*.{ts,tsx,css}"
+      run: pnpm test
+
     - name: api format
       root: api/
       glob: "*.py"

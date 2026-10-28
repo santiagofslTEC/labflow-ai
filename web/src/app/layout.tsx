@@ -1,5 +1,11 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+
+import { AppShell } from "@/components/app-shell/app-shell";
+import { MotionProvider } from "@/components/app-shell/motion-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { isDevUiEnabled } from "@/lib/dev-ui";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,18 +18,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Display text only, and never bolded: it ships in one weight.
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  weight: "400",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "LabFlow AI",
   description: "Cuaderno de laboratorio por voz",
+};
+
+// `cover` lets the fixed dock pad itself by env(safe-area-inset-bottom).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body>
+        <MotionProvider>
+          <AppShell showDevLinks={isDevUiEnabled(process.env.VERCEL_ENV)}>
+            {children}
+          </AppShell>
+          <Toaster />
+        </MotionProvider>
+      </body>
     </html>
   );
 }

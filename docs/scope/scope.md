@@ -16,7 +16,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 1 | Stack & architecture | Foundation | done |
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Data model | Foundation | in-progress |
-| 4 | Design system & UI foundation | Foundation | planned |
+| 4 | Design system & UI foundation | Foundation | done |
 | 5 | Experiments: create and list | Release 1 | planned |
 | 6 | Text capture and confirm card | Release 1 | planned |
 | 7 | Trials table | Release 1 | planned |
@@ -32,6 +32,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 17 | Protocol PDF questions | Later | planned |
 | 18 | Draft report | Later | planned |
 | 19 | Access code gate | Foundation | planned |
+| 20 | Push to talk main page | Release 1 (mic live in Release 2) | in-progress |
 
 ## Foundations
 
@@ -62,10 +63,17 @@ spec [0002](../specs/0002-data-model/index.md) · code in `api/app/models/`, `ap
   - [x] Seed the sample experiment with `make seed` and run it against the dev database (AC-13)
 - [x] Verify it: `/check verify data model`
 
-### 4. Design system & UI foundation · needs a decision
+### 4. Design system & UI foundation · done
 A small visual language and base pieces: layout, buttons, form fields, the proposal card, an always visible mic state. The proposal card is the star of the demo.
 **Done when:** `design.md` covers type, color, spacing, and the card; base components work by keyboard and show focus.
-- [ ] Design it (spec): `/architect design system & UI foundation`
+spec [0003](../specs/0003-design-system-ui-foundation/index.md) · code in `web/src/components/`, `web/src/app/globals.css`, `web/src/app/dev/ui/`, `web/design.md`
+- [x] Design it (spec): `/architect design system & UI foundation`
+- [x] Build it: `/develop design system & UI foundation`
+  - [x] Test setup, tokens, fonts, contrast and raw color tests, first `web/design.md` (AC-1 to AC-4, AC-6)
+  - [x] Base components, number formatting, app shell, workspace layout, home page, manifest (AC-5, AC-7, AC-13, AC-14, AC-17, AC-18)
+  - [x] Proposal card and mic dock in every state (AC-8 to AC-12)
+  - [x] Motion, the card to table flight, `/dev/ui`, finished `web/design.md` (AC-2, AC-15, AC-16)
+- [x] Verify it: `/check verify design system & UI foundation`
 
 ### 19. Access code gate · from spec 0002
 The personal access code gate already designed in spec 0001: `POST /api/access`, the signed `labflow_session` cookie, the FastAPI dependency that returns 401, and the Next.js redirect to `/access`. Feature 5 needs its holder name for `experiment.created_by`.
@@ -90,6 +98,18 @@ The heart of LabFlow. You type a sentence, the AI turns it into trial, variable,
 The table of confirmed trials in the workspace (P3), updating the moment you confirm. RF-09.
 **Done when:** the table matches exactly what is saved, and refreshes right after each confirmation.
 - [ ] Build it: `/develop trials table`
+
+### 20. Push to talk main page · in-progress · from spec 0004
+`/` becomes one big mic: hold to talk (tap fallback), dictating into the active notebook picked at the top and remembered on this device, with the last saved trial shown and a lab quote over a soft teal glow. You stay on the page after each confirm. Release 1 ships the typed path; the mic goes live with feature 8.
+**Done when:** on `/` you pick a notebook, type a trial, confirm the card, and "Último" shows it with focus back on the input; in Release 2 holding the mic shows live words, then the card (spec 0004, AC-1 to AC-20).
+spec [0004](../specs/0004-push-to-talk-main-page/index.md) · code in `web/src/app/page.tsx`, `web/src/components/push-to-talk/`, `api/app/routers/`, `api/app/repositories/`
+- [x] Design it (spec): `/architect push to talk main page`
+- [ ] Build it: `/develop push to talk main page`
+  - [ ] Slice A: the summary endpoint and the active notebook picker (AC-2, AC-5, AC-13, AC-20)
+  - [ ] Slice A: the page, the typed path, wake lock, phone and accessibility pass (AC-1, AC-3, AC-4, AC-6, AC-10 to AC-12, AC-14 to AC-18)
+  - [ ] Slice B (with feature 8): live words, `onInterrupt`, the 60 s cap, answering a card by voice, failure states (AC-6 to AC-9, AC-11, AC-16)
+  - [ ] Slice B: the notebook page dock's press rules (AC-19)
+- [ ] Verify it: `/check verify push to talk main page`
 
 ## Release 2: Hands free
 

@@ -1,14 +1,41 @@
 "use client";
 
+import { CircleCheckIcon, CircleXIcon, LoaderIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api } from "@/api/client";
+import { Badge } from "@/components/ui/badge";
 
-type Status =
-  { state: "loading" } | { state: "ok"; env: string } | { state: "down" };
+export type ApiHealth =
+  | { readonly state: "loading" }
+  | { readonly state: "ok"; readonly env: string }
+  | { readonly state: "down" };
+
+export function ApiStatusBadge({ status }: { readonly status: ApiHealth }) {
+  return (
+    <div role="status">
+      {status.state === "loading" ? (
+        <Badge variant="neutral">
+          <LoaderIcon aria-hidden className="motion-safe:animate-spin" />
+          Conectando con la API…
+        </Badge>
+      ) : status.state === "ok" ? (
+        <Badge variant="saved">
+          <CircleCheckIcon aria-hidden />
+          API conectada ({status.env})
+        </Badge>
+      ) : (
+        <Badge variant="danger">
+          <CircleXIcon aria-hidden />
+          La API no responde
+        </Badge>
+      )}
+    </div>
+  );
+}
 
 export function ApiStatus() {
-  const [status, setStatus] = useState<Status>({ state: "loading" });
+  const [status, setStatus] = useState<ApiHealth>({ state: "loading" });
 
   useEffect(() => {
     api
@@ -19,13 +46,5 @@ export function ApiStatus() {
       .catch(() => setStatus({ state: "down" }));
   }, []);
 
-  if (status.state === "loading")
-    return <p role="status">Conectando con la API…</p>;
-  if (status.state === "down")
-    return (
-      <p role="status">
-        La API no responde. ¿Está corriendo en el puerto 8000?
-      </p>
-    );
-  return <p role="status">API conectada ({status.env})</p>;
+  return <ApiStatusBadge status={status} />;
 }
