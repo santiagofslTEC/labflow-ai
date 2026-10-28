@@ -59,34 +59,34 @@
   --text-label--letter-spacing: 0.06em;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-canvas: #16181c;
-    --color-surface: #1d2024;
-    --color-sunken: #272a2f;
-    --color-ink: #eef0f2;
-    --color-ink-muted: #a3a7ae;
-    --color-on-ink: #1b2331;
-    --color-line: #31353b;
-    --color-control: #7c8088;
-    --color-brand: #4fbf8b;
-    --color-brand-soft: #1b3328;
-    --color-on-brand: #0d1a13;
-    --color-saved: #4fbf8b;
-    --color-unsaved: #2b2418;
-    --color-unsaved-border: #e0a84a;
-    --color-warning-ink: #f0c27a;
-    --color-danger: #f2867a;
-    --color-focus: #4fbf8b;
-    --color-chart-1: #4fbf8b;
-    --color-chart-2: #e0a84a;
-    --color-chart-3: #9b9bf0;
-    --color-chart-4: #f4875a;
+/* The app is always light (2026-10-28). These dark values only apply when
+   <html data-theme="dark"> is set on purpose; nothing sets it today. */
+:root[data-theme="dark"] {
+  --color-canvas: #16181c;
+  --color-surface: #1d2024;
+  --color-sunken: #272a2f;
+  --color-ink: #eef0f2;
+  --color-ink-muted: #a3a7ae;
+  --color-on-ink: #1b2331;
+  --color-line: #31353b;
+  --color-control: #7c8088;
+  --color-brand: #4fbf8b;
+  --color-brand-soft: #1b3328;
+  --color-on-brand: #0d1a13;
+  --color-saved: #4fbf8b;
+  --color-unsaved: #2b2418;
+  --color-unsaved-border: #e0a84a;
+  --color-warning-ink: #f0c27a;
+  --color-danger: #f2867a;
+  --color-focus: #4fbf8b;
+  --color-chart-1: #4fbf8b;
+  --color-chart-2: #e0a84a;
+  --color-chart-3: #9b9bf0;
+  --color-chart-4: #f4875a;
 
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
-    --shadow-dock: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.5);
-    --shadow-control: 0 1px 2px rgb(0 0 0 / 0.3);
-  }
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
+  --shadow-dock: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.5);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.3);
 }
 
 /* Fonts come from next/font in layout.tsx. */
@@ -98,7 +98,7 @@
 
 /* shadcn's semantic names, aliased once to the tokens so its classes keep working. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --background: var(--color-canvas);
   --foreground: var(--color-ink);

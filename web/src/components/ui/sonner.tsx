@@ -10,11 +10,11 @@ import {
 import type * as React from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-// No theme toggle: sonner follows prefers-color-scheme, like the tokens.
+// The app is always light, so the toasts are too.
 function Toaster(props: ToasterProps) {
   return (
     <Sonner
-      theme="system"
+      theme="light"
       position="bottom-right"
       icons={{
         success: <CircleCheckIcon className="size-4 text-saved" />,

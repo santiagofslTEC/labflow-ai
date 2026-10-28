@@ -33,7 +33,7 @@ const blockAfter = (marker: RegExp): string => {
 };
 
 const light = readColors(blockAfter(/@theme static/));
-const dark = readColors(blockAfter(/@media \(prefers-color-scheme: dark\)/));
+const dark = readColors(blockAfter(/:root\[data-theme="dark"\]/));
 
 const channel = (value: number): number => {
   const c = value / 255;
@@ -131,6 +131,7 @@ describe.each([
   });
 });
 
-it("sets color-scheme for both themes", () => {
-  expect(css).toMatch(/color-scheme:\s*light dark/);
+it("stays light even when the system is dark", () => {
+  expect(css).toMatch(/color-scheme:\s*light;/);
+  expect(css).not.toMatch(/prefers-color-scheme/);
 });
