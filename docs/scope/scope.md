@@ -16,7 +16,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 1 | Stack & architecture | Foundation | done |
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Data model | Foundation | in-progress |
-| 4 | Design system & UI foundation | Foundation | in-progress |
+| 4 | Design system & UI foundation | Foundation | done |
 | 5 | Experiments: create and list | Release 1 | planned |
 | 6 | Text capture and confirm card | Release 1 | planned |
 | 7 | Trials table | Release 1 | planned |
@@ -63,7 +63,7 @@ spec [0002](../specs/0002-data-model/index.md) · code in `api/app/models/`, `ap
   - [x] Seed the sample experiment with `make seed` and run it against the dev database (AC-13)
 - [x] Verify it: `/check verify data model`
 
-### 4. Design system & UI foundation · in-progress
+### 4. Design system & UI foundation · done
 A small visual language and base pieces: layout, buttons, form fields, the proposal card, an always visible mic state. The proposal card is the star of the demo.
 **Done when:** `design.md` covers type, color, spacing, and the card; base components work by keyboard and show focus.
 spec [0003](../specs/0003-design-system-ui-foundation/index.md) · code in `web/src/components/`, `web/src/app/globals.css`, `web/src/app/dev/ui/`, `web/design.md`
@@ -73,7 +73,7 @@ spec [0003](../specs/0003-design-system-ui-foundation/index.md) · code in `web/
   - [x] Base components, number formatting, app shell, workspace layout, home page, manifest (AC-5, AC-7, AC-13, AC-14, AC-17, AC-18)
   - [x] Proposal card and mic dock in every state (AC-8 to AC-12)
   - [x] Motion, the card to table flight, `/dev/ui`, finished `web/design.md` (AC-2, AC-15, AC-16)
-- [ ] Verify it: `/check verify design system & UI foundation`
+- [x] Verify it: `/check verify design system & UI foundation`
 
 ### 19. Access code gate · from spec 0002
 The personal access code gate already designed in spec 0001: `POST /api/access`, the signed `labflow_session` cookie, the FastAPI dependency that returns 401, and the Next.js redirect to `/access`. Feature 5 needs its holder name for `experiment.created_by`.
