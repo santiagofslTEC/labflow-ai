@@ -190,7 +190,7 @@ function NotebookForm() {
                 id={fieldId.goal}
                 value={state.goal}
                 maxLength={LIMITS.goal}
-                placeholder="Qué quieres averiguar con este experimento"
+                placeholder="Qué quieres averiguar con estas mediciones"
                 onChange={(event) =>
                   dispatch({ type: "set_goal", value: event.target.value })
                 }

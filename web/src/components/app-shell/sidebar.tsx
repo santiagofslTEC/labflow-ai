@@ -1,16 +1,20 @@
 "use client";
 
 import {
-  FlaskConicalIcon,
+  BookOpenIcon,
   HouseIcon,
   LayoutPanelLeftIcon,
+  LibraryIcon,
   MicIcon,
   PaletteIcon,
+  PlusIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 
+import { Skeleton } from "@/components/ui/skeleton";
+import { useExperiments } from "@/hooks/use-experiments";
 import { cn } from "@/lib/utils";
 
 import { BrandMark } from "./brand-mark";
@@ -41,7 +45,7 @@ type SidebarProps = {
   readonly onNavigate?: () => void;
 };
 
-// The app's left rail (Linear, Notion): wordmark, main links, the experiments
+// The app's left rail (Linear, Notion): wordmark, main links, the notebooks
 // list, and the dev pages when they exist.
 function Sidebar({ showDevLinks, onNavigate }: SidebarProps) {
   const pathname = usePathname();
@@ -59,18 +63,7 @@ function Sidebar({ showDevLinks, onNavigate }: SidebarProps) {
           onNavigate={onNavigate}
         />
 
-        <section aria-labelledby="sidebar-experimentos">
-          <h2
-            id="sidebar-experimentos"
-            className="px-2 pb-1 text-xs font-medium text-ink-muted"
-          >
-            Experimentos
-          </h2>
-          <p className="flex items-center gap-2 px-2 py-2 text-sm text-ink-muted">
-            <FlaskConicalIcon aria-hidden className="size-4 shrink-0" />
-            Aún no hay experimentos
-          </p>
-        </section>
+        <SidebarNotebooks pathname={pathname} onNavigate={onNavigate} />
 
         {showDevLinks ? (
           <section aria-labelledby="sidebar-desarrollo">
@@ -89,6 +82,98 @@ function Sidebar({ showDevLinks, onNavigate }: SidebarProps) {
         ) : null}
       </nav>
     </div>
+  );
+}
+
+const SIDEBAR_LIMIT = 5;
+
+const linkClass = (current: boolean) =>
+  cn(
+    "flex h-10 items-center gap-2.5 rounded-control px-2 text-sm focus-ring transition-colors",
+    current
+      ? "bg-sunken font-medium text-ink"
+      : "text-ink-muted hover:bg-sunken hover:text-ink",
+  );
+
+// The 5 notebooks with the newest activity, from the same cached list as
+// /cuadernos (spec 0005, AC-12). The open notebook is highlighted when listed.
+function SidebarNotebooks({
+  pathname,
+  onNavigate,
+}: {
+  readonly pathname: string;
+  readonly onNavigate: (() => void) | undefined;
+}) {
+  const query = useExperiments();
+  const params = useParams<{ id?: string }>();
+  const openId = pathname.startsWith("/cuadernos/") ? params?.id : undefined;
+  const notebooks = query.data;
+
+  return (
+    <section aria-labelledby="sidebar-cuadernos" className="flex flex-col">
+      <h2
+        id="sidebar-cuadernos"
+        className="px-2 pb-1 text-xs font-medium text-ink-muted"
+      >
+        Cuadernos
+      </h2>
+
+      {notebooks === undefined && !query.isError ? (
+        <div aria-busy className="flex flex-col gap-3 px-2 py-2">
+          <span className="sr-only">Cargando cuadernos…</span>
+          <Skeleton data-testid="sidebar-skeleton" className="h-4 w-4/5" />
+          <Skeleton data-testid="sidebar-skeleton" className="h-4 w-3/5" />
+        </div>
+      ) : null}
+
+      {notebooks?.length === 0 ? (
+        <div className="flex flex-col">
+          <p className="flex items-center gap-2 px-2 py-2 text-sm text-ink-muted">
+            <BookOpenIcon aria-hidden className="size-4 shrink-0" />
+            Aún no hay cuadernos
+          </p>
+          <Link
+            href="/cuadernos/nuevo"
+            onClick={onNavigate}
+            className={linkClass(pathname === "/cuadernos/nuevo")}
+          >
+            <PlusIcon aria-hidden className="size-4 shrink-0" />
+            Nuevo cuaderno
+          </Link>
+        </div>
+      ) : null}
+
+      {notebooks !== undefined && notebooks.length > 0 ? (
+        <ul className="flex flex-col gap-0.5">
+          {notebooks.slice(0, SIDEBAR_LIMIT).map((notebook) => {
+            const current = String(notebook.id) === openId;
+            return (
+              <li key={notebook.id}>
+                <Link
+                  href={`/cuadernos/${notebook.id}`}
+                  aria-current={current ? "page" : undefined}
+                  onClick={onNavigate}
+                  className={linkClass(current)}
+                >
+                  <BookOpenIcon aria-hidden className="size-4 shrink-0" />
+                  <span className="truncate">{notebook.title}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      <Link
+        href="/cuadernos"
+        aria-current={pathname === "/cuadernos" ? "page" : undefined}
+        onClick={onNavigate}
+        className={linkClass(pathname === "/cuadernos")}
+      >
+        <LibraryIcon aria-hidden className="size-4 shrink-0" />
+        Ver todos
+      </Link>
+    </section>
   );
 }
 
@@ -111,12 +196,7 @@ function NavList({
               href={href}
               aria-current={current ? "page" : undefined}
               onClick={onNavigate}
-              className={cn(
-                "flex h-10 items-center gap-2.5 rounded-control px-2 text-sm focus-ring transition-colors",
-                current
-                  ? "bg-sunken font-medium text-ink"
-                  : "text-ink-muted hover:bg-sunken hover:text-ink",
-              )}
+              className={linkClass(current)}
             >
               <Icon aria-hidden className="size-4 shrink-0" />
               {label}
