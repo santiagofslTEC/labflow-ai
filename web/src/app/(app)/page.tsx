@@ -1,7 +1,9 @@
-import { FlaskConicalIcon } from "lucide-react";
+import { BookOpenIcon, ChevronRightIcon, PlusIcon } from "lucide-react";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/app-shell/page-header";
 import { PanelHeading } from "@/components/app-shell/panel-heading";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
 import { ApiStatus } from "./api-status";
@@ -30,18 +32,34 @@ export default function Home() {
         actions={<ApiStatus />}
       />
 
-      <section aria-labelledby="experimentos" className="flex flex-col gap-2">
+      <section aria-labelledby="cuadernos" className="flex flex-col gap-2">
         <PanelHeading
-          id="experimentos"
-          icon={FlaskConicalIcon}
-          title="Experimentos"
-          meta="0"
+          id="cuadernos"
+          icon={BookOpenIcon}
+          title="Cuadernos"
+          meta={
+            <Link
+              href="/cuadernos"
+              className="inline-flex h-10 items-center gap-1 rounded-control px-2 text-sm text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"
+            >
+              Mis cuadernos
+              <ChevronRightIcon aria-hidden className="size-4" />
+            </Link>
+          }
         />
         <EmptyState
-          icon={FlaskConicalIcon}
-          title="Aún no hay experimentos"
-          description="Cuando dictes tu primera medición, aquí verás cada experimento con su tabla y su gráfico."
+          icon={BookOpenIcon}
+          title="Empieza un cuaderno"
+          description="Elige las variables que vas a medir. Después solo dictas o escribes cada ensayo y LabFlow arma la tabla."
           headingLevel="h3"
+          action={
+            <Button asChild>
+              <Link href="/cuadernos/nuevo">
+                <PlusIcon aria-hidden />
+                Nuevo cuaderno
+              </Link>
+            </Button>
+          }
         />
       </section>
 
