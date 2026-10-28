@@ -174,7 +174,7 @@ def _open_variables(context: TurnContext) -> tuple[int, ...]:
 
 def _said_trial_number(trial_number: int | None, utterance: str) -> int | None:
     """A trial number that is not among the sentence's numbers is treated as not said."""
-    if trial_number is None:
+    if trial_number is None or trial_number <= 0:
         return None
     said = any(span.value == trial_number for span in find_numbers(utterance))
     return trial_number if said else None

@@ -11,7 +11,7 @@ from app.core.db import get_engine
 from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
 from app.core.settings import get_settings
-from app.routers import access, experiments, health
+from app.routers import access, capture, experiments, health
 
 
 @asynccontextmanager
@@ -60,3 +60,4 @@ def redoc_docs() -> HTMLResponse:
 app.include_router(health.router)
 app.include_router(access.router)
 app.include_router(experiments.router)
+app.include_router(capture.router)
