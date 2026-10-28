@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse
 
+from app.ai.deps import make_clients
 from app.core.db import get_engine
 from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     get_settings()
     attempts: AttemptLog = {}
     app.state.access_attempts = attempts
+    app.state.llm_clients = make_clients(get_settings())
     yield
     get_engine().dispose()
 
