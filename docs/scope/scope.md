@@ -17,7 +17,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 2 | Coding standards & tooling | Foundation | done |
 | 3 | Data model | Foundation | in-progress |
 | 4 | Design system & UI foundation | Foundation | done |
-| 5 | Experiments: create and list | Release 1 | planned |
+| 5 | Experiments: create and list | Release 1 | in-progress |
 | 6 | Text capture and confirm card | Release 1 | planned |
 | 7 | Trials table | Release 1 | planned |
 | 8 | Voice capture | Release 2 | planned |
@@ -84,10 +84,17 @@ spec [0001](../specs/0001-stack-architecture/index.md) · code in `api/app/core/
 
 ## Release 1: Typed notebook (smallest usable whole)
 
-### 5. Experiments: create and list · needs a decision
+### 5. Experiments: create and list · in-progress
 Screens P1 and P2: list your experiments, create one with a title, goal, and variables (name, unit, optional range, required or not). RF-01, RF-02.
 **Done when:** you can create the sample experiment with 3 variables, see it in the list, reload the page, and open it again with everything intact (PA-01, PA-08).
-- [ ] Design it (spec): `/architect experiments create and list`
+spec [0005](../specs/0005-experiments-create-list/index.md)
+- [x] Design it (spec): `/architect experiments create and list`
+- [ ] Build it: `/develop experiments create and list`
+  - [ ] API: list, create, and open routes with pytest and `make openapi` (AC-14 to AC-17)
+  - [ ] Create a notebook and open it again: TanStack Query data layer, `/cuadernos/nuevo`, `/cuadernos/[id]` (AC-3 to AC-11)
+  - [ ] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
+  - [ ] Phone and accessibility pass (AC-18)
+- [ ] Verify it: `/check verify experiments create and list`
 
 ### 6. Text capture and confirm card · needs a decision · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.
@@ -180,6 +187,7 @@ Out of scope for this project, kept so the plan stays honest.
 - **Quality monitoring**: track % of proposals corrected, clarification rate, latency over time (ML Canvas monitoring) · needs a decision
 - **Instrument integration**: read values straight from lab equipment · needs a decision
 - **Cross experiment comparison and guided protocols**: the future vision · needs a decision
+- **Edit a notebook**: change title and goal, then variables (with rules for ones that already have measurements) · from spec 0005 · needs a decision
 
 ## Legend
 
