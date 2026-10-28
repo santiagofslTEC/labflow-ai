@@ -6,7 +6,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-1 items-center justify-center py-12">
+    // Renders outside the app shell (root layout only), so it fills the window itself.
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-12">
       <EmptyState
         icon={CompassIcon}
         title="No encontramos esta página"
@@ -19,6 +20,6 @@ export default function NotFound() {
           </Button>
         }
       />
-    </div>
+    </main>
   );
 }

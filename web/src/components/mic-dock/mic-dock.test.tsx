@@ -8,7 +8,7 @@ import { axe } from "vitest-axe";
 import {
   SAMPLE_PHRASE,
   SAMPLE_PROPOSAL_VALUES,
-} from "@/app/dev/ui/sample-data";
+} from "@/app/(app)/dev/ui/sample-data";
 import { ProposalCard } from "@/components/proposal-card/proposal-card";
 
 import { MicDock } from "./mic-dock";

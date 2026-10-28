@@ -106,7 +106,7 @@ Serif is for display text only. Every measured value and its unit is Geist Mono 
 
 ## Layout
 
-- `AppShell` (root layout): at 1024px and up, a 240px `Sidebar` on the `canvas` (the `BrandMark` wordmark, Inicio, the Experimentos list, and the dev pages outside production) and the content on a `surface` sheet inset 8px from the window with a hairline border. Below 1024px, a 56px sticky top bar with a menu button (`MobileNav`, the sidebar as a sheet from the left) and the wordmark. Content is `max-w-6xl`, 16px side padding (40px at `lg`). A "Saltar al contenido" link appears on the first Tab.
+- `AppShell` (the `(app)` route group layout; `/access` and `not-found` render outside it on the `canvas`): at 1024px and up, a 240px `Sidebar` on the `canvas` (the `BrandMark` wordmark, Inicio, the Experimentos list, and the dev pages outside production) and the content on a `surface` sheet inset 8px from the window with a hairline border. Below 1024px, a 56px sticky top bar with a menu button (`MobileNav`, the sidebar as a sheet from the left) and the wordmark. Content is `max-w-6xl`, 16px side padding (40px at `lg`). A "Saltar al contenido" link appears on the first Tab.
 - Full height uses `dvh`, never `vh`, so the phone keyboard does not hide the dock.
 - `PageHeader` holds the page's one `<h1>` in the display serif, with an optional breadcrumb line above, one muted meta line below, and actions on the right.
 - `PanelHeading` labels a view inside a page, Notion style: an icon chip ("Tabla", "Gráfico", "Experimentos") with quiet meta on the right (a count, a caption) and a hairline under it.

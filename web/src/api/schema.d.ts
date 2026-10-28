@@ -21,10 +21,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grant Access */
+        post: operations["grant_access_api_access_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccessGranted */
+        AccessGranted: {
+            /** Holder */
+            holder: string;
+        };
+        /** AccessRequest */
+        AccessRequest: {
+            /** Code */
+            code: string;
+        };
+        /** ApiErrorBody */
+        ApiErrorBody: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
         /** Health */
         Health: {
             /**
@@ -63,6 +97,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    grant_access_api_access_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessGranted"];
+                };
+            };
+            /** @description The code matches no holder */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The body is not {code: string} */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description More than 5 tries in a minute from this IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
         };
