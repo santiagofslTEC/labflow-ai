@@ -99,14 +99,14 @@ spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/
 ### 6. Text capture and confirm card · in-progress · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.
 **Done when:** nothing reaches the table before you confirm; a correction replaces the value with no duplicate; "Ensayo 6, 65 grados" makes it ask for the missing values; dictating a trial number that exists asks whether it is a correction; "grados" becomes °C and "por ciento" becomes % (PA-03, PA-04, PA-09).
-spec [0006](../specs/0006-text-capture-confirm-card/index.md)
+spec [0006](../specs/0006-text-capture-confirm-card/index.md) · code in `api/app/routers/capture.py`, `api/app/services/turn_plan.py`, `web/src/components/capture-stage/`
 - [x] Design it (spec): `/architect text capture and confirm card`
-- [ ] Build it: `/develop text capture and confirm card` (after feature 19)
+- [x] Build it: `/develop text capture and confirm card` (after feature 19)
   - [x] The pure core: the said text and check columns (migration), number reading and grounding with said text, units, reply templates, the tool schema, the planner, flags, and the card view (AC-3, AC-5 to AC-12, AC-17, AC-21, AC-23, AC-24)
   - [x] The AI edge: settings and keys, the Ollama, Claude, hedged fallback, and fake providers, the prompt, the Claude cap (AC-12, AC-14, AC-15, AC-19)
   - [x] The routes: the turn service with its executor and stale check, the seven capture routes with the check guard on confirm, `make openapi` (AC-1 to AC-4, AC-6 to AC-8, AC-13, AC-16, AC-17, AC-19, AC-20, AC-24)
   - [x] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
-  - [ ] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
+  - [x] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
 - [ ] Verify it: `/check verify text capture and confirm card`
 - [ ] Test it: `/test text capture and confirm card`
 
