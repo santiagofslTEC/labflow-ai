@@ -18,7 +18,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 3 | Data model | Foundation | in-progress |
 | 4 | Design system & UI foundation | Foundation | done |
 | 5 | Experiments: create and list | Release 1 | in-progress |
-| 6 | Text capture and confirm card | Release 1 | planned |
+| 6 | Text capture and confirm card | Release 1 | in-progress |
 | 7 | Trials table | Release 1 | planned |
 | 8 | Voice capture | Release 2 | planned |
 | 9 | Chart: X against Y | Release 3 | planned |
@@ -96,10 +96,19 @@ spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/
   - [x] Phone and accessibility pass (AC-18)
 - [x] Verify it: `/check verify experiments create and list`
 
-### 6. Text capture and confirm card · needs a decision · Beta
+### 6. Text capture and confirm card · in-progress · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.
 **Done when:** nothing reaches the table before you confirm; a correction replaces the value with no duplicate; "Ensayo 6, 65 grados" makes it ask for the missing values; dictating a trial number that exists asks whether it is a correction; "grados" becomes °C and "por ciento" becomes % (PA-03, PA-04, PA-09).
-- [ ] Design it (spec): `/architect text capture and confirm card`
+spec [0006](../specs/0006-text-capture-confirm-card/index.md)
+- [x] Design it (spec): `/architect text capture and confirm card`
+- [ ] Build it: `/develop text capture and confirm card` (after feature 19)
+  - [ ] The pure core: number reading and grounding, units, reply templates, the tool schema, the planner, and the card view (AC-3, AC-5 to AC-12, AC-17)
+  - [ ] The AI edge: settings and keys, the Ollama, Claude, hedged fallback, and fake providers, the prompt, the Claude cap (AC-12, AC-14, AC-15, AC-19)
+  - [ ] The routes: the turn service with its executor and stale check, the six capture routes, `make openapi` (AC-1 to AC-4, AC-6 to AC-8, AC-13, AC-16, AC-17, AC-19, AC-20)
+  - [ ] The screen: the card's `choose_trial` state, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18)
+  - [ ] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
+- [ ] Verify it: `/check verify text capture and confirm card`
+- [ ] Test it: `/test text capture and confirm card`
 
 ### 7. Trials table
 The table of confirmed trials in the workspace (P3), updating the moment you confirm. RF-09.
