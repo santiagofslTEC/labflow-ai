@@ -1,7 +1,7 @@
 # 0006. Text capture and the confirm card
 
 **Date**: 2026-10-28
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
