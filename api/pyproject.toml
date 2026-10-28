@@ -18,6 +18,7 @@ entrypoint = "app.main:app"
 [dependency-groups]
 dev = [
     "pyright>=1.1.414",
+    "pytest>=9.2.0",
     "ruff>=0.17.3",
 ]
 
@@ -36,3 +37,7 @@ pythonVersion = "3.13"
 venvPath = "."
 venv = ".venv"
 include = ["app", "scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

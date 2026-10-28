@@ -90,7 +90,7 @@ Screens P1 and P2: list your experiments, create one with a title, goal, and var
 spec [0005](../specs/0005-experiments-create-list/index.md)
 - [x] Design it (spec): `/architect experiments create and list`
 - [ ] Build it: `/develop experiments create and list`
-  - [ ] API: list, create, and open routes with pytest and `make openapi` (AC-14 to AC-17)
+  - [x] API: list, create, and open routes with pytest and `make openapi` (AC-14 to AC-17)
   - [ ] Create a notebook and open it again: TanStack Query data layer, `/cuadernos/nuevo`, `/cuadernos/[id]` (AC-3 to AC-11)
   - [ ] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
   - [ ] Phone and accessibility pass (AC-18)

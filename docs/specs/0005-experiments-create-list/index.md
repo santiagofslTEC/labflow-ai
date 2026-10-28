@@ -1,7 +1,7 @@
 # 0005. Notebooks: create, list, and open
 
 **Date**: 2026-10-28
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 

@@ -1,12 +1,15 @@
-"""Typed results of the proposal lifecycle (spec 0002, API surface).
+"""Typed results of the repositories (spec 0002 proposal lifecycle, spec 0005 notebooks).
 
 Expected failures are values, never exceptions. Each carries the snake_case `code` the
 router edge puts in the API error shape; the Spanish message is added there.
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+
+from app.models.enums import ExperimentStatus
 
 
 class _Result(BaseModel):
@@ -76,3 +79,52 @@ type PendingError = ProposalNotFound | NotPending
 type SetTrialError = PendingError | TrialNotInExperiment | InvalidTrialNumber
 type SetValueError = PendingError | VariableNotInExperiment | InvalidTurn | InvalidValue
 type ConfirmError = PendingError | EmptyProposal | MissingTrialNumber | TrialExists
+
+
+class ExperimentSummary(_Result):
+    """One row of the notebook list (spec 0005, AC-14)."""
+
+    id: int
+    title: str
+    status: ExperimentStatus
+    trial_count: int
+    last_activity_at: datetime  # UTC
+
+
+class VariableDetail(_Result):
+    id: int
+    name: str
+    unit: str | None
+    min_value: float | None
+    max_value: float | None
+    required: bool
+    position: int
+
+
+class ExperimentDetail(_Result):
+    """A notebook with its variables in `position` order (spec 0005, AC-16)."""
+
+    id: int
+    title: str
+    goal: str | None
+    status: ExperimentStatus
+    created_by: str
+    created_at: datetime
+    variables: tuple[VariableDetail, ...]
+
+
+class DuplicateVariableName(_Result):
+    """Two variables share a name ignoring case. `name` is None when only the DB index caught it."""
+
+    code: Literal["duplicate_variable_name"] = "duplicate_variable_name"
+    name: str | None
+
+
+class InvalidRange(_Result):
+    """A variable's minimum is above its maximum."""
+
+    code: Literal["invalid_range"] = "invalid_range"
+    name: str
+
+
+type NewExperimentError = DuplicateVariableName | InvalidRange
