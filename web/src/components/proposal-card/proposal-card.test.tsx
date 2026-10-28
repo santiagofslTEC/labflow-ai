@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
 import {
+  SAMPLE_FLAGGED_VALUES,
+  SAMPLE_SAID_VALUES,
   SAMPLE_PH_VALUE,
   SAMPLE_PHRASE,
   SAMPLE_PROPOSAL_VALUES,
@@ -46,6 +48,15 @@ const ALL_STATES: readonly ProposalCardState[] = [
   { kind: "needs_clarification", question: "¿Cuál fue la duración?" },
   { kind: "correction" },
   { kind: "save_error", message: "La base de datos no respondió." },
+  {
+    kind: "choose_trial",
+    question: "El ensayo 3 ya existe. ¿Es una corrección o un ensayo nuevo?",
+  },
+  {
+    kind: "pending_other_trial",
+    question: "Tienes el ensayo 3 sin guardar. ¿Lo guardo o lo descarto?",
+  },
+  { kind: "checking", variableId: 1 },
 ];
 
 afterEach(() => {
@@ -100,19 +111,29 @@ describe("ProposalCard states (AC-8, AC-6)", () => {
     expect(card()).toHaveAccessibleName("Ensayo ?");
   });
 
-  it("shows missing values as labelled empty slots and keeps Confirmar disabled", () => {
+  it("shows missing values as labelled empty slots and keeps the save button disabled", () => {
     const values = SAMPLE_PROPOSAL_VALUES.map((v) =>
       v.variableId === 3 ? { ...v, value: null } : v,
     );
     render(<ProposalCard {...props({ kind: "proposed" }, { values })} />);
     expect(screen.getByText("Rendimiento sin valor")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirmar" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Guardar 50 °C y 15 min" }),
+    ).toBeDisabled();
   });
 
-  it("shows a range warning under its value in any state", () => {
+  it("shows each flag reason under its value in any state", () => {
     const values = SAMPLE_PROPOSAL_VALUES.map((v) =>
       v.variableId === 1
-        ? { ...v, warning: "Fuera de rango (20 a 100 °C)" }
+        ? {
+            ...v,
+            flags: [
+              {
+                reason: "out_of_range" as const,
+                text: "Fuera del rango esperado: 20 a 100 °C",
+              },
+            ],
+          }
         : v,
     );
     for (const state of [{ kind: "proposed" }, { kind: "saving" }] as const) {
@@ -120,7 +141,7 @@ describe("ProposalCard states (AC-8, AC-6)", () => {
         <ProposalCard {...props(state, { values })} />,
       );
       expect(
-        screen.getByText("Fuera de rango (20 a 100 °C)"),
+        screen.getByText("Fuera del rango esperado: 20 a 100 °C"),
       ).toBeInTheDocument();
       unmount();
     }
@@ -137,7 +158,9 @@ describe("ProposalCard states (AC-8, AC-6)", () => {
     // Equal values show once.
     expect(screen.getAllByText("15 min")).toHaveLength(1);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Reemplazar" })).toHaveFocus(),
+      expect(
+        screen.getByRole("button", { name: "Reemplazar ensayo 3 · 3 valores" }),
+      ).toHaveFocus(),
     );
   });
 
@@ -196,11 +219,13 @@ describe("Unsaved vs saved (AC-9)", () => {
 });
 
 describe("Focus and keyboard (AC-10)", () => {
-  it("focuses Confirmar on mount and Enter confirms once", async () => {
+  it("focuses the save button on mount and Enter confirms once", async () => {
     const user = userEvent.setup();
     const p = props({ kind: "proposed" });
     const { container } = render(<ProposalCard {...p} />);
-    const confirm = screen.getByRole("button", { name: "Confirmar" });
+    const confirm = screen.getByRole("button", {
+      name: "Guardar ensayo 3 · 3 valores",
+    });
     await waitFor(() => expect(confirm).toHaveFocus());
     await user.keyboard("{Enter}");
     expect(p.onConfirm).toHaveBeenCalledTimes(1);
@@ -264,7 +289,9 @@ describe("Focus and keyboard (AC-10)", () => {
     expect(
       screen.getByRole("button", { name: "Editar Rendimiento" }),
     ).toHaveFocus();
-    expect(screen.getByRole("button", { name: "Confirmar" })).not.toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Guardar ensayo 3 · 3 valores" }),
+    ).not.toHaveFocus();
   });
 
   it("Guardar submits the edit field", async () => {
@@ -289,7 +316,9 @@ describe("Focus and keyboard (AC-10)", () => {
     );
     render(<ProposalCard {...p} />);
     expect(screen.getByText("¿Cuál fue la duración?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirmar" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Guardar 50 °C y 73,5 %" }),
+    ).toBeDisabled();
     const slot = screen.getByRole("textbox", { name: "Duración" });
     await waitFor(() => expect(slot).toHaveFocus());
     await user.type(slot, "15{Enter}");
@@ -344,5 +373,98 @@ describe("Settling (AC-15)", () => {
       "data-motion",
       "full",
     );
+  });
+});
+
+describe("Said vs understood and the flagged card (spec 0006, AC-21 to AC-23)", () => {
+  it("shows what you said next to what LabFlow understood, highlighting only interpretations", () => {
+    render(
+      <ProposalCard
+        {...props({ kind: "proposed" }, { values: SAMPLE_SAID_VALUES })}
+      />,
+    );
+    expect(
+      screen.getByText("setenta y tres coma cinco por ciento"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("73,5 %")).toHaveClass("bg-brand-soft");
+    expect(screen.getByText("50 °C")).not.toHaveClass("bg-brand-soft");
+    expect(
+      screen.getByRole("button", { name: "Guardar ensayo 3 · 3 valores" }),
+    ).toBeEnabled();
+  });
+
+  it("shows Escrito a mano for a value typed by hand", () => {
+    const values = SAMPLE_SAID_VALUES.map((v) =>
+      v.variableId === 3 ? { ...v, saidText: null, interpreted: false } : v,
+    );
+    render(<ProposalCard {...props({ kind: "proposed" }, { values })} />);
+    expect(screen.getByText("Escrito a mano")).toBeInTheDocument();
+  });
+
+  it("draws a flagged card, lists every reason, and keeps saving off until each is checked", async () => {
+    const user = userEvent.setup();
+    const p = props(
+      { kind: "proposed" },
+      { values: SAMPLE_FLAGGED_VALUES, onCheck: vi.fn() },
+    );
+    const { container } = render(<ProposalCard {...p} />);
+    expect(card()).toHaveAttribute("data-flagged", "true");
+    expect(screen.getByText("Revisa antes de guardar")).toBeInTheDocument();
+    expect(
+      screen.getByText("Fuera del rango esperado: 20 a 100 °C"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Convertí 932 °F a 500 °C")).toBeInTheDocument();
+    expect(screen.getByText("Revisado")).toBeInTheDocument(); // Duración is checked
+    expect(
+      screen.getByRole("button", { name: "Guardar ensayo 3 · 3 valores" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Sí, es 500 °C" }));
+    expect(p.onCheck).toHaveBeenCalledWith(1);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("puts the values to check first in the live region", async () => {
+    render(
+      <ProposalCard
+        {...props({ kind: "proposed" }, { values: SAMPLE_FLAGGED_VALUES })}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        card().querySelector("[aria-live=polite]")?.textContent ?? "",
+      ).toMatch(/^Revisa antes de guardar: Temperatura\./),
+    );
+  });
+
+  it("choose_trial offers correction or a new trial", async () => {
+    const user = userEvent.setup();
+    const p = props(
+      {
+        kind: "choose_trial",
+        question:
+          "El ensayo 3 ya existe. ¿Es una corrección o un ensayo nuevo?",
+      },
+      { onChooseTrial: vi.fn(), canConfirm: false },
+    );
+    render(<ProposalCard {...p} />);
+    await user.click(screen.getByRole("button", { name: "Es otro ensayo" }));
+    await user.click(screen.getByRole("button", { name: "Corregir ensayo 3" }));
+    expect(p.onChooseTrial).toHaveBeenNthCalledWith(1, "new");
+    expect(p.onChooseTrial).toHaveBeenNthCalledWith(2, "correction");
+  });
+
+  it("follows canConfirm from the API over its own guess", () => {
+    const values = SAMPLE_PROPOSAL_VALUES.map((v) =>
+      v.variableId === 3 ? { ...v, value: null } : v,
+    );
+    render(
+      <ProposalCard
+        {...props({ kind: "proposed" }, { values, canConfirm: true })}
+      />,
+    );
+    // AC-5: a partial trial may be saved.
+    expect(
+      screen.getByRole("button", { name: "Guardar 50 °C y 15 min" }),
+    ).toBeEnabled();
   });
 });

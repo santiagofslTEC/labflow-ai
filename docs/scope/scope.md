@@ -105,7 +105,7 @@ spec [0006](../specs/0006-text-capture-confirm-card/index.md)
   - [x] The pure core: the said text and check columns (migration), number reading and grounding with said text, units, reply templates, the tool schema, the planner, flags, and the card view (AC-3, AC-5 to AC-12, AC-17, AC-21, AC-23, AC-24)
   - [x] The AI edge: settings and keys, the Ollama, Claude, hedged fallback, and fake providers, the prompt, the Claude cap (AC-12, AC-14, AC-15, AC-19)
   - [x] The routes: the turn service with its executor and stale check, the seven capture routes with the check guard on confirm, `make openapi` (AC-1 to AC-4, AC-6 to AC-8, AC-13, AC-16, AC-17, AC-19, AC-20, AC-24)
-  - [ ] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
+  - [x] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
   - [ ] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
 - [ ] Verify it: `/check verify text capture and confirm card`
 - [ ] Test it: `/test text capture and confirm card`
