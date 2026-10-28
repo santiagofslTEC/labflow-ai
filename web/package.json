@@ -16,6 +16,7 @@
     "prepare": "cd .. && lefthook install || echo \"lefthook: no git repo, hooks skipped\""
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.105.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "lucide-react": "^1.61.0",

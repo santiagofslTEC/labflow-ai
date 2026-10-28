@@ -23,3 +23,13 @@ export const parseDecimal = (text: string): ParsedDecimal => {
     ? { ok: true, value: Number(trimmed.replace(",", ".")) }
     : { ok: false };
 };
+
+// A variable's expected range on the notebook page (spec 0005, AC-10).
+export const formatRange = (min: number | null, max: number | null): string => {
+  if (min !== null && max !== null) {
+    return `${formatQuantity(min, null)} a ${formatQuantity(max, null)}`;
+  }
+  if (min !== null) return `≥ ${formatQuantity(min, null)}`;
+  if (max !== null) return `≤ ${formatQuantity(max, null)}`;
+  return "—";
+};

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatQuantity, parseDecimal } from "./format";
+import { formatQuantity, formatRange, parseDecimal } from "./format";
 
 describe("formatQuantity", () => {
   it.each([
@@ -56,5 +56,17 @@ describe("parseDecimal", () => {
       ok: true,
       value: 73.5,
     });
+  });
+});
+
+describe("formatRange (spec 0005, AC-10)", () => {
+  it.each([
+    [20, 100, "20 a 100"],
+    [20.5, 80, "20,5 a 80"],
+    [0, null, "≥ 0"],
+    [null, 100, "≤ 100"],
+    [null, null, "—"],
+  ] as const)("%s and %s read %s", (min, max, expected) => {
+    expect(formatRange(min, max)).toBe(expected);
   });
 });
