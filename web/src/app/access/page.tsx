@@ -15,7 +15,7 @@ export default function AccessPage() {
       <div className="flex w-full max-w-[360px] flex-col gap-8">
         <BrandMark className="self-center" />
         <header className="flex flex-col gap-2 text-center">
-          <h1 className="font-serif text-display text-ink">
+          <h1 className="text-display font-semibold text-ink">
             Entra a tu cuaderno
           </h1>
           <p className="text-ink-muted">

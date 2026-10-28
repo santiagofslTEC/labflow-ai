@@ -10,7 +10,7 @@ type PageHeaderProps = {
   readonly className?: string;
 };
 
-// The page's one <h1>, in the display serif.
+// The page's one <h1>.
 function PageHeader({
   title,
   eyebrow,
@@ -27,7 +27,7 @@ function PageHeader({
     >
       <div className="flex min-w-0 flex-col gap-2">
         {eyebrow ? <p className="text-sm text-ink-muted">{eyebrow}</p> : null}
-        <h1 className="font-serif text-display font-normal text-balance text-ink lg:text-display-lg">
+        <h1 className="text-display font-semibold text-balance text-ink lg:text-display-lg">
           {title}
         </h1>
         {description ? (

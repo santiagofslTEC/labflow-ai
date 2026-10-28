@@ -1,9 +1,10 @@
 "use client";
 
 import {
-  ArrowLeftIcon,
+  ChevronRightIcon,
   CloudOffIcon,
   FileQuestionIcon,
+  MessagesSquareIcon,
   RotateCwIcon,
   TableIcon,
   VariableIcon,
@@ -13,6 +14,7 @@ import Link from "next/link";
 import type { ExperimentDetail } from "@/api/experiments";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { PanelHeading } from "@/components/app-shell/panel-heading";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,92 +67,131 @@ function NotebookView({ rawId }: { readonly rawId: string }) {
 
 function BackLink() {
   return (
-    <Link
-      href="/cuadernos"
-      className="-ml-2 inline-flex h-10 w-fit items-center gap-1.5 rounded-control px-2 text-sm text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"
-    >
-      <ArrowLeftIcon aria-hidden className="size-4" />
-      Mis cuadernos
-    </Link>
+    <nav aria-label="Ruta" className="flex items-center gap-1 text-sm">
+      <Link
+        href="/cuadernos"
+        className="-ml-2 inline-flex h-9 items-center rounded-control px-2 text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"
+      >
+        Mis cuadernos
+      </Link>
+      <ChevronRightIcon aria-hidden className="size-4 text-ink-muted" />
+    </nav>
   );
 }
 
+// The notebook workspace (2026-10-28 redesign): the conversation column on the
+// left and a data panel on the right with the trials table and the variables.
+// The conversation stays empty until text capture (feature 6) lands.
 function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const now = useNow();
   const created = new Date(experiment.created_at);
   const variables = experiment.variables;
+  const closed = experiment.status === "closed";
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-3">
-        <BackLink />
-        <PageHeader
-          title={experiment.title}
-          description={
-            <div className="flex flex-col gap-3">
-              {experiment.goal ? (
-                <p className="text-base whitespace-pre-line text-ink">
-                  {experiment.goal}
-                </p>
-              ) : null}
-              <p>
-                Creado por {experiment.created_by} ·{" "}
-                <time dateTime={experiment.created_at}>
-                  {formatShortDate(created, now)}
-                </time>{" "}
-                · {experiment.status === "closed" ? "Cerrado" : "Abierto"}
-              </p>
-            </div>
-          }
+    <div className="flex flex-1 flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
+      <div className="flex min-w-0 flex-col gap-8 lg:pr-10">
+        <div className="flex flex-col gap-2 border-b border-line pb-6">
+          <BackLink />
+          <PageHeader
+            title={experiment.title}
+            description={
+              <div className="flex flex-col gap-3">
+                {experiment.goal ? (
+                  <p className="text-base whitespace-pre-line text-ink">
+                    {experiment.goal}
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={closed ? "neutral" : "saved"}>
+                    {closed ? "Cerrado" : "Abierto"}
+                  </Badge>
+                  <p>
+                    Creado por {experiment.created_by} ·{" "}
+                    <time dateTime={experiment.created_at}>
+                      {formatShortDate(created, now)}
+                    </time>
+                  </p>
+                </div>
+              </div>
+            }
+          />
+        </div>
+
+        <EmptyState
+          icon={MessagesSquareIcon}
+          title="Aquí verás cada medición"
+          description="Dicta o escribe un ensayo y LabFlow te mostrará lo que entendió antes de guardarlo."
+          className="flex-1 justify-center"
         />
       </div>
 
-      <section aria-labelledby="variables" className="flex flex-col gap-2">
-        <PanelHeading
-          id="variables"
-          icon={VariableIcon}
-          title="Variables"
-          meta={<span className="tabular-nums">{variables.length}</span>}
-        />
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Unidad</TableHead>
-              <TableHead>Rango</TableHead>
-              <TableHead>Tipo</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {variables.map((variable) => (
-              <TableRow key={variable.id}>
-                <TableCell className="font-medium text-ink">
-                  {variable.name}
-                </TableCell>
-                <TableCell className="font-mono">
-                  {variable.unit ?? "—"}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {formatRange(variable.min_value, variable.max_value)}
-                </TableCell>
-                <TableCell className="text-ink-muted">
-                  {variable.required ? "Requerida" : "Opcional"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </section>
+      <aside
+        aria-label="Datos del cuaderno"
+        className="flex min-w-0 flex-col gap-8 lg:border-l lg:border-line lg:pl-8"
+      >
+        <section aria-labelledby="ensayos" className="flex flex-col gap-2">
+          <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  {variables.map((variable) => (
+                    <TableHead key={variable.id} className="text-right">
+                      {variable.name}
+                      {variable.unit ? (
+                        <span className="font-mono"> ({variable.unit})</span>
+                      ) : null}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+            </Table>
+          </div>
+          <p className="px-1 py-3 text-sm text-ink-muted">
+            <span className="font-medium text-ink">Aún no hay ensayos</span>.
+            Cada medición que confirmes será una fila.
+          </p>
+        </section>
 
-      <section aria-labelledby="ensayos" className="flex flex-col gap-2">
-        <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
-        <EmptyState
-          icon={TableIcon}
-          headingLevel="h3"
-          title="Aún no hay ensayos"
-          description="Cuando confirmes tu primera medición, aparecerá aquí como una fila de la tabla."
-        />
-      </section>
+        <section aria-labelledby="variables" className="flex flex-col gap-2">
+          <PanelHeading
+            id="variables"
+            icon={VariableIcon}
+            title="Variables"
+            meta={<span className="tabular-nums">{variables.length}</span>}
+          />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Unidad</TableHead>
+                <TableHead>Rango</TableHead>
+                <TableHead>Tipo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {variables.map((variable) => (
+                <TableRow key={variable.id}>
+                  <TableCell className="font-medium text-ink">
+                    {variable.name}
+                  </TableCell>
+                  <TableCell className="font-mono">
+                    {variable.unit ?? "—"}
+                  </TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {formatRange(variable.min_value, variable.max_value)}
+                  </TableCell>
+                  <TableCell className="text-ink-muted">
+                    {variable.required ? "Requerida" : "Opcional"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </section>
+      </aside>
     </div>
   );
 }

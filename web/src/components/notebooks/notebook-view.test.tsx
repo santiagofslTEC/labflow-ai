@@ -47,8 +47,9 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
     expect(getMock).toHaveBeenCalledWith(7);
     expect(screen.getByText(sampleDetail.goal ?? "")).toBeInTheDocument();
     expect(screen.getByText(/Creado por ana/)).toHaveTextContent(
-      "Creado por ana · 28 oct · Abierto",
+      "Creado por ana · 28 oct",
     );
+    expect(screen.getByText("Abierto")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mis cuadernos" })).toHaveAttribute(
       "href",
       "/cuadernos",

@@ -59,6 +59,9 @@ const TOKENS = [
   "on-ink",
   "line",
   "control",
+  "brand",
+  "brand-soft",
+  "on-brand",
   "saved",
   "unsaved",
   "unsaved-border",
@@ -89,6 +92,12 @@ const TEXT_PAIRS: readonly Pair[] = [
   ["saved", "surface"],
   ["saved", "canvas"],
   ["saved", "unsaved"],
+  ["on-brand", "brand"],
+  ["brand", "surface"],
+  ["brand", "canvas"],
+  ["brand", "brand-soft"],
+  ["ink", "brand-soft"],
+  ["ink", "sunken"],
 ];
 
 const BOUNDARY_PAIRS: readonly Pair[] = [
@@ -102,6 +111,7 @@ const BOUNDARY_PAIRS: readonly Pair[] = [
   ["focus", "surface"],
   ["focus", "sunken"],
   ["focus", "unsaved"],
+  ["focus", "brand-soft"],
 ];
 
 describe.each([
