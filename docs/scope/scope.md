@@ -94,7 +94,7 @@ spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/
   - [x] Create a notebook and open it again: TanStack Query data layer, `/cuadernos/nuevo`, `/cuadernos/[id]` (AC-3 to AC-11)
   - [x] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
   - [x] Phone and accessibility pass (AC-18)
-- [ ] Verify it: `/check verify experiments create and list`
+- [x] Verify it: `/check verify experiments create and list`
 
 ### 6. Text capture and confirm card · needs a decision · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.
