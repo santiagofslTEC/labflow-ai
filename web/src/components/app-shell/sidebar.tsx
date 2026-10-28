@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExperiments } from "@/hooks/use-experiments";
@@ -45,43 +46,68 @@ type SidebarProps = {
   readonly onNavigate?: () => void;
 };
 
+type Location = {
+  readonly pathname: string;
+  // The notebook open on /cuadernos/{id}, if any.
+  readonly openId: string | undefined;
+};
+
+// The URL is request data: with cacheComponents the prerendered shell shows
+// the same nav with nothing highlighted, and the current page lights up once
+// the path is known.
+const NO_LOCATION: Location = { pathname: "", openId: undefined };
+
 // The app's left rail (Linear, Notion): wordmark, main links, the notebooks
 // list, and the dev pages when they exist.
-function Sidebar({ showDevLinks, onNavigate }: SidebarProps) {
-  const pathname = usePathname();
-
+function Sidebar(props: SidebarProps) {
   return (
     <div className="flex h-full flex-col gap-6 px-3 pb-4">
       <div className="flex h-14 items-center px-2">
         <BrandMark />
       </div>
-
-      <nav aria-label="Principal" className="flex flex-col gap-6">
-        <NavList
-          links={MAIN_LINKS}
-          pathname={pathname}
-          onNavigate={onNavigate}
-        />
-
-        <SidebarNotebooks pathname={pathname} onNavigate={onNavigate} />
-
-        {showDevLinks ? (
-          <section aria-labelledby="sidebar-desarrollo">
-            <h2
-              id="sidebar-desarrollo"
-              className="px-2 pb-1 text-xs font-medium text-ink-muted"
-            >
-              Desarrollo
-            </h2>
-            <NavList
-              links={DEV_LINKS}
-              pathname={pathname}
-              onNavigate={onNavigate}
-            />
-          </section>
-        ) : null}
-      </nav>
+      <Suspense fallback={<SidebarNav {...props} location={NO_LOCATION} />}>
+        <SidebarNavHere {...props} />
+      </Suspense>
     </div>
+  );
+}
+
+function SidebarNavHere(props: SidebarProps) {
+  const pathname = usePathname();
+  const params = useParams<{ id?: string }>();
+  const openId = pathname.startsWith("/cuadernos/") ? params?.id : undefined;
+  return <SidebarNav {...props} location={{ pathname, openId }} />;
+}
+
+function SidebarNav({
+  showDevLinks,
+  onNavigate,
+  location,
+}: SidebarProps & { readonly location: Location }) {
+  const { pathname } = location;
+
+  return (
+    <nav aria-label="Principal" className="flex flex-col gap-6">
+      <NavList links={MAIN_LINKS} pathname={pathname} onNavigate={onNavigate} />
+
+      <SidebarNotebooks location={location} onNavigate={onNavigate} />
+
+      {showDevLinks ? (
+        <section aria-labelledby="sidebar-desarrollo">
+          <h2
+            id="sidebar-desarrollo"
+            className="px-2 pb-1 text-xs font-medium text-ink-muted"
+          >
+            Desarrollo
+          </h2>
+          <NavList
+            links={DEV_LINKS}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
+        </section>
+      ) : null}
+    </nav>
   );
 }
 
@@ -98,15 +124,13 @@ const linkClass = (current: boolean) =>
 // The 5 notebooks with the newest activity, from the same cached list as
 // /cuadernos (spec 0005, AC-12). The open notebook is highlighted when listed.
 function SidebarNotebooks({
-  pathname,
+  location: { pathname, openId },
   onNavigate,
 }: {
-  readonly pathname: string;
+  readonly location: Location;
   readonly onNavigate: (() => void) | undefined;
 }) {
   const query = useExperiments();
-  const params = useParams<{ id?: string }>();
-  const openId = pathname.startsWith("/cuadernos/") ? params?.id : undefined;
   const notebooks = query.data;
 
   return (

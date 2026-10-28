@@ -196,4 +196,4 @@ function NotFound() {
   );
 }
 
-export { NotebookView };
+export { NotebookSkeleton, NotebookView };

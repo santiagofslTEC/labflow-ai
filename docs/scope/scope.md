@@ -87,13 +87,13 @@ spec [0001](../specs/0001-stack-architecture/index.md) · code in `api/app/core/
 ### 5. Experiments: create and list · in-progress
 Screens P1 and P2: list your experiments, create one with a title, goal, and variables (name, unit, optional range, required or not). RF-01, RF-02.
 **Done when:** you can create the sample experiment with 3 variables, see it in the list, reload the page, and open it again with everything intact (PA-01, PA-08).
-spec [0005](../specs/0005-experiments-create-list/index.md)
+spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/routers/experiments.py`, `api/app/repositories/experiments.py`, `api/app/services/experiment_rules.py`, `web/src/app/(app)/cuadernos/`, `web/src/components/notebooks/`, `web/src/hooks/use-experiments.ts`
 - [x] Design it (spec): `/architect experiments create and list`
-- [ ] Build it: `/develop experiments create and list`
+- [x] Build it: `/develop experiments create and list`
   - [x] API: list, create, and open routes with pytest and `make openapi` (AC-14 to AC-17)
   - [x] Create a notebook and open it again: TanStack Query data layer, `/cuadernos/nuevo`, `/cuadernos/[id]` (AC-3 to AC-11)
   - [x] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
-  - [ ] Phone and accessibility pass (AC-18)
+  - [x] Phone and accessibility pass (AC-18)
 - [ ] Verify it: `/check verify experiments create and list`
 
 ### 6. Text capture and confirm card · needs a decision · Beta
