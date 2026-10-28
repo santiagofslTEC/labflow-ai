@@ -4,6 +4,7 @@ import {
   FlaskConicalIcon,
   HouseIcon,
   LayoutPanelLeftIcon,
+  MicIcon,
   PaletteIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const MAIN_LINKS: readonly NavLink[] = [
 
 // Only outside production, like /dev/ui itself (AC-16).
 const DEV_LINKS: readonly NavLink[] = [
+  { href: "/dev/ui/home", label: "Inicio por voz", icon: MicIcon },
   { href: "/dev/ui", label: "Sistema de diseño", icon: PaletteIcon },
   {
     href: "/dev/ui/workspace",
