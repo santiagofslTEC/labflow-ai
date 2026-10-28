@@ -31,6 +31,7 @@ class Measurement(SQLModel, table=True):
     source: Source = text_field()
     said_at: datetime
     turn_id: int | None = fk_field("turn.id", ondelete="SET NULL", nullable=True)
+    said_text: str | None = text_field(nullable=True)  # copied from proposal_value (spec 0006)
     # The proposal that last wrote this row.
     proposal_id: int | None = fk_field("proposal.id", ondelete="SET NULL", nullable=True)
     confirmed_at: datetime = now_field()  # first confirm

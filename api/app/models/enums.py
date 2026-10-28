@@ -20,6 +20,14 @@ class Source(StrEnum):
     TEXT = "text"
 
 
+class Grounding(StrEnum):
+    """How a value's number was found in the sentence (spec 0006): the model's quoted words,
+    or the code side fallback. Null on a hand edit."""
+
+    MODEL = "model"
+    CODE = "code"
+
+
 class Role(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"

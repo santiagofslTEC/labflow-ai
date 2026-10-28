@@ -4,7 +4,7 @@ from sqlalchemy import CheckConstraint, Double, Index
 from sqlmodel import Field, SQLModel
 
 from app.models.columns import FINITE, fk_field, id_field, text_field
-from app.models.enums import Source, check_in
+from app.models.enums import Grounding, Source, check_in
 
 
 class ProposalValue(SQLModel, table=True):
@@ -12,6 +12,7 @@ class ProposalValue(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint(f"value {FINITE}", name="value_finite"),
         CheckConstraint(check_in("source", Source), name="source"),
+        CheckConstraint(check_in("grounding", Grounding), name="grounding"),
         # Also serves as the proposal_id index, and as the ON CONFLICT target in set_value.
         Index("uq_proposal_value_proposal_variable", "proposal_id", "variable_id", unique=True),
         Index("ix_proposal_value_variable_id", "variable_id"),
@@ -27,3 +28,8 @@ class ProposalValue(SQLModel, table=True):
     source: Source = text_field()  # copied from the turn
     said_at: datetime  # the turn's created_at
     turn_id: int | None = fk_field("turn.id", ondelete="SET NULL", nullable=True)
+    # Spec 0006: the user's own words for this value, how grounding matched them, and when a
+    # flagged value was checked. All null on a hand edit except `checked_at` (now).
+    said_text: str | None = text_field(nullable=True)
+    grounding: Grounding | None = text_field(nullable=True)
+    checked_at: datetime | None = None
