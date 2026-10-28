@@ -3,16 +3,18 @@
 import {
   MicIcon,
   MicOffIcon,
+  OctagonAlertIcon,
   RotateCcwIcon,
   SendHorizontalIcon,
   SquareIcon,
 } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { duration, spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -23,8 +25,9 @@ import type { MicDockProps, MicDockState } from "./types";
 const LIVE_DELAY_MS = 100;
 const PULSE_DELAYS = ["0ms", "120ms", "240ms", "360ms", "480ms"] as const;
 
-// The bottom dock: a text field that always works, plus the mic pill.
-// It holds no state; the parent owns the recording and the text.
+// The bottom composer (Copilot, Hume): one rounded box with a text field that
+// always works, send, and the mic pill. It holds no state; the parent owns the
+// recording and the text.
 function MicDock({
   state,
   text,
@@ -34,7 +37,7 @@ function MicDock({
   onStop,
   onRetry,
 }: MicDockProps) {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useReducedMotion();
   const fieldId = useId();
   const liveRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,17 +63,17 @@ function MicDock({
       data-slot="mic-dock"
       data-state={state.kind}
       data-motion={reduced ? "reduced" : "full"}
-      className="rounded-t-card border-t border-line bg-surface shadow-dock"
+      className="rounded-card border border-line bg-surface shadow-dock"
     >
       <div ref={liveRef} aria-live="polite" className="sr-only" />
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 pt-3 pb-3 lg:px-6">
+      <div className="flex w-full flex-col gap-1 p-1.5">
         <AnimatePresence initial={false} mode="popLayout">
           <Status key={state.kind} state={state} reduced={reduced} />
         </AnimatePresence>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5">
           <form
-            className="flex min-w-0 flex-1 items-center gap-2"
+            className="flex min-w-0 flex-1 items-center gap-1"
             onSubmit={(event) => {
               event.preventDefault();
               if (!blank) onSubmitText();
@@ -87,11 +90,11 @@ function MicDock({
               placeholder={copy.placeholder}
               autoComplete="off"
               enterKeyHint="send"
-              className="h-12 min-w-0 flex-1 truncate"
+              className="h-12 min-w-0 flex-1 truncate border-transparent bg-transparent shadow-none"
             />
             <Button
               type="submit"
-              variant="secondary"
+              variant="ghost"
               size="icon-lg"
               disabled={blank}
               aria-label={copy.submit}
@@ -139,7 +142,7 @@ function Status({
     return (
       <motion.p
         {...motionProps}
-        className="flex min-h-10 w-fit items-center gap-2 rounded-full bg-sunken px-4 py-2 text-sm text-ink-muted"
+        className="flex min-h-10 items-center gap-2 rounded-control bg-sunken px-3 py-2 text-sm text-ink-muted"
       >
         <MicOffIcon aria-hidden className="size-4 shrink-0" />
         {copy.reasons[state.reason]}
@@ -151,10 +154,16 @@ function Status({
       <motion.div
         {...motionProps}
         role="alert"
-        className="flex flex-col rounded-control border border-danger bg-surface px-4 py-2 text-sm"
+        className="flex items-start gap-3 rounded-control bg-sunken px-3 py-2 text-sm"
       >
-        <p className="font-semibold text-danger">{copy.serviceError}</p>
-        <p className="text-ink">{state.message}</p>
+        <OctagonAlertIcon
+          aria-hidden
+          className="mt-0.5 size-4 shrink-0 text-danger"
+        />
+        <div className="flex flex-col">
+          <p className="font-medium text-ink">{copy.serviceError}</p>
+          <p className="text-ink-muted">{state.message}</p>
+        </div>
       </motion.div>
     );
 

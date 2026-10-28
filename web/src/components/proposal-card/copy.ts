@@ -4,7 +4,7 @@ import type { ProposalCardState, ProposalValue } from "./types";
 const trial = (n: number | null): string => (n === null ? "?" : String(n));
 
 export const copy = {
-  unsavedBadge: "SIN GUARDAR",
+  unsavedBadge: "Sin guardar",
   savedBadge: "Guardado",
   title: (n: number | null) => `Ensayo ${trial(n)}`,
   promptProposed: "¿Lo guardo?",

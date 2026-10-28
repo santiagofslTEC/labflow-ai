@@ -6,16 +6,16 @@
    `static` emits every token even before a class uses it (the chart tokens wait for feature 9).
    tokens.test.ts reads this block and the dark block to check contrast: hex values only. */
 @theme static {
-  --color-canvas: #f6f3ee;
+  --color-canvas: #fbfaf8;
   --color-surface: #ffffff;
-  --color-sunken: #efeae2;
+  --color-sunken: #f3f1ec;
   --color-ink: #1f1b16;
   --color-ink-muted: #6b6358;
   --color-on-ink: #faf8f4;
-  --color-line: #e3ddd3;
+  --color-line: #ebe7e0;
   --color-control: #8c8377;
   --color-saved: #0e6b6b;
-  --color-unsaved: #fbf3e2;
+  --color-unsaved: #fdf6e7;
   --color-unsaved-border: #b7791f;
   --color-warning-ink: #8a5a00;
   --color-danger: #b42318;
@@ -25,13 +25,14 @@
   --color-chart-3: #5b5bd6;
   --color-chart-4: #c2410c;
 
-  --radius-card: 20px;
-  --radius-control: 12px;
+  --radius-card: 14px;
+  --radius-control: 10px;
 
   --shadow-card:
-    0 1px 2px rgb(31 27 22 / 0.06), 0 8px 24px rgb(31 27 22 / 0.08);
+    0 1px 2px rgb(31 27 22 / 0.04), 0 4px 12px rgb(31 27 22 / 0.05);
   --shadow-dock:
-    0 -1px 2px rgb(31 27 22 / 0.06), 0 -12px 32px rgb(31 27 22 / 0.12);
+    0 1px 2px rgb(31 27 22 / 0.06), 0 8px 28px rgb(31 27 22 / 0.12);
+  --shadow-control: 0 1px 2px rgb(31 27 22 / 0.06);
 
   /* Type scale: display and readout have a phone size and an `-lg` size for 1024px and up. */
   --text-display: 2rem;
@@ -53,14 +54,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #171512;
-    --color-surface: #211e1a;
-    --color-sunken: #2a2621;
-    --color-ink: #f3eee6;
-    --color-ink-muted: #a89f92;
+    --color-canvas: #191817;
+    --color-surface: #201f1d;
+    --color-sunken: #292725;
+    --color-ink: #f1eee9;
+    --color-ink-muted: #a39d94;
     --color-on-ink: #1f1b16;
-    --color-line: #3a352e;
-    --color-control: #7a7266;
+    --color-line: #33302c;
+    --color-control: #7d7569;
     --color-saved: #4fb3a9;
     --color-unsaved: #2b2418;
     --color-unsaved-border: #e0a84a;
@@ -72,8 +73,9 @@
     --color-chart-3: #9b9bf0;
     --color-chart-4: #f4875a;
 
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
-    --shadow-dock: 0 -1px 2px rgb(0 0 0 / 0.4), 0 -12px 32px rgb(0 0 0 / 0.45);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
+    --shadow-dock: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.5);
+    --shadow-control: 0 1px 2px rgb(0 0 0 / 0.3);
   }
 }
 

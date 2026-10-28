@@ -1,71 +1,65 @@
-import { ChartSplineIcon, CircleCheckIcon, MicIcon } from "lucide-react";
+import { FlaskConicalIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/app-shell/page-header";
-import { formatQuantity } from "@/lib/format";
+import { PanelHeading } from "@/components/app-shell/panel-heading";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { ApiStatus } from "./api-status";
 
 const STEPS = [
   {
-    icon: MicIcon,
     title: "Dicta",
     text: "Di la medición en voz alta o escríbela, como en tu libreta.",
-    sample: "Ensayo 3, rendimiento 73,5",
   },
   {
-    icon: CircleCheckIcon,
     title: "Confirma",
     text: "Revisa lo que LabFlow entendió. Nada se guarda sin tu sí.",
-    sample: formatQuantity(73.5, "%"),
   },
   {
-    icon: ChartSplineIcon,
     title: "Analiza",
     text: "Obtén la tabla, el gráfico y respuestas sin números inventados.",
-    sample: "5 ensayos",
   },
 ] as const;
 
 export default function Home() {
   return (
-    <div className="flex flex-col gap-10 lg:gap-14">
+    <div className="flex flex-col gap-12">
       <PageHeader
-        eyebrow="LabFlow AI"
         title="Tu cuaderno de laboratorio"
         description="Dicta una medición, confirma lo que LabFlow entendió y obtén una tabla y un gráfico al momento."
         actions={<ApiStatus />}
       />
 
-      <section aria-labelledby="como-funciona">
-        <h2
-          id="como-funciona"
-          className="mb-4 text-label font-semibold text-ink-muted uppercase"
-        >
+      <section aria-labelledby="experimentos" className="flex flex-col gap-2">
+        <PanelHeading
+          id="experimentos"
+          icon={FlaskConicalIcon}
+          title="Experimentos"
+          meta="0"
+        />
+        <EmptyState
+          icon={FlaskConicalIcon}
+          title="Aún no hay experimentos"
+          description="Cuando dictes tu primera medición, aquí verás cada experimento con su tabla y su gráfico."
+          headingLevel="h3"
+        />
+      </section>
+
+      <section aria-labelledby="como-funciona" className="flex flex-col gap-4">
+        <h2 id="como-funciona" className="text-sm font-medium text-ink">
           Cómo funciona
         </h2>
-        <ol className="grid gap-4 md:grid-cols-3">
-          {STEPS.map(({ icon: Icon, title, text, sample }, index) => (
+        <ol className="grid gap-6 md:grid-cols-3">
+          {STEPS.map(({ title, text }, index) => (
             <li
               key={title}
-              className="flex flex-col gap-4 rounded-card border border-line bg-surface p-6 shadow-card"
+              className="flex flex-col gap-1 border-t border-line pt-4"
             >
-              <div className="flex items-center justify-between">
-                <span className="flex size-10 items-center justify-center rounded-full bg-sunken text-ink">
-                  <Icon aria-hidden className="size-5" />
-                </span>
-                <span className="font-mono text-sm text-ink-muted tabular-nums">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="font-serif text-title font-normal text-ink">
-                  {title}
-                </h3>
-                <p className="text-sm text-ink-muted">{text}</p>
-              </div>
-              <p className="mt-auto truncate rounded-control bg-sunken px-3 py-2 font-mono text-sm text-ink tabular-nums">
-                {sample}
-              </p>
+              <span className="font-mono text-xs text-ink-muted tabular-nums">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <h3 className="font-medium text-ink">{title}</h3>
+              <p className="text-sm text-ink-muted">{text}</p>
             </li>
           ))}
         </ol>

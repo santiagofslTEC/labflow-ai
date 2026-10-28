@@ -17,10 +17,11 @@ export default function WorkspacePreviewPage() {
   if (!isDevUiEnabled(process.env.VERCEL_ENV)) notFound();
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-8">
       <PageHeader
-        eyebrow="Vista previa del espacio de trabajo"
+        eyebrow="Experimentos / Vista previa"
         title={SAMPLE_EXPERIMENT_TITLE}
+        description="3 variables · Temperatura, Duración, Rendimiento"
       />
       <WorkspaceDemo />
     </div>

@@ -12,6 +12,7 @@ type EmptyStateProps = {
   readonly className?: string;
 };
 
+// Small outline icon, a short title, one line, one action (Linear, Obvious).
 function EmptyState({
   icon: Icon,
   title,
@@ -24,18 +25,20 @@ function EmptyState({
     <div
       data-slot="empty-state"
       className={cn(
-        "flex flex-col items-center gap-3 rounded-card border border-dashed border-line px-6 py-12 text-center",
+        "flex flex-col items-center gap-2 px-6 py-12 text-center",
         className,
       )}
     >
-      <span className="flex size-12 items-center justify-center rounded-full bg-sunken text-ink-muted">
-        <Icon className="size-6" aria-hidden />
-      </span>
-      <Heading className="font-serif text-title font-normal text-ink">
+      <Icon
+        className="mb-1 size-8 text-ink-muted"
+        strokeWidth={1.5}
+        aria-hidden
+      />
+      <Heading className="font-serif text-2xl font-normal text-ink">
         {title}
       </Heading>
       <p className="max-w-sm text-sm text-ink-muted">{description}</p>
-      {action ? <div className="mt-2">{action}</div> : null}
+      {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }

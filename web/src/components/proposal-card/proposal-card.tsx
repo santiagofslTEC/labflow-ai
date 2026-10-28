@@ -6,10 +6,11 @@ import {
   KeyboardIcon,
   MessageCircleQuestionIcon,
   MicIcon,
+  OctagonAlertIcon,
   PencilIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { useEffect, useId, useRef } from "react";
 import type * as React from "react";
 
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatQuantity } from "@/lib/format";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { duration, savedExit, settleMs, spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +56,7 @@ function ProposalCard({
   onRetry,
   onSettled,
 }: ProposalCardProps) {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = useReducedMotion();
   const titleId = useId();
   const editFormId = useId();
   const unsaved = isUnsaved(state);
@@ -161,20 +163,20 @@ function ProposalCard({
         data-state={state.kind}
         data-saved={!unsaved}
         className={cn(
-          "flex flex-col gap-5 rounded-card p-5 text-ink shadow-card transition-colors duration-300 sm:p-6",
+          "flex flex-col gap-4 rounded-card p-4 text-ink shadow-card transition-colors duration-300 sm:p-5",
           unsaved
-            ? "border-2 border-dashed border-unsaved-border bg-unsaved"
-            : "border-2 border-solid border-saved bg-surface",
+            ? "border border-dashed border-unsaved-border bg-unsaved"
+            : "border border-solid border-saved bg-surface",
         )}
       >
         <div ref={liveRef} aria-live="polite" className="sr-only" />
 
-        <header className="flex items-start justify-between gap-3">
-          <h2 id={titleId} className="text-xl leading-7 font-semibold">
+        <header className="flex items-center justify-between gap-3">
+          <h2 id={titleId} className="text-base leading-6 font-semibold">
             {trialNumber === null ? (
               <>
                 Ensayo{" "}
-                <span className="inline-flex h-7 min-w-9 items-center justify-center rounded-md border border-dashed border-control px-2 font-mono text-ink-muted">
+                <span className="inline-flex h-6 min-w-8 items-center justify-center rounded-md border border-dashed border-control px-2 font-mono text-ink-muted">
                   ?
                 </span>
               </>
@@ -198,24 +200,24 @@ function ProposalCard({
           )}
         </header>
 
-        <p className="flex items-start gap-2 text-sm text-ink-muted">
+        <p className="flex items-start gap-2 border-l-2 border-line pl-3 text-sm text-ink-muted">
           {source === "voice" ? (
-            <MicIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <MicIcon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
           ) : (
-            <KeyboardIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <KeyboardIcon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
           )}
           <span>
             <span className="sr-only">
               {source === "voice" ? copy.sourceVoice : copy.sourceText}:{" "}
             </span>
-            <q className="italic">{phrase}</q>
+            <q>{phrase}</q>
           </span>
         </p>
 
         <motion.div
           layout="size"
           transition={spring.snappy}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-3"
         >
           <Prompt state={state} trialNumber={trialNumber} />
 
@@ -246,12 +248,16 @@ function ProposalCard({
           {state.kind === "save_error" ? (
             <div
               role="alert"
-              className="flex flex-col gap-1 rounded-control border border-danger bg-surface px-4 py-3 text-sm"
+              className="flex items-start gap-3 rounded-control bg-sunken px-3 py-3 text-sm"
             >
-              <p className="font-semibold text-danger">
-                {copy.saveErrorHeadline}
-              </p>
-              <p className="text-ink">{state.message}</p>
+              <OctagonAlertIcon
+                aria-hidden
+                className="mt-0.5 size-4 shrink-0 text-danger"
+              />
+              <div className="flex flex-col gap-0.5">
+                <p className="font-medium text-ink">{copy.saveErrorHeadline}</p>
+                <p className="text-ink-muted">{state.message}</p>
+              </div>
             </div>
           ) : null}
 
@@ -280,19 +286,15 @@ function Prompt({
   readonly trialNumber: number | null;
 }) {
   if (state.kind === "proposed")
-    return <p className="text-lg font-medium">{copy.promptProposed}</p>;
+    return <p className="font-medium">{copy.promptProposed}</p>;
   if (state.kind === "correction")
-    return (
-      <p className="text-lg font-medium">
-        {copy.promptCorrection(trialNumber)}
-      </p>
-    );
+    return <p className="font-medium">{copy.promptCorrection(trialNumber)}</p>;
   if (state.kind === "needs_clarification")
     return (
-      <p className="flex items-start gap-2 text-lg font-medium">
+      <p className="flex items-start gap-2 font-medium">
         <MessageCircleQuestionIcon
           aria-hidden
-          className="mt-1 size-5 shrink-0 text-warning-ink"
+          className="mt-0.5 size-5 shrink-0 text-warning-ink"
         />
         {state.question}
       </p>
@@ -335,12 +337,17 @@ function ValueRow({
   const commit = (next: number) => onCommitEdit(variableId, next);
 
   return (
-    <li className="flex flex-col gap-2 py-3">
+    <li className="flex flex-col gap-2 py-2">
       <div className="flex min-h-12 items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-label font-semibold text-ink-muted uppercase">
-            {name}
-          </span>
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 gap-1",
+            editingThis || slot
+              ? "flex-col"
+              : "flex-wrap items-center justify-between gap-x-4",
+          )}
+        >
+          <span className="text-sm text-ink-muted">{name}</span>
           {editingThis ? (
             <ValueField
               key={`edit-${variableId}-${value.value}`}
@@ -378,7 +385,7 @@ function ValueRow({
         ) : null}
       </div>
       {value.warning ? (
-        <p className="flex items-center gap-2 rounded-control border border-unsaved-border bg-unsaved px-3 py-2 text-sm text-warning-ink">
+        <p className="flex items-center gap-2 text-sm text-warning-ink">
           <TriangleAlertIcon aria-hidden className="size-4 shrink-0" />
           {value.warning}
         </p>
@@ -419,7 +426,7 @@ function Reading({
     <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       {changed && value.previous !== null && value.previous !== undefined ? (
         <>
-          <del className="font-mono text-lg text-ink-muted tabular-nums">
+          <del className="font-mono text-base text-ink-muted tabular-nums">
             <span className="sr-only">{copy.before}: </span>
             {formatQuantity(value.previous, value.unit)}
           </del>

@@ -26,18 +26,12 @@ function PageHeader({
       )}
     >
       <div className="flex min-w-0 flex-col gap-2">
-        {eyebrow ? (
-          <p className="text-label font-semibold text-ink-muted uppercase">
-            {eyebrow}
-          </p>
-        ) : null}
+        {eyebrow ? <p className="text-sm text-ink-muted">{eyebrow}</p> : null}
         <h1 className="font-serif text-display font-normal text-balance text-ink lg:text-display-lg">
           {title}
         </h1>
         {description ? (
-          <div className="max-w-2xl text-base text-ink-muted">
-            {description}
-          </div>
+          <div className="max-w-2xl text-sm text-ink-muted">{description}</div>
         ) : null}
       </div>
       {actions ? (

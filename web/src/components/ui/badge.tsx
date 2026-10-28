@@ -4,17 +4,17 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Variants from spec 0003: text / background / border.
+// Variants from spec 0003: a soft fill with a status dot, no outline.
 const badgeVariants = cva(
-  "inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border px-2.5 text-label font-semibold whitespace-nowrap uppercase [&>svg]:pointer-events-none [&>svg]:size-3.5",
+  "inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full px-2.5 text-xs font-medium whitespace-nowrap before:size-1.5 before:shrink-0 before:rounded-full before:content-[''] has-[>svg]:before:hidden [&>svg]:pointer-events-none [&>svg]:size-3.5",
   {
     variants: {
       variant: {
-        neutral: "border-transparent bg-sunken text-ink-muted",
-        saved: "border-saved bg-surface text-saved",
-        unsaved: "border-unsaved-border bg-unsaved text-warning-ink",
-        warning: "border-unsaved-border bg-unsaved text-warning-ink",
-        danger: "border-danger bg-surface text-danger",
+        neutral: "bg-sunken text-ink-muted before:bg-control",
+        saved: "bg-sunken text-ink before:bg-saved [&>svg]:text-saved",
+        unsaved: "bg-unsaved text-warning-ink before:bg-unsaved-border",
+        warning: "bg-unsaved text-warning-ink before:bg-unsaved-border",
+        danger: "bg-sunken text-ink before:bg-danger [&>svg]:text-danger",
       },
     },
     defaultVariants: {

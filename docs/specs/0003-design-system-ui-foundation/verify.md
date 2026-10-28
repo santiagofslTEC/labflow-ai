@@ -13,7 +13,7 @@ Run `make dev` (or `cd web && pnpm dev`) and open http://localhost:3000. You may
 - [ ] On `/dev/ui` "Tarjeta de propuesta", pick each of the 10 states → each renders: `proposed`, `editing` (field shows `73,5`), `saving` ("Guardando…"), `saved` (collapses, then "Mostrar otra vez"), `needs_clarification` (question plus an empty Duración field), `correction` (`48 °C` struck through → `50 °C`), `save_error` (alert plus Reintentar), the range warning, a missing value, and pH `7,2` with "Ensayo ?" → AC-8
 - [ ] Turn your screen to grayscale (macOS: Accessibility, Display, Color filters) and compare `proposed` and `saved` → still clearly different (dashed edge plus badge vs. solid edge plus check) → AC-9
 - [ ] In the card's `editing` state, type `abc` and Enter → the error "Escribe un número, por ejemplo 73,5" shows and no toast appears; type `74,2` and Enter → toast "onCommitEdit: variable 3 = 74.2" → AC-8, AC-13
-- [ ] On `/dev/ui/workspace`, click the dock's text field, type `sí` and press Enter → the card is not confirmed (it still says SIN GUARDAR) → AC-10
+- [ ] On `/dev/ui/workspace`, click the dock's text field, type `sí` and press Enter → the card is not confirmed (it still says Sin guardar) → AC-10
 - [ ] With VoiceOver on (Cmd+F5), pick the card states → you hear "Propuesta del ensayo 3, sin guardar" and, in `saved`, "Ensayo 3 guardado"; `save_error` is read as an alert → AC-11
 - [ ] On `/dev/ui` "Dock del micrófono", pick each of the 9 states → `idle` black "Dictar" pill; `requesting_permission`; `listening` with moving bars and a ticking timer; the pulse variant; `processing`; the three `unavailable` reasons (focus jumps to the text field); `service_error` with "No te escuché bien" and Reintentar. In every state you can still type and Enviar → AC-12
 - [ ] Open `/dev/ui/workspace` at 1280px wide → two columns: conversation with the card above the dock on the left, table above chart on the right, no tab list → AC-14
@@ -23,7 +23,7 @@ Run `make dev` (or `cd web && pnpm dev`) and open http://localhost:3000. You may
 - [ ] On `/dev/ui` "Tarjeta a tabla", press Confirmar → after "Guardando…" the check appears, the three numbers fly into the new row 3 of the table and shrink to table size without stretching, then the card collapses → AC-15
 - [ ] Press "Simular un fallo al guardar", then Confirmar → `save_error` with Reintentar focused; Reintentar → saves and flies → AC-15, AC-10
 - [ ] Turn on Reduce motion (macOS: Accessibility, Display) and reload → the card and dock only fade; no rise, no flight, no spring; the mic bars do not ease → AC-15
-- [ ] Look at the home page `/` → "LabFlow" serif wordmark in the header, the serif greeting "Tu cuaderno de laboratorio", and the API badge: "Conectando con la API…" then "API conectada (dev)" with the API running, or "La API no responde" with it stopped → AC-17, AC-3
+- [ ] Look at the home page `/` → "LabFlow" serif wordmark in the sidebar (top bar below 1024px), the serif greeting "Tu cuaderno de laboratorio", and the API badge: "Conectando con la API…" then "API conectada (dev)" with the API running, or "La API no responde" with it stopped → AC-17, AC-3
 - [ ] Inspect a readout (`73,5 %`) and a table number → Geist Mono with `font-variant-numeric: tabular-nums`; titles are Instrument Serif and never bold → AC-3
 - [ ] Read through `web/design.md` → direction, Mobbin references, type scale, every color token with meaning, spacing, radius, shadow, motion, touch targets, layout, card anatomy and states, dock states → AC-2
 - [ ] On a Vercel preview deploy, open `/dev/ui` → it renders; on production → 404 (the branded "No encontramos esta página") → AC-16
@@ -33,7 +33,7 @@ Run `make dev` (or `cd web && pnpm dev`) and open http://localhost:3000. You may
 - [ ] `cd web && pnpm test` → all pass (228 at build time), including `tokens.test.ts` (contrast in both themes), `no-raw-colors.test.ts`, and the axe checks → AC-1, AC-4, AC-6
 - [ ] `cd web && pnpm lint && pnpm typecheck` → clean
 - [ ] `cd web && API_URL=http://localhost:8000 VERCEL_ENV=production pnpm build && PORT=3123 pnpm start`, then `curl -s -o /dev/null -w '%{http_code}' localhost:3123/dev/ui` → `404`; `/` and `/manifest.webmanifest` → `200` → AC-16, AC-18
-- [ ] `curl -s localhost:3000/manifest.webmanifest` → `name` "LabFlow AI", `short_name` "LabFlow", `lang` "es", `background_color` `#f6f3ee`, `theme_color` `#1f1b16`, three icons (`any`, `any`, `maskable`) → AC-18
+- [ ] `curl -s localhost:3000/manifest.webmanifest` → `name` "LabFlow AI", `short_name` "LabFlow", `lang` "es", `background_color` `#fbfaf8`, `theme_color` `#1f1b16`, three icons (`any`, `any`, `maskable`) → AC-18
 - [ ] `grep -rnE "#[0-9a-fA-F]{3,8}\b|oklch\(|bg-(zinc|gray|slate)-" web/src/components web/src/app --include=*.tsx` → no matches outside tests → AC-1
 
 ## Value sourcing

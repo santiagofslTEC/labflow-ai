@@ -2,8 +2,9 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// containerClassName: the card to table flight needs `overflow-visible` while a
-// value flies in, or the scroll container clips it.
+// A borderless document table (Notion): hairline rows, quiet sentence case
+// headers. containerClassName: the card to table flight needs
+// `overflow-visible` while a value flies in, or the scroll container clips it.
 function Table({
   className,
   containerClassName,
@@ -12,10 +13,7 @@ function Table({
   return (
     <div
       data-slot="table-container"
-      className={cn(
-        "relative w-full overflow-x-auto rounded-card border border-line bg-surface",
-        containerClassName,
-      )}
+      className={cn("relative w-full overflow-x-auto", containerClassName)}
     >
       <table
         data-slot="table"
@@ -30,27 +28,21 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("bg-sunken [&_tr]:border-b", className)}
+      className={cn("[&_tr]:border-b [&_tr]:hover:bg-transparent", className)}
       {...props}
     />
   );
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
-  return (
-    <tbody
-      data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
-      {...props}
-    />
-  );
+  return <tbody data-slot="table-body" className={cn(className)} {...props} />;
 }
 
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
     <tfoot
       data-slot="table-footer"
-      className={cn("border-t bg-sunken font-medium", className)}
+      className={cn("border-t font-medium", className)}
       {...props}
     />
   );
@@ -60,7 +52,10 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       data-slot="table-row"
-      className={cn("border-b border-line transition-colors", className)}
+      className={cn(
+        "border-b border-line transition-colors hover:bg-sunken/60",
+        className,
+      )}
       {...props}
     />
   );
@@ -71,7 +66,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-4 text-left align-middle text-label font-semibold whitespace-nowrap text-ink-muted uppercase",
+        "h-9 px-3 text-left align-middle text-[0.8125rem] font-normal whitespace-nowrap text-ink-muted first:pl-1 last:pr-1",
         className,
       )}
       {...props}
@@ -83,7 +78,10 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("h-11 px-4 align-middle whitespace-nowrap", className)}
+      className={cn(
+        "h-10 px-3 align-middle whitespace-nowrap first:pl-1 last:pr-1",
+        className,
+      )}
       {...props}
     />
   );
@@ -107,7 +105,7 @@ function TableCaption({
   return (
     <caption
       data-slot="table-caption"
-      className={cn("py-3 text-sm text-ink-muted", className)}
+      className={cn("py-3 text-left text-xs text-ink-muted", className)}
       {...props}
     />
   );

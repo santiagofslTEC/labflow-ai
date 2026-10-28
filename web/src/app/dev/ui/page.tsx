@@ -123,9 +123,7 @@ function Specimen({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-label font-semibold text-ink-muted uppercase">
-        {label}
-      </h3>
+      <h3 className="text-sm font-medium text-ink">{label}</h3>
       {children}
     </div>
   );
@@ -206,9 +204,7 @@ export default function DevUiPage() {
             <p className="text-sm text-ink-muted">
               Texto pequeño, 14/20, para ayudas y detalles.
             </p>
-            <p className="text-label font-semibold text-ink-muted uppercase">
-              Etiqueta 12/16
-            </p>
+            <p className="text-xs font-medium text-ink-muted">Etiqueta 12/16</p>
             <p className="font-mono text-readout text-ink tabular-nums lg:text-readout-lg">
               {formatQuantity(73.5, "%")}
             </p>
@@ -222,10 +218,10 @@ export default function DevUiPage() {
         <Specimen label="Radio y sombra">
           <div className="flex flex-wrap gap-4">
             <div className="flex size-32 items-end rounded-card border border-line bg-surface p-3 text-xs text-ink-muted shadow-card">
-              card · 20px
+              card · 14px
             </div>
             <div className="flex size-32 items-end rounded-control border border-line bg-surface p-3 text-xs text-ink-muted">
-              control · 12px
+              control · 10px
             </div>
             <div className="flex size-32 items-end rounded-card bg-surface p-3 text-xs text-ink-muted shadow-dock">
               sombra dock
@@ -274,7 +270,7 @@ export default function DevUiPage() {
               <CircleCheckIcon aria-hidden />
               Guardado
             </Badge>
-            <Badge variant="unsaved">SIN GUARDAR</Badge>
+            <Badge variant="unsaved">Sin guardar</Badge>
             <Badge variant="warning">
               <TriangleAlertIcon aria-hidden />
               Fuera de rango

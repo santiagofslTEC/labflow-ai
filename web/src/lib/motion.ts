@@ -1,5 +1,5 @@
 // Motion tokens (spec 0003). Constants only; components pick a fade instead of
-// movement when useReducedMotion() is true.
+// movement when useReducedMotion() (hooks/use-reduced-motion.ts) is true.
 export const spring = {
   // State changes and the dock morph.
   snappy: { type: "spring", stiffness: 420, damping: 34 },

@@ -5,18 +5,21 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-transparent font-medium whitespace-nowrap focus-ring transition-colors select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5",
+  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-control border border-transparent font-medium tracking-[-0.005em] whitespace-nowrap focus-ring transition-colors select-none disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        primary: "bg-ink text-on-ink hover:bg-ink/85",
-        secondary: "border-control bg-surface text-ink hover:bg-sunken",
-        ghost: "text-ink hover:bg-sunken",
-        danger: "border-danger bg-surface text-danger hover:bg-danger/10",
+        primary: "bg-ink text-on-ink shadow-control hover:bg-ink/85",
+        secondary:
+          "border-line bg-surface text-ink shadow-control hover:bg-sunken",
+        ghost: "text-ink-muted hover:bg-sunken hover:text-ink",
+        // Destructive actions look like secondary; only the icon carries the red.
+        danger:
+          "border-line bg-surface text-ink shadow-control hover:bg-sunken [&_svg]:text-danger",
       },
       size: {
         md: "h-10 px-4 text-sm has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
-        lg: "h-12 px-5 text-base has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
+        lg: "h-12 px-5 text-[0.9375rem] has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
         icon: "size-10",
         "icon-lg": "size-12",
       },

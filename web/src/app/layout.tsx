@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { MotionProvider } from "@/components/app-shell/motion-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { isDevUiEnabled } from "@/lib/dev-ui";
 
 import "./globals.css";
 
@@ -44,7 +45,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body>
         <MotionProvider>
-          <AppShell>{children}</AppShell>
+          <AppShell showDevLinks={isDevUiEnabled(process.env.VERCEL_ENV)}>
+            {children}
+          </AppShell>
           <Toaster />
         </MotionProvider>
       </body>

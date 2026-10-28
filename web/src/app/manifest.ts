@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 // A manifest cannot read CSS, so these repeat the light --color-canvas and
 // --color-ink from globals.css; manifest.test.ts keeps them in sync.
-const CANVAS = "#f6f3ee";
+const CANVAS = "#fbfaf8";
 const INK = "#1f1b16";
 
 export default function manifest(): MetadataRoute.Manifest {

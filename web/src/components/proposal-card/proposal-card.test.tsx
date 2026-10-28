@@ -172,10 +172,10 @@ describe("ProposalCard states (AC-8, AC-6)", () => {
 
 describe("Unsaved vs saved (AC-9)", () => {
   it.each(ALL_STATES.filter((s) => s.kind !== "saved"))(
-    "$kind shows SIN GUARDAR, the dashed edge, and the tint",
+    "$kind shows Sin guardar, the dashed edge, and the tint",
     (state) => {
       render(<ProposalCard {...props(state)} />);
-      expect(within(card()).getByText("SIN GUARDAR")).toBeInTheDocument();
+      expect(within(card()).getByText("Sin guardar")).toBeInTheDocument();
       expect(card()).toHaveClass(
         "border-dashed",
         "border-unsaved-border",
@@ -190,7 +190,7 @@ describe("Unsaved vs saved (AC-9)", () => {
     expect(card()).toHaveClass("border-solid", "border-saved");
     expect(card()).not.toHaveClass("border-dashed", "bg-unsaved");
     expect(within(card()).getByText("Guardado")).toBeInTheDocument();
-    expect(within(card()).queryByText("SIN GUARDAR")).not.toBeInTheDocument();
+    expect(within(card()).queryByText("Sin guardar")).not.toBeInTheDocument();
     expect(within(card()).queryByRole("button")).not.toBeInTheDocument();
   });
 });
