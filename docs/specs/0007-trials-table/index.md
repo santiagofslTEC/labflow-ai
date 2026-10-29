@@ -1,7 +1,7 @@
 # 0007. Trials table, recent measurements, and CSV export
 
 **Date**: 2026-10-29
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
@@ -49,10 +49,10 @@ The notebook's side panel (the "Inspector activo") already draws a trials table,
 `TrialRow { id, number, cells: TrialCell[] }` · `TrialCell { variable_id, value, said_text, saved_at }` · `RecentMeasurement { trial_number, variable_id, value, saved_at }`. Frozen Pydantic models; `make openapi` regenerates the web types.
 
 **Web structure**:
-- `web/src/api/trials.ts`: `getTrials(experimentId)` returning the result union, like `api/capture.ts`.
-- `web/src/hooks/use-trials.ts`: `useTrials(experimentId)` with the key `[...experimentKeys.all, "trials", experimentId]`, so `onSaved`'s `invalidateQueries({ queryKey: experimentKeys.all })` refreshes it (AC-4).
-- `web/src/lib/trials.ts` (pure): `tableRows(variables, trials)` (cells in position order, `null` for a missing value), `recentLines(variables, recent)`, and `csvRows(variables, trials)` (dot decimals) feeding the existing `trialsCsv`.
-- `NotebookInspector` reads `useTrials`, renders the rows, the recent list, the loading and error states, and passes the rows to `downloadNotebookCsv`.
+- `web/src/api/experiments.ts`: `getTrials(experimentId)` on the same result union as the other notebook reads, and `experimentKeys.trials(id)` = `["experiments", id, "trials"]`, under `experimentKeys.all`, so `onSaved`'s `invalidateQueries({ queryKey: experimentKeys.all })` refreshes it (AC-4).
+- `web/src/hooks/use-experiments.ts`: `useTrials(experimentId)`.
+- `web/src/lib/trials.ts` (pure): `tableRows(variables, trials)` (values in position order, `null` for a missing one), `recentLines(variables, recent)`, and `csvRows(rows)` with `csvNumber` (dot decimals) feeding the existing `trialsCsv`.
+- `NotebookView` reads `useTrials` and passes a `TrialsPanel` (`loading`, `error` with `onRetry`, or `ready`) to `NotebookInspector`, which stays presentational. Both export buttons ("Exportar datos" in the header and "Exportar CSV" in the panel) download the same rows and are `aria-disabled` until the trials load.
 
 **Value sourcing**:
 

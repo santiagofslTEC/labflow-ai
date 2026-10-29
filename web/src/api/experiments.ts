@@ -11,6 +11,7 @@ import type { components } from "./schema";
 // Users see "cuaderno"; the API and these types keep "experiment" (spec 0005).
 export type ExperimentSummary = components["schemas"]["ExperimentSummary"];
 export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
+export type TrialsView = components["schemas"]["TrialsView"];
 export type VariableDetail = components["schemas"]["VariableDetail"];
 export type NewExperiment = components["schemas"]["NewExperiment"];
 export type InstructionsRead = components["schemas"]["InstructionsRead"];
@@ -20,6 +21,8 @@ export type InstructionsProposal =
 export const experimentKeys = {
   all: ["experiments"] as const,
   detail: (id: number) => ["experiments", id] as const,
+  // Under `all`, so the save invalidation refreshes it (spec 0007, AC-4).
+  trials: (id: number) => ["experiments", id, "trials"] as const,
 };
 
 // What went wrong, in the terms the screens care about. `invalid` carries the
@@ -88,6 +91,14 @@ export const getExperiment = (
 ): Promise<ApiResult<ExperimentDetail>> =>
   settle(() =>
     api.GET("/api/experiments/{experiment_id}", {
+      params: { path: { experiment_id: id } },
+    }),
+  );
+
+// The saved trials by number and the 5 newest measurements (spec 0007, AC-1).
+export const getTrials = (id: number): Promise<ApiResult<TrialsView>> =>
+  settle(() =>
+    api.GET("/api/experiments/{experiment_id}/trials", {
       params: { path: { experiment_id: id } },
     }),
   );
