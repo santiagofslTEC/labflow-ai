@@ -1,4 +1,4 @@
-# Verify: text capture and confirm card · spec 0006 · updated 2026-10-28
+# Verify: text capture and confirm card · spec 0006 · updated 2026-10-29
 _Steps derived from spec 0006 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones._
 
 Setup you may want first: `make seed`, `make dev`, sign in at `/access`, then open `/dev/capture?experiment=<seeded id>` (the seeded notebook has trials 1 to 5).
@@ -19,12 +19,15 @@ Setup you may want first: `make seed`, `make dev`, sign in at `/access`, then op
 - [ ] Type "Ensayo 10, duración 2 horas" → flagged card (amber solid edge, "Revisa antes de guardar"), "Convertí 2 horas a 120 min", save disabled; click "Sí, es 120 min" → "Revisado", save enabled → AC-9, AC-23, AC-24
 - [ ] Type "Ensayo 11, temperatura 500 grados" → "Fuera del rango esperado: 20 a 100 °C"; edit it by hand to 500 → counts as checked, save enabled → AC-23
 - [ ] On a flagged card, type "sí, guárdalo" → reply "Antes de guardar, revisa …", nothing saved → AC-24
+- [ ] Type "temperatura 50 grados" → "¿Qué número de ensayo es?"; type "5" → the card becomes Ensayo 5 → AC-25
+- [ ] Type "temperatura 23 a 71" → "Dijiste 23 y 71 para Temperatura. ¿Cuál guardo?"; type "71" → Temperatura 71 °C → AC-10, AC-25
+- [ ] On a notebook with a unitless variable, type "65 grados" → 65 with "65 grados" on the said side, no flag → AC-26
 - [ ] Type "¿Cuál fue el mejor rendimiento?" → "Por ahora solo registro mediciones. Pronto podré responder preguntas y graficar." → AC-12
 - [ ] Type 501 characters → the field stops at 500 → AC-16, AC-18
 - [ ] While a sentence is sending, press Enter again → only one request goes out → AC-18
 
 ## Commands
-- [ ] `cd api && uv run pytest` → all pass (pure planner, numbers, units, flags, repository checks, the seven routes) → AC-1 to AC-17, AC-20 to AC-24
+- [ ] `cd api && uv run pytest` → all pass (pure planner, numbers, units, flags, repository checks, the seven routes) → AC-1 to AC-17, AC-20 to AC-26
 - [ ] `cd api && uv run pytest -m live -s tests/test_live.py` → 10 sentences on each provider, each 5 s or less → AC-19
 - [ ] `cd web && pnpm test` → card states, saveLabel table, CaptureStage flows, axe clean → AC-18, AC-22, AC-23
 - [ ] `curl -i -X POST localhost:8000/api/proposals/1/confirm` with no cookie → 401 (same for the other six routes) → AC-16
