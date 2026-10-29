@@ -283,6 +283,8 @@ export interface components {
         Body_create_with_instructions_api_experiments_with_instructions_post: {
             /** Body */
             body: string;
+            /** File */
+            file?: string | null;
             /** Instructions Text */
             instructions_text?: string | null;
             /** Read From Page */
@@ -292,6 +294,8 @@ export interface components {
         };
         /** Body_read_instructions_api_experiments_instructions_read_post */
         Body_read_instructions_api_experiments_instructions_read_post: {
+            /** File */
+            file?: string | null;
             /** Text */
             text?: string | null;
             /** From Page */
@@ -866,7 +870,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_read_instructions_api_experiments_instructions_read_post"];
+                "multipart/form-data": components["schemas"]["Body_read_instructions_api_experiments_instructions_read_post"];
             };
         };
         responses: {
@@ -935,7 +939,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_create_with_instructions_api_experiments_with_instructions_post"];
+                "multipart/form-data": components["schemas"]["Body_create_with_instructions_api_experiments_with_instructions_post"];
             };
         };
         responses: {

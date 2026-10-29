@@ -286,7 +286,7 @@
         "operationId": "read_instructions_api_experiments_instructions_read_post",
         "requestBody": {
           "content": {
-            "application/x-www-form-urlencoded": {
+            "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_read_instructions_api_experiments_instructions_read_post"
               }
@@ -367,7 +367,7 @@
         "operationId": "create_with_instructions_api_experiments_with_instructions_post",
         "requestBody": {
           "content": {
-            "application/x-www-form-urlencoded": {
+            "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_create_with_instructions_api_experiments_with_instructions_post"
               }
@@ -1033,6 +1033,18 @@
             },
             "title": "Body"
           },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
           "instructions_text": {
             "anyOf": [
               {
@@ -1075,6 +1087,18 @@
       },
       "Body_read_instructions_api_experiments_instructions_read_post": {
         "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
           "text": {
             "anyOf": [
               {

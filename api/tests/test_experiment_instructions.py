@@ -23,9 +23,15 @@ from app.repositories.capture import load_context
 from app.repositories.experiments import create_experiment, get_experiment
 from app.services.card_state import VariableInfo
 from app.services.experiment_rules import NewExperiment, NewVariable
-from app.services.instructions import NewProtocol
-from app.services.results import DuplicateVariableName, ExperimentDetail
+from app.services.instructions import NewProtocol, clean_filename, extract_pages
+from app.services.results import (
+    DuplicateVariableName,
+    ExperimentDetail,
+    PdfUnreadable,
+    TooManyPages,
+)
 from app.services.turn_plan import TurnContext
+from tests.pdfs import encrypt, make_pdf
 
 CONTEXT_TEXT = "Se mide el rendimiento a 3 temperaturas."
 
@@ -385,4 +391,168 @@ def test_a_bad_multipart_create_stores_nothing(
     response = authed.post(CREATE, data=data)
     assert response.status_code == 422
     assert response.json()["code"] == code
+    assert stored_counts(session) == before
+
+
+# --- AC-20, AC-22, AC-29, AC-30: PDFs ---
+
+PAGE = "Mida la temperatura (entre 40 y 80 °C) y el rendimiento en %. " * 3
+
+
+def pdf_file(data: bytes, name: str = "guia.pdf") -> dict[str, tuple[str, bytes, str]]:
+    return {"file": (name, data, "application/pdf")}
+
+
+def test_extract_pages_reads_text_and_keeps_empty_pages() -> None:
+    pages = extract_pages(make_pdf(["Práctica 4\nMida la temperatura.", ""]))
+    assert isinstance(pages, tuple)
+    assert pages[0].startswith("Práctica 4\nMida la temperatura.")
+    assert pages[1] == ""
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        (b"\x89PNG\r\n\x1a\n not a pdf", PdfUnreadable()),
+        (b"%PDF-1.4 damaged", PdfUnreadable()),
+        (encrypt(make_pdf([PAGE]), "secreta"), PdfUnreadable()),
+        (make_pdf(["x"] * 81), TooManyPages(page_count=81)),
+    ],
+    ids=["png renamed", "damaged", "real password", "81 pages"],
+)
+def test_extract_pages_refuses(data: bytes, expected: object) -> None:
+    assert extract_pages(data) == expected
+
+
+def test_an_empty_password_opens() -> None:
+    pages = extract_pages(encrypt(make_pdf([PAGE]), ""))
+    assert isinstance(pages, tuple) and "entre 40 y 80" in pages[0]
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("C:\\Users\\ana\\guía.pdf", "guía.pdf"),
+        ("../../etc/práctica.pdf", "práctica.pdf"),
+        ("  \x07  ", "instrucciones.pdf"),
+        (None, "instrucciones.pdf"),
+        ("a" * 300, "a" * 255),
+    ],
+)
+def test_clean_filename(name: str | None, expected: str) -> None:
+    assert clean_filename(name) == expected
+
+
+def test_reading_a_pdf_gives_the_page_of_each_quote(authed: TestClient, fake_reader: None) -> None:
+    data = make_pdf(["Introducción a la práctica, sin rangos. " * 3, PAGE])
+    response = authed.post(READ, files=pdf_file(data))
+    assert response.status_code == 200
+    proposal = response.json()
+    assert proposal["page_count"] == 2
+    temperatura = next(v for v in proposal["variables"] if v["name"] == "Temperatura")
+    assert temperatura["range_page"] == 2
+
+
+def long_pdf() -> bytes:
+    # 70 pages of 2600 characters each: about 180 000 in all, over the 100 000 cap.
+    line = "Paso del procedimiento con muchas palabras para alargar la página. "
+    filler = "\n".join([line] * 39)
+    pages = [filler] * 70
+    pages[13] = PAGE + "\n" + "\n".join([line] * 30)
+    return make_pdf(pages)
+
+
+def test_a_long_pdf_asks_for_pages_before_any_model_call(authed: TestClient) -> None:
+    scripted()  # an empty script: a model call would raise
+    response = authed.post(READ, files=pdf_file(long_pdf()))
+    assert response.status_code == 200
+    asked = response.json()
+    assert asked["kind"] == "needs_pages"
+    assert asked["page_count"] == 70
+    assert asked["char_count"] > 100_000
+    assert asked["max_chars"] == 100_000
+
+
+def test_a_page_range_is_read_with_real_page_numbers(authed: TestClient, fake_reader: None) -> None:
+    response = authed.post(READ, files=pdf_file(long_pdf()), data={"from_page": 12, "to_page": 18})
+    proposal = response.json()
+    assert (proposal["read_from_page"], proposal["read_to_page"]) == (12, 18)
+    temperatura = next(v for v in proposal["variables"] if v["name"] == "Temperatura")
+    assert temperatura["range_page"] == 14
+
+
+def test_pages_still_too_long_are_refused(authed: TestClient) -> None:
+    scripted()
+    response = authed.post(READ, files=pdf_file(long_pdf()), data={"from_page": 1, "to_page": 70})
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "pages_too_long",
+        "message": "Esas páginas tienen demasiado texto. Elige menos páginas.",
+    }
+
+
+@pytest.mark.parametrize(
+    ("files", "data", "status", "code"),
+    [
+        (pdf_file(b"%PDF-" + b"0" * 10_485_756), {}, 413, "file_too_large"),
+        (pdf_file(b"\x89PNG not a pdf", "foto.pdf"), {}, 422, "pdf_unreadable"),
+        (pdf_file(make_pdf(["x"] * 81)), {}, 422, "too_many_pages"),
+        (pdf_file(make_pdf(["", ""])), {}, 422, "no_text_in_pdf"),
+        (pdf_file(make_pdf([PAGE])), {"from_page": 1, "to_page": 2}, 422, "invalid_page_range"),
+        (pdf_file(make_pdf([PAGE])), {"text": HANDOUT}, 422, "instructions_missing"),
+        (pdf_file(make_pdf(["", PAGE])), {"from_page": 1, "to_page": 1}, 422, "no_text_in_pdf"),
+    ],
+    ids=["10 MB + 1", "png", "81 pages", "scanned", "range past the end", "both", "empty range"],
+)
+def test_bad_pdfs_are_refused_and_store_nothing(
+    authed: TestClient,
+    session: Session,
+    files: dict[str, tuple[str, bytes, str]],
+    data: dict[str, Any],
+    status: int,
+    code: str,
+) -> None:
+    scripted()
+    before = stored_counts(session)
+    response = authed.post(READ, files=files, data=data)
+    assert response.status_code == status
+    assert response.json()["code"] == code
+    assert stored_counts(session) == before
+
+
+def test_too_many_pages_names_the_count(authed: TestClient) -> None:
+    response = authed.post(READ, files=pdf_file(make_pdf(["x"] * 81)))
+    assert response.json()["message"] == "El PDF tiene 81 páginas; el máximo es 80."
+
+
+def test_creates_a_notebook_with_its_pdf_through_the_route(
+    authed: TestClient, session: Session
+) -> None:
+    data = make_pdf(["Portada. " * 20, PAGE])
+    response = authed.post(
+        CREATE,
+        files=pdf_file(data, "C:\\curso\\práctica 4.pdf"),
+        data={"body": create_body(), "read_from_page": 2, "read_to_page": 2},
+    )
+    assert response.status_code == 201
+    created = response.json()
+    assert created["protocol"] == {
+        "source": "pdf",
+        "filename": "práctica 4.pdf",
+        "page_count": 2,
+        "read_from_page": 2,
+        "read_to_page": 2,
+    }
+    protocol = session.exec(select(Protocol).where(Protocol.experiment_id == created["id"])).one()
+    assert protocol.file_bytes == data
+    assert protocol.byte_size == len(data)
+    pages = session.exec(select(ProtocolPage).where(ProtocolPage.protocol_id == protocol.id)).all()
+    assert len(pages) == 2  # every page, not only the range that was read
+
+
+def test_a_create_with_a_bad_pdf_stores_nothing(authed: TestClient, session: Session) -> None:
+    before = stored_counts(session)
+    response = authed.post(CREATE, files=pdf_file(make_pdf(["", ""])), data={"body": create_body()})
+    assert response.status_code == 422
+    assert response.json()["code"] == "no_text_in_pdf"
     assert stored_counts(session) == before

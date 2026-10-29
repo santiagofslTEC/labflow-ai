@@ -11,6 +11,7 @@ dependencies = [
     "ollama>=0.6.3",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.16.1",
+    "pypdf[crypto]>=6.21.4",
     "sqlmodel>=0.0.45",
 ]
 

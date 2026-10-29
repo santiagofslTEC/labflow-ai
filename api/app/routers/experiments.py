@@ -3,11 +3,13 @@
 The instructions path adds a read route that proposes a notebook and stores nothing, and a
 multipart create that saves the notebook with its instructions in one transaction."""
 
+import asyncio
 import logging
 import time
+from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, Json
 
@@ -16,16 +18,20 @@ from app.ai.provider import ProviderFailure
 from app.core.db import SessionDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
-from app.core.instruction_reads import InstructionReadsDep
+from app.core.instruction_reads import InstructionReads, InstructionReadsDep
 from app.repositories import experiments
 from app.services.experiment_rules import NewExperiment, check_new_experiment
 from app.services.instructions import (
     MAX_PAGES,
+    MAX_PDF_BYTES,
     MAX_READ_CHARS,
     Instructions,
     NewProtocol,
     check_parts,
     check_read_size,
+    clean_filename,
+    extract_pages,
+    from_pages,
     from_text,
 )
 from app.services.results import (
@@ -193,18 +199,68 @@ def _instructions_error(
             )
 
 
+EXTRACT_TIMEOUT_S = 15
+
+
+@dataclass(frozen=True, slots=True)
+class _Upload:
+    """Checked instructions, plus the PDF's bytes and name when one was sent."""
+
+    instructions: Instructions
+    file_bytes: bytes | None = None
+    filename: str | None = None
+
+    def protocol(self) -> NewProtocol:
+        return NewProtocol(
+            source=self.instructions.source,
+            pages=self.instructions.pages,
+            filename=self.filename,
+            file_bytes=self.file_bytes,
+            read_from_page=self.instructions.read_from_page,
+            read_to_page=self.instructions.read_to_page,
+        )
+
+
+async def _extract(data: bytes, reads: InstructionReads) -> tuple[str, ...]:
+    """CPU work off the event loop, at most two at once, and never past 15 s. A timed out
+    thread is left to finish on its own (accepted)."""
+    async with reads.extractions:
+        try:
+            async with asyncio.timeout(EXTRACT_TIMEOUT_S):
+                pages = await run_in_threadpool(extract_pages, data)
+        except TimeoutError:
+            pages = PdfUnreadable()
+    if not isinstance(pages, tuple):
+        raise _instructions_error(pages)
+    return pages
+
+
 async def _instructions(
-    text: str | None, from_page: int | None, to_page: int | None
-) -> Instructions:
-    """Every AC-30 check in order, up to the text checks. Raises the first failure."""
-    missing = check_parts(has_file=False, has_text=text is not None)
+    file: UploadFile | None,
+    text: str | None,
+    from_page: int | None,
+    to_page: int | None,
+    reads: InstructionReads,
+) -> _Upload:
+    """Every AC-30 check in order, up to the text checks. Raises the first failure. The file
+    is read with a cap, so its size is checked without trusting the client's header."""
+    missing = check_parts(has_file=file is not None, has_text=text is not None)
     if missing is not None:
         raise _instructions_error(missing)
-    assert text is not None  # checked above
-    result = from_text(text, from_page, to_page)
-    if not isinstance(result, Instructions):
-        raise _instructions_error(result)
-    return result
+    if file is None:
+        assert text is not None  # checked above
+        pasted = from_text(text, from_page, to_page)
+        if not isinstance(pasted, Instructions):
+            raise _instructions_error(pasted)
+        return _Upload(instructions=pasted)
+    data = await file.read(MAX_PDF_BYTES + 1)
+    if len(data) > MAX_PDF_BYTES:
+        raise _instructions_error(FileTooLarge())
+    pages = await _extract(data, reads)
+    read = from_pages(pages, from_page, to_page)
+    if not isinstance(read, Instructions):
+        raise _instructions_error(read)
+    return _Upload(instructions=read, file_bytes=data, filename=clean_filename(file.filename))
 
 
 class InstructionsProposal(BaseModel):
@@ -255,13 +311,14 @@ async def read_instructions(
     holder: HolderDep,
     provider: ProviderDep,
     reads: InstructionReadsDep,
+    file: UploadFile | None = None,
     text: Annotated[str | None, Form()] = None,
     from_page: Annotated[int | None, Form()] = None,
     to_page: Annotated[int | None, Form()] = None,
 ) -> InstructionsRead:
     """Reads the instructions once and proposes a notebook. Stores nothing (AC-32)."""
     started = time.monotonic()
-    instructions = await _instructions(text, from_page, to_page)
+    instructions = (await _instructions(file, text, from_page, to_page, reads)).instructions
     size = check_read_size(instructions)
     if isinstance(size, NeedsPages):
         return InstructionsNeedPages(page_count=size.page_count, char_count=size.char_count)
@@ -330,19 +387,16 @@ async def create_with_instructions(
     body: Annotated[Json[NewExperiment], Form()],
     session: SessionDep,
     holder: HolderDep,
+    reads: InstructionReadsDep,
+    file: UploadFile | None = None,
     instructions_text: Annotated[str | None, Form()] = None,
     read_from_page: Annotated[int | None, Form()] = None,
     read_to_page: Annotated[int | None, Form()] = None,
 ) -> ExperimentDetail:
     """The notebook, its variables, and its instructions in one transaction (AC-29). The
     instructions are checked again here; text from the browser is never trusted."""
-    instructions = await _instructions(instructions_text, read_from_page, read_to_page)
-    protocol = NewProtocol(
-        source=instructions.source,
-        pages=instructions.pages,
-        read_from_page=instructions.read_from_page,
-        read_to_page=instructions.read_to_page,
-    )
+    upload = await _instructions(file, instructions_text, read_from_page, read_to_page, reads)
+    protocol = upload.protocol()
     checked = check_new_experiment(body)
     result = (
         checked

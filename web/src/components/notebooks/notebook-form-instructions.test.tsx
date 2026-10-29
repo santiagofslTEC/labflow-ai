@@ -400,3 +400,28 @@ describe("create with instructions (AC-29)", () => {
     expect(createWithMock).not.toHaveBeenCalled();
   });
 });
+
+describe("accessibility of the panel states (AC-35)", () => {
+  it("has no violations while reading", async () => {
+    readMock.mockImplementation(() => new Promise(() => undefined));
+    const { user, container } = setup();
+    await pasteHandout(user);
+    await user.click(leer());
+    expect(
+      screen.getByRole("button", { name: "Leyendo instrucciones…" }),
+    ).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("has no violations with a read error, announced politely", async () => {
+    readMock.mockResolvedValue({ ok: false, error: { kind: "unavailable" } });
+    const { user, container } = setup();
+    await pasteHandout(user);
+    await user.click(leer());
+    const error = await screen.findByText(
+      "No pudimos leer las instrucciones. Llena el formulario o intenta de nuevo.",
+    );
+    expect(error.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

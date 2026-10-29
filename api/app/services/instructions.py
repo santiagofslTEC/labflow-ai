@@ -5,17 +5,26 @@ The limits are mirrored by `web/src/lib/instructions.ts`; a test on each side pi
 same numbers, so a change must touch both.
 """
 
+import io
+import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Literal
+
+from pypdf import PasswordType, PdfReader
 
 from app.services.results import (
     InstructionsMissing,
     InstructionsTooShort,
     InvalidPageRange,
     NeedsPages,
+    NoTextInPdf,
     PagesTooLong,
+    PdfError,
+    PdfUnreadable,
     TextError,
     TextTooLong,
+    TooManyPages,
 )
 from app.services.setup_rules import ReadText
 
@@ -24,6 +33,8 @@ MAX_PAGES = 80
 MAX_READ_CHARS = 100_000
 MIN_TEXT_CHARS = 50
 MIN_PDF_CHARS = 100
+FILENAME_MAX = 255
+DEFAULT_FILENAME = "instrucciones.pdf"
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,3 +127,49 @@ def check_read_size(instructions: Instructions) -> NeedsPages | PagesTooLong | N
     if instructions.read_from_page is None:
         return NeedsPages(page_count=len(instructions.pages), char_count=instructions.char_count)
     return PagesTooLong()
+
+
+def extract_pages(data: bytes) -> tuple[str, ...] | PdfError:
+    """Every page's text, NUL characters removed (Postgres text cannot hold them). Anything
+    that is not a PDF, is damaged, or needs a real password is `PdfUnreadable`; more than 80
+    pages is refused before any page is extracted. CPU work: call it from a thread."""
+    if not data.startswith(b"%PDF-"):
+        return PdfUnreadable()
+    try:
+        reader = PdfReader(io.BytesIO(data))
+        if reader.is_encrypted and reader.decrypt("") == PasswordType.NOT_DECRYPTED:
+            return PdfUnreadable()
+        count = len(reader.pages)
+        if count > MAX_PAGES:
+            return TooManyPages(page_count=count)
+        if count == 0:
+            return PdfUnreadable()
+        return tuple((page.extract_text() or "").replace("\x00", "") for page in reader.pages)
+    # Untrusted input to a parser: any failure while opening or extracting means the file
+    # cannot be read, never a 500 (spec 0005, Settled rules).
+    except Exception:  # noqa: BLE001
+        return PdfUnreadable()
+
+
+def from_pages(
+    pages: tuple[str, ...], from_page: int | None, to_page: int | None
+) -> Instructions | InvalidPageRange | NoTextInPdf:
+    """A PDF's pages: the range check, then the text check on the pages being read."""
+    refused = check_page_range(from_page, to_page, len(pages), allowed=True)
+    if refused is not None:
+        return refused
+    instructions = Instructions(
+        source="pdf", pages=pages, read_from_page=from_page, read_to_page=to_page
+    )
+    if sum(len(page.strip()) for page in instructions.read.pages) < MIN_PDF_CHARS:
+        return NoTextInPdf()
+    return instructions
+
+
+def clean_filename(name: str | None) -> str:
+    """The upload's name with any directory part and control characters removed, trimmed,
+    cut to 255; `instrucciones.pdf` when nothing is left."""
+    base = re.split(r"[/\\]", name or "")[-1]
+    printable = "".join(char for char in base if unicodedata.category(char) != "Cc")
+    cleaned = printable.strip()[:FILENAME_MAX].strip()
+    return cleaned or DEFAULT_FILENAME

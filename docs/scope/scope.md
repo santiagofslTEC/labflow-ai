@@ -95,9 +95,9 @@ spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/
   - [x] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
   - [x] Phone and accessibility pass (AC-18)
   - [x] Instructions, API side: migration (`context`, `protocol`, `protocol_page`), capture context, `ground_proposal`, `propose_setup` on the provider chain, the read and multipart create routes for pasted text (AC-25, AC-26, AC-29 to AC-34)
-  - [ ] Instructions, screen for pasted text: panel, proposal fill with quotes, Contexto field, failure path, notebook page context, live tuning on real handouts (AC-19 to AC-21, AC-23, AC-24, AC-26 to AC-28, AC-31)
-  - [ ] Instructions, PDF: pypdf extraction, file limits, page range question, Vercel 9.5 MB upload check (AC-20, AC-22, AC-29, AC-30)
-  - [ ] Instructions, phone and accessibility pass (AC-35)
+  - [x] Instructions, screen for pasted text: panel, proposal fill with quotes, Contexto field, failure path, notebook page context, live tuning on real handouts (AC-19 to AC-21, AC-23, AC-24, AC-26 to AC-28, AC-31) (live read checked on a sample handout; tuning on real course PDFs still owed)
+  - [ ] Instructions, PDF: pypdf extraction, file limits, page range question, Vercel 9.5 MB upload check (AC-20, AC-22, AC-29, AC-30) (built and tested; only the Vercel 9.5 MB upload check on a preview deploy is left)
+  - [x] Instructions, phone and accessibility pass (AC-35)
 - [ ] Verify it: `/check verify experiments create and list` (the original slice is verified; the instructions steps in verify.md are open)
 
 ### 6. Text capture and confirm card · in-progress · Beta
