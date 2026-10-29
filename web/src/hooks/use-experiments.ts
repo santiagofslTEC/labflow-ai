@@ -4,14 +4,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createExperiment,
+  createWithInstructions,
   experimentKeys,
   getExperiment,
   listExperiments,
+  readInstructions,
   type ApiFailure,
   type ApiResult,
   type ExperimentDetail,
   type NewExperiment,
+  type ReadResult,
 } from "@/api/experiments";
+import type {
+  AttachedInstructions,
+  InstructionsInput,
+  PageRange,
+} from "@/lib/instructions";
 
 // Every query and mutation rejects with an ApiFailure (see unwrap), never a
 // bare Error, so screens can switch on `error.kind`.
@@ -52,13 +60,23 @@ export function useExperiment(id: number | null) {
   });
 }
 
+export type CreateRequest = {
+  readonly body: NewExperiment;
+  readonly instructions: AttachedInstructions | null;
+};
+
 // Mutations never retry (the library default), so a failed create is never
-// sent twice (AC-7).
+// sent twice (AC-7). Attached instructions take the multipart route (AC-29).
 export function useCreateExperiment() {
   const client = useQueryClient();
-  return useMutation<ExperimentDetail, ApiFailure, NewExperiment>({
+  return useMutation<ExperimentDetail, ApiFailure, CreateRequest>({
     retry: false,
-    mutationFn: (body) => unwrap(createExperiment(body)),
+    mutationFn: ({ body, instructions }) =>
+      unwrap(
+        instructions === null
+          ? createExperiment(body)
+          : createWithInstructions(body, instructions),
+      ),
     onSuccess: (created) => {
       client.setQueryData(experimentKeys.detail(created.id), created);
       return client.invalidateQueries({
@@ -66,5 +84,21 @@ export function useCreateExperiment() {
         exact: true,
       });
     },
+  });
+}
+
+export type ReadRequest = {
+  readonly input: InstructionsInput;
+  readonly range: PageRange | null;
+  readonly signal: AbortSignal;
+};
+
+// The read never retries on its own (AC-21). It resolves with the result union,
+// failures included, so the panel can switch on every outcome in one place.
+export function useReadInstructions() {
+  return useMutation<ReadResult, never, ReadRequest>({
+    retry: false,
+    mutationFn: ({ input, range, signal }) =>
+      readInstructions(input, range, signal),
   });
 }

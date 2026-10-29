@@ -11,7 +11,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         neutral: "bg-sunken text-ink-muted before:bg-control",
-        saved: "bg-sunken text-ink before:bg-saved [&>svg]:text-saved",
+        saved: "bg-brand-soft text-brand before:bg-brand [&>svg]:text-brand",
         unsaved: "bg-unsaved text-warning-ink before:bg-unsaved-border",
         warning: "bg-unsaved text-warning-ink before:bg-unsaved-border",
         danger: "bg-sunken text-ink before:bg-danger [&>svg]:text-danger",

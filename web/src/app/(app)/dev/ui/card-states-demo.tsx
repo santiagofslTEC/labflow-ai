@@ -8,15 +8,17 @@ import type { ProposalCardProps } from "@/components/proposal-card/types";
 import { Button } from "@/components/ui/button";
 
 import {
+  SAMPLE_FLAGGED_VALUES,
   SAMPLE_PH_VALUE,
   SAMPLE_PHRASE,
   SAMPLE_PROPOSAL_VALUES,
+  SAMPLE_SAID_VALUES,
 } from "./sample-data";
 import { StatePicker } from "./state-picker";
 
 type Example = Pick<
   ProposalCardProps,
-  "state" | "values" | "trialNumber" | "phrase" | "source"
+  "state" | "values" | "trialNumber" | "phrase" | "source" | "canConfirm"
 >;
 
 const base = {
@@ -84,21 +86,48 @@ const EXAMPLES: Readonly<Record<string, { label: string; example: Example }>> =
         },
       },
     },
-    warning: {
-      label: "proposed con aviso de rango",
+    said: {
+      label: "proposed ligera con lo que dijiste",
       example: {
         ...base,
-        phrase: "Ensayo 3, temperatura 500 grados",
-        values: SAMPLE_PROPOSAL_VALUES.map((v) =>
-          v.variableId === 1
-            ? {
-                ...v,
-                value: 500,
-                warning: "Fuera del rango esperado (20 a 100 °C).",
-              }
-            : v,
-        ),
+        values: SAMPLE_SAID_VALUES,
+        phrase:
+          "Ensayo 3, 50 grados, 15 minutos, setenta y tres coma cinco por ciento",
         state: { kind: "proposed" },
+      },
+    },
+    flagged: {
+      label: "proposed marcada (revisa antes de guardar)",
+      example: {
+        ...base,
+        values: SAMPLE_FLAGGED_VALUES,
+        phrase: "Ensayo 3, 932 °F, 2 horas, 74 por ciento",
+        state: { kind: "proposed" },
+        canConfirm: false,
+      },
+    },
+    choose_trial: {
+      label: "choose_trial",
+      example: {
+        ...base,
+        values: SAMPLE_SAID_VALUES,
+        state: {
+          kind: "choose_trial",
+          question:
+            "El ensayo 3 ya existe. ¿Es una corrección o un ensayo nuevo?",
+        },
+        canConfirm: false,
+      },
+    },
+    pending_other_trial: {
+      label: "pending_other_trial",
+      example: {
+        ...base,
+        values: SAMPLE_SAID_VALUES,
+        state: {
+          kind: "pending_other_trial",
+          question: "Tienes el ensayo 3 sin guardar. ¿Lo guardo o lo descarto?",
+        },
       },
     },
     missing: {
@@ -167,6 +196,8 @@ function CardStatesDemo() {
             onDiscard={announce("onDiscard")}
             onRetry={announce("onRetry")}
             onSettled={() => setSettled(true)}
+            onCheck={(id) => toast(`onCheck: variable ${id}`)}
+            onChooseTrial={(choice) => toast(`onChooseTrial: ${choice}`)}
           />
         )}
       </div>

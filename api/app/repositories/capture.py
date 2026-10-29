@@ -1,0 +1,144 @@
+"""Reads for capture (spec 0006): the turn context before the model call, and the card view
+after the operations. Read only; every write goes through `proposals` and `turns`."""
+
+from collections.abc import Mapping, Sequence
+
+from sqlmodel import Session, col, select
+
+from app.models import Experiment, Measurement, Proposal, ProposalValue, Trial, Turn, Variable
+from app.models.enums import Role, Source
+from app.repositories import proposals, turns
+from app.services.card_state import CardInfo, ValueInfo, VariableInfo
+from app.services.proposal_view import ProposalView, proposal_view
+from app.services.results import ExperimentNotFound
+from app.services.turn_plan import TurnContext
+
+
+def _variables(session: Session, experiment_id: int) -> tuple[VariableInfo, ...]:
+    rows = session.exec(
+        select(Variable)
+        .where(Variable.experiment_id == experiment_id)
+        .order_by(col(Variable.position), col(Variable.id))
+    ).all()
+    return tuple(
+        VariableInfo(
+            id=v.id,
+            name=v.name,
+            unit=v.unit,
+            required=v.required,
+            position=v.position,
+            min_value=v.min_value,
+            max_value=v.max_value,
+            aliases=tuple(v.aliases),
+        )
+        for v in rows
+        if v.id is not None
+    )
+
+
+def _values(session: Session, proposal_id: int) -> Sequence[ProposalValue]:
+    return session.exec(
+        select(ProposalValue)
+        .where(ProposalValue.proposal_id == proposal_id)
+        .order_by(col(ProposalValue.id))
+        .execution_options(populate_existing=True)
+    ).all()
+
+
+def card_info(session: Session, proposal: Proposal) -> CardInfo:
+    assert proposal.id is not None
+    return CardInfo(
+        id=proposal.id,
+        trial_number=proposal.trial_number,
+        target_trial_id=proposal.target_trial_id,
+        values=tuple(
+            ValueInfo(
+                variable_id=v.variable_id,
+                value=v.value,
+                said_text=v.said_text,
+                grounding=v.grounding,
+                checked=v.checked_at is not None,
+                turn_id=v.turn_id,
+            )
+            for v in _values(session, proposal.id)
+        ),
+        updated_at=proposal.updated_at,
+    )
+
+
+def trial_numbers(session: Session, experiment_id: int) -> Mapping[int, int]:
+    rows = session.exec(
+        select(col(Trial.number), col(Trial.id)).where(Trial.experiment_id == experiment_id)
+    ).all()
+    return {number: trial_id for number, trial_id in rows if trial_id is not None}
+
+
+def pending_card(session: Session, experiment_id: int) -> CardInfo | None:
+    proposal = proposals.get_pending(session, experiment_id)
+    return None if proposal is None else card_info(session, proposal)
+
+
+def load_context(session: Session, experiment_id: int) -> TurnContext | ExperimentNotFound:
+    """Everything the prompt and the planner see, read in one pass before the model call."""
+    experiment = session.get(Experiment, experiment_id)
+    if experiment is None:
+        return ExperimentNotFound()
+    return TurnContext(
+        experiment_id=experiment_id,
+        variables=_variables(session, experiment_id),
+        card=pending_card(session, experiment_id),
+        trial_numbers=trial_numbers(session, experiment_id),
+        last_turns=tuple((str(t.role), t.text) for t in turns.last_turns(session, experiment_id)),
+        context=experiment.context,
+    )
+
+
+def _previous(session: Session, target_trial_id: int | None) -> Mapping[int, float]:
+    if target_trial_id is None:
+        return {}
+    rows = session.exec(
+        select(col(Measurement.variable_id), col(Measurement.value)).where(
+            Measurement.trial_id == target_trial_id
+        )
+    ).all()
+    return dict(rows)
+
+
+def _phrase(session: Session, experiment_id: int, card: CardInfo) -> tuple[str, Source]:
+    """The latest user turn tied to the card's values, else the latest user turn."""
+    turn_ids = [v.turn_id for v in card.values if v.turn_id is not None]
+    turn = session.get(Turn, max(turn_ids)) if turn_ids else None
+    if turn is None:
+        turn = session.exec(
+            select(Turn)
+            .where(Turn.experiment_id == experiment_id)
+            .where(Turn.role == Role.USER)
+            .order_by(col(Turn.id).desc())
+        ).first()
+    if turn is None or turn.source is None:
+        return "", Source.TEXT
+    return turn.text, turn.source
+
+
+def view_of(session: Session, experiment_id: int) -> ProposalView | None:
+    """The pending card as the API shows it, from saved state only (AC-17)."""
+    card = pending_card(session, experiment_id)
+    if card is None:
+        return None
+    phrase, source = _phrase(session, experiment_id, card)
+    return proposal_view(
+        card,
+        _variables(session, experiment_id),
+        trial_numbers(session, experiment_id),
+        _previous(session, card.target_trial_id),
+        phrase,
+        source,
+    )
+
+
+def experiment_exists(session: Session, experiment_id: int) -> bool:
+    return session.get(Experiment, experiment_id) is not None
+
+
+def variables_of(session: Session, experiment_id: int) -> tuple[VariableInfo, ...]:
+    return _variables(session, experiment_id)

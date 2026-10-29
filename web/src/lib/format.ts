@@ -33,3 +33,14 @@ export const formatRange = (min: number | null, max: number | null): string => {
   if (max !== null) return `≤ ${formatQuantity(max, null)}`;
   return "—";
 };
+
+// The confirm card and its buttons show the number as stored: comma decimal, no
+// grouping, up to 6 decimals (spec 0006, Value sourcing), so "Guardar 73,5 %"
+// matches what the API saves.
+const exactFormat = new Intl.NumberFormat("es-ES", {
+  useGrouping: false,
+  maximumFractionDigits: 6,
+});
+
+export const formatExact = (value: number, unit: string | null): string =>
+  unit ? `${exactFormat.format(value)} ${unit}` : exactFormat.format(value);

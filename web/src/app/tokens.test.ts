@@ -33,7 +33,7 @@ const blockAfter = (marker: RegExp): string => {
 };
 
 const light = readColors(blockAfter(/@theme static/));
-const dark = readColors(blockAfter(/@media \(prefers-color-scheme: dark\)/));
+const dark = readColors(blockAfter(/:root\[data-theme="dark"\]/));
 
 const channel = (value: number): number => {
   const c = value / 255;
@@ -59,6 +59,9 @@ const TOKENS = [
   "on-ink",
   "line",
   "control",
+  "brand",
+  "brand-soft",
+  "on-brand",
   "saved",
   "unsaved",
   "unsaved-border",
@@ -89,6 +92,12 @@ const TEXT_PAIRS: readonly Pair[] = [
   ["saved", "surface"],
   ["saved", "canvas"],
   ["saved", "unsaved"],
+  ["on-brand", "brand"],
+  ["brand", "surface"],
+  ["brand", "canvas"],
+  ["brand", "brand-soft"],
+  ["ink", "brand-soft"],
+  ["ink", "sunken"],
 ];
 
 const BOUNDARY_PAIRS: readonly Pair[] = [
@@ -102,6 +111,7 @@ const BOUNDARY_PAIRS: readonly Pair[] = [
   ["focus", "surface"],
   ["focus", "sunken"],
   ["focus", "unsaved"],
+  ["focus", "brand-soft"],
 ];
 
 describe.each([
@@ -121,6 +131,7 @@ describe.each([
   });
 });
 
-it("sets color-scheme for both themes", () => {
-  expect(css).toMatch(/color-scheme:\s*light dark/);
+it("stays light even when the system is dark", () => {
+  expect(css).toMatch(/color-scheme:\s*light;/);
+  expect(css).not.toMatch(/prefers-color-scheme/);
 });

@@ -27,9 +27,11 @@ vi.mock("@/api/experiments", async (importOriginal) => ({
 
 const createMock = vi.mocked(createExperiment);
 
+// The page opens on the instructions panel (AC-19); these tests fill by hand.
 const setup = () => {
   const user = userEvent.setup();
   const view = renderWithQuery(<NotebookForm />);
+  fireEvent.click(screen.getByRole("button", { name: "Llenar a mano" }));
   return { user, ...view };
 };
 
@@ -162,6 +164,7 @@ describe("create (AC-7, AC-8)", () => {
     expect(createMock).toHaveBeenCalledWith({
       title: "Mi cuaderno",
       goal: null,
+      context: null,
       variables: [
         {
           name: "Temperatura",

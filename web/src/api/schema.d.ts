@@ -28,11 +28,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Access
+         * @description Who is signed in, for the settings page.
+         */
+        get: operations["read_access_api_access_get"];
         put?: never;
         /** Grant Access */
         post: operations["grant_access_api_access_post"];
-        delete?: never;
+        /**
+         * Revoke Access
+         * @description Sign out: the cookie is httpOnly, so only the API can clear it.
+         */
+        delete: operations["revoke_access_api_access_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -73,6 +81,183 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/instructions/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Instructions
+         * @description Reads the instructions once and proposes a notebook. Stores nothing (AC-32).
+         */
+        post: operations["read_instructions_api_experiments_instructions_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/with-instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create With Instructions
+         * @description The notebook, its variables, and its instructions in one transaction (AC-29). The
+         *     instructions are checked again here; text from the browser is never trusted.
+         */
+        post: operations["create_with_instructions_api_experiments_with_instructions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/utterances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Utterance */
+        post: operations["post_utterance_api_experiments__experiment_id__utterances_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Proposal */
+        get: operations["get_proposal_api_experiments__experiment_id__proposal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{proposal_id}/values/{variable_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Value
+         * @description A hand edit (AC-4): no AI. Checked before the "Editado" turn is stored, so a
+         *     rejected edit leaves no turn behind. It counts as checked (AC-23).
+         */
+        put: operations["put_value_api_proposals__proposal_id__values__variable_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{proposal_id}/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Trial
+         * @description Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial.
+         */
+        post: operations["post_trial_api_proposals__proposal_id__trial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{proposal_id}/values/{variable_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Check
+         * @description Check a flagged value (AC-24). Stores no turn.
+         */
+        post: operations["post_check_api_proposals__proposal_id__values__variable_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{proposal_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Confirm
+         * @description Save the card (AC-2). Flagged values must be checked first (AC-24), whatever the
+         *     path; a repeat confirm returns the same trial (spec 0002).
+         */
+        post: operations["post_confirm_api_proposals__proposal_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proposals/{proposal_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Discard
+         * @description Drop the card; nothing is saved (AC-13).
+         */
+        post: operations["post_discard_api_proposals__proposal_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -94,9 +279,33 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** Body_create_with_instructions_api_experiments_with_instructions_post */
+        Body_create_with_instructions_api_experiments_with_instructions_post: {
+            /** Body */
+            body: string;
+            /** File */
+            file?: string | null;
+            /** Instructions Text */
+            instructions_text?: string | null;
+            /** Read From Page */
+            read_from_page?: number | null;
+            /** Read To Page */
+            read_to_page?: number | null;
+        };
+        /** Body_read_instructions_api_experiments_instructions_read_post */
+        Body_read_instructions_api_experiments_instructions_read_post: {
+            /** File */
+            file?: string | null;
+            /** Text */
+            text?: string | null;
+            /** From Page */
+            from_page?: number | null;
+            /** To Page */
+            to_page?: number | null;
+        };
         /**
          * ExperimentDetail
-         * @description A notebook with its variables in `position` order (spec 0005, AC-16).
+         * @description A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31).
          */
         ExperimentDetail: {
             /** Id */
@@ -105,6 +314,8 @@ export interface components {
             title: string;
             /** Goal */
             goal: string | null;
+            /** Context */
+            context: string | null;
             status: components["schemas"]["ExperimentStatus"];
             /** Created By */
             created_by: string;
@@ -115,6 +326,7 @@ export interface components {
             created_at: string;
             /** Variables */
             variables: components["schemas"]["VariableDetail"][];
+            protocol: components["schemas"]["ProtocolSummary"] | null;
         };
         /**
          * ExperimentStatus
@@ -139,6 +351,22 @@ export interface components {
              */
             last_activity_at: string;
         };
+        /**
+         * FlagReason
+         * @enum {string}
+         */
+        FlagReason: "out_of_range" | "converted" | "code_match";
+        /** FlagView */
+        FlagView: {
+            reason: components["schemas"]["FlagReason"];
+            /** Text */
+            text: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** Health */
         Health: {
             /**
@@ -152,12 +380,62 @@ export interface components {
              */
             env: "dev" | "prod";
         };
+        /**
+         * InstructionsNeedPages
+         * @description The PDF is too long to read whole: ask which pages (AC-22).
+         */
+        InstructionsNeedPages: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "needs_pages";
+            /** Page Count */
+            page_count: number;
+            /** Char Count */
+            char_count: number;
+            /**
+             * Max Chars
+             * @default 100000
+             */
+            max_chars: number;
+        };
+        /**
+         * InstructionsProposal
+         * @description A checked proposal that fills the form (AC-23).
+         */
+        InstructionsProposal: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "proposal";
+            /** Title */
+            title: string;
+            /** Goal */
+            goal: string | null;
+            /** Context */
+            context: string | null;
+            /** Variables */
+            variables: components["schemas"]["ProposedVariableOut"][];
+            /** Found Count */
+            found_count: number;
+            /** Page Count */
+            page_count: number;
+            /** Read From Page */
+            read_from_page: number | null;
+            /** Read To Page */
+            read_to_page: number | null;
+        };
+        InstructionsRead: components["schemas"]["InstructionsProposal"] | components["schemas"]["InstructionsNeedPages"];
         /** NewExperiment */
         NewExperiment: {
             /** Title */
             title: string;
             /** Goal */
             goal?: string | null;
+            /** Context */
+            context?: string | null;
             /** Variables */
             variables: components["schemas"]["NewVariable"][];
         };
@@ -176,6 +454,148 @@ export interface components {
              * @default true
              */
             required: boolean;
+        };
+        /** ProposalView */
+        ProposalView: {
+            /** Id */
+            id: number;
+            /** Trial Number */
+            trial_number: number | null;
+            /** Target Trial Id */
+            target_trial_id: number | null;
+            /** Values */
+            values: components["schemas"]["ValueView"][];
+            /** Phrase */
+            phrase: string;
+            source: components["schemas"]["Source"];
+            /** Flagged */
+            flagged: boolean;
+            question: components["schemas"]["Reply"];
+            /** Can Confirm */
+            can_confirm: boolean;
+        };
+        /** ProposedVariableOut */
+        ProposedVariableOut: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string | null;
+            /** Min Value */
+            min_value: number | null;
+            /** Max Value */
+            max_value: number | null;
+            /** Required */
+            required: boolean;
+            /** Range Quote */
+            range_quote: string | null;
+            /** Range Page */
+            range_page: number | null;
+        };
+        /**
+         * ProtocolSummary
+         * @description What a notebook shows of its instructions (spec 0005, AC-31): never the bytes or text.
+         */
+        ProtocolSummary: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "pdf" | "text";
+            /** Filename */
+            filename: string | null;
+            /** Page Count */
+            page_count: number;
+            /** Read From Page */
+            read_from_page: number | null;
+            /** Read To Page */
+            read_to_page: number | null;
+        };
+        /**
+         * Reason
+         * @enum {string}
+         */
+        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic";
+        /** Reply */
+        Reply: {
+            reason: components["schemas"]["Reason"];
+            /** Text */
+            text: string;
+        };
+        /** SavedTrial */
+        SavedTrial: {
+            /** Trial Id */
+            trial_id: number;
+            /** Trial Number */
+            trial_number: number;
+            /** Created */
+            created: boolean;
+        };
+        /**
+         * Source
+         * @enum {string}
+         */
+        Source: "voice" | "text";
+        /** TrialChoiceIn */
+        TrialChoiceIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "correction" | "new";
+            /** Trial Number */
+            trial_number?: number | null;
+        };
+        /** TurnResponse */
+        TurnResponse: {
+            /** Turn Id */
+            turn_id: number | null;
+            reply: components["schemas"]["Reply"] | null;
+            proposal: components["schemas"]["ProposalView"] | null;
+            saved: components["schemas"]["SavedTrial"] | null;
+        };
+        /** UtteranceIn */
+        UtteranceIn: {
+            /** Text */
+            text: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+        /** ValueIn */
+        ValueIn: {
+            /** Value */
+            value: number;
+        };
+        /** ValueView */
+        ValueView: {
+            /** Variable Id */
+            variable_id: number;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string | null;
+            /** Value */
+            value: number | null;
+            /** Previous */
+            previous: number | null;
+            /** Said Text */
+            said_text: string | null;
+            /** Interpreted */
+            interpreted: boolean;
+            /** Flags */
+            flags: components["schemas"]["FlagView"][];
+            /** Checked */
+            checked: boolean;
         };
         /** VariableDetail */
         VariableDetail: {
@@ -219,6 +639,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    read_access_api_access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessGranted"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
         };
@@ -271,6 +720,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
+            };
+        };
+    };
+    revoke_access_api_access_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -390,6 +857,537 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    read_instructions_api_experiments_instructions_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_read_instructions_api_experiments_instructions_read_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstructionsRead"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description reading_in_progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description file_too_large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, or pages_too_long */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description reading_failed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    create_with_instructions_api_experiments_with_instructions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_with_instructions_api_experiments_with_instructions_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description file_too_large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, or invalid_range */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    post_utterance_api_experiments__experiment_id__utterances_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtteranceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The AI could not process the sentence */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    get_proposal_api_experiments__experiment_id__proposal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"] | null;
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_value_api_proposals__proposal_id__values__variable_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: number;
+                variable_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValueIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The card cannot take this action */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    post_trial_api_proposals__proposal_id__trial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrialChoiceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The card cannot take this action */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    post_check_api_proposals__proposal_id__values__variable_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: number;
+                variable_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The card cannot take this action */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_confirm_api_proposals__proposal_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The card cannot take this action */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    post_discard_api_proposals__proposal_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The card cannot take this action */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

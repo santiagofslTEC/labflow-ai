@@ -34,7 +34,7 @@ function EmptyState({
         strokeWidth={1.5}
         aria-hidden
       />
-      <Heading className="font-serif text-2xl font-normal text-ink">
+      <Heading className="text-lg font-semibold tracking-[-0.01em] text-ink">
         {title}
       </Heading>
       <p className="max-w-sm text-sm text-ink-muted">{description}</p>

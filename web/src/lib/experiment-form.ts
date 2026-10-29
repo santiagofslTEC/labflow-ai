@@ -1,14 +1,17 @@
-// The new notebook form (spec 0005, AC-3 to AC-6): its state, the reducer that
-// changes it, the validator, and the request body. Pure: no React, no fetch.
-import type { NewExperiment } from "@/api/experiments";
+// The new notebook form (spec 0005, AC-3 to AC-6, AC-23 to AC-27): its state,
+// the reducer that changes it, the validator, and the request body. Pure: no
+// React, no fetch.
+import type { InstructionsProposal, NewExperiment } from "@/api/experiments";
 
 import { parseDecimal } from "./format";
+import type { AttachedInstructions } from "./instructions";
 
 // Mirrored by api/app/services/experiment_rules.py; a test on each side pins
 // the same numbers, so a change must touch both.
 export const LIMITS = {
   title: 200,
   goal: 1000,
+  context: 600,
   name: 80,
   unit: 20,
   variables: 12,
@@ -32,6 +35,13 @@ export const UNIT_SUGGESTIONS = [
   "rpm",
 ] as const;
 
+// Where a proposed range came from (AC-24): shown while Mín and Máx still hold
+// the proposed text, gone for good once either is edited.
+export type ProposedRange = {
+  readonly quote: string;
+  readonly page: number | null;
+};
+
 export type VariableRow = {
   // Stable identity for React keys, element ids, and focus moves.
   readonly key: number;
@@ -40,6 +50,7 @@ export type VariableRow = {
   readonly min: string;
   readonly max: string;
   readonly required: boolean;
+  readonly proposedRange?: ProposedRange | null;
 };
 
 export type VariableField = "name" | "unit" | "min" | "max";
@@ -47,13 +58,16 @@ export type VariableField = "name" | "unit" | "min" | "max";
 export type FormState = {
   readonly title: string;
   readonly goal: string;
+  readonly context: string;
   readonly variables: readonly VariableRow[];
   readonly nextKey: number;
+  readonly instructions: AttachedInstructions | null;
 };
 
 export type FormAction =
   | { readonly type: "set_title"; readonly value: string }
   | { readonly type: "set_goal"; readonly value: string }
+  | { readonly type: "set_context"; readonly value: string }
   | {
       readonly type: "set_variable";
       readonly key: number;
@@ -68,6 +82,16 @@ export type FormAction =
   | { readonly type: "add_row" }
   | { readonly type: "remove_row"; readonly key: number }
   | { readonly type: "fill_example" }
+  | {
+      readonly type: "fill_from_proposal";
+      readonly proposal: InstructionsProposal;
+      readonly attached: AttachedInstructions;
+    }
+  | {
+      readonly type: "attach_instructions";
+      readonly attached: AttachedInstructions;
+    }
+  | { readonly type: "detach_instructions" }
   | { readonly type: "reset" };
 
 const emptyRow = (key: number): VariableRow => ({
@@ -82,8 +106,10 @@ const emptyRow = (key: number): VariableRow => ({
 export const initialFormState: FormState = {
   title: "",
   goal: "",
+  context: "",
   variables: [emptyRow(0)],
   nextKey: 1,
+  instructions: null,
 };
 
 // The sample experiment, with the ranges of api/scripts/seed.py (AC-6).
@@ -98,6 +124,7 @@ export const EXAMPLE = {
 } as const;
 
 const fillExample = (state: FormState): FormState => ({
+  ...state,
   title: EXAMPLE.title,
   goal: EXAMPLE.goal,
   variables: EXAMPLE.variables.map((row, index) => ({
@@ -107,6 +134,49 @@ const fillExample = (state: FormState): FormState => ({
   })),
   nextKey: state.nextKey + EXAMPLE.variables.length,
 });
+
+// Field text, not display text: no thousands grouping ("10.000" would read
+// back as 10), every digit kept, a decimal comma.
+const bound = (value: number | null): string =>
+  value === null ? "" : String(value).replace(".", ",");
+
+// Replaces every value with the proposal, in the order the API returns, at
+// most 12 rows; no variables keeps one empty row (AC-23).
+const fillFromProposal = (
+  state: FormState,
+  proposal: InstructionsProposal,
+  attached: AttachedInstructions,
+): FormState => {
+  const proposed = proposal.variables.slice(0, LIMITS.variables);
+  const rows: readonly VariableRow[] =
+    proposed.length === 0
+      ? [emptyRow(state.nextKey)]
+      : proposed.map((variable, index) => {
+          const kept =
+            variable.range_quote !== null &&
+            (variable.min_value !== null || variable.max_value !== null);
+          return {
+            key: state.nextKey + index,
+            name: variable.name,
+            unit: variable.unit ?? "",
+            min: kept ? bound(variable.min_value) : "",
+            max: kept ? bound(variable.max_value) : "",
+            required: variable.required,
+            proposedRange:
+              kept && variable.range_quote !== null
+                ? { quote: variable.range_quote, page: variable.range_page }
+                : null,
+          };
+        });
+  return {
+    title: proposal.title,
+    goal: proposal.goal ?? "",
+    context: proposal.context ?? "",
+    variables: rows,
+    nextKey: state.nextKey + rows.length,
+    instructions: attached,
+  };
+};
 
 const updateRow = (
   state: FormState,
@@ -125,10 +195,17 @@ export function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, title: action.value };
     case "set_goal":
       return { ...state, goal: action.value };
+    case "set_context":
+      return { ...state, context: action.value };
     case "set_variable":
       return updateRow(state, action.key, (row) => ({
         ...row,
         [action.field]: action.value,
+        // Editing a bound hides where the proposed range came from (AC-24).
+        proposedRange:
+          action.field === "min" || action.field === "max"
+            ? null
+            : row.proposedRange,
       }));
     case "set_required":
       return updateRow(state, action.key, (row) => ({
@@ -152,17 +229,26 @@ export function formReducer(state: FormState, action: FormAction): FormState {
           };
     case "fill_example":
       return fillExample(state);
+    case "fill_from_proposal":
+      return fillFromProposal(state, action.proposal, action.attached);
+    case "attach_instructions":
+      return { ...state, instructions: action.attached };
+    case "detach_instructions":
+      return { ...state, instructions: null };
     case "reset":
       return { ...initialFormState, nextKey: state.nextKey };
   }
 }
 
-// Equal to the initial state, ignoring row keys (AC-6, AC-9).
+// Equal to the initial state, ignoring row keys; attached instructions count
+// as a change (AC-6, AC-9, AC-27).
 export const isPristine = (state: FormState): boolean => {
   const [only, ...rest] = state.variables;
   return (
     state.title === "" &&
     state.goal === "" &&
+    state.context === "" &&
+    state.instructions === null &&
     rest.length === 0 &&
     only !== undefined &&
     only.name === "" &&
@@ -177,6 +263,7 @@ export const isPristine = (state: FormState): boolean => {
 export const fieldId = {
   title: "cuaderno-titulo",
   goal: "cuaderno-objetivo",
+  context: "cuaderno-contexto",
   variable: (key: number, field: VariableField | "required" | "remove") =>
     `variable-${key}-${field}`,
 } as const;
@@ -255,6 +342,7 @@ export type FormErrors = Readonly<Record<string, string>>;
 export function validateExperimentForm(state: FormState): FormErrors {
   const title = lengthError(state.title, LIMITS.title, MESSAGES.titleRequired);
   const goal = lengthError(state.goal, LIMITS.goal, null);
+  const context = lengthError(state.context, LIMITS.context, null);
   const variables = state.variables.flatMap((row, index) =>
     rowErrors(
       row,
@@ -272,6 +360,7 @@ export function validateExperimentForm(state: FormState): FormErrors {
   return Object.fromEntries([
     ...(title ? [[fieldId.title, title] as const] : []),
     ...(goal ? [[fieldId.goal, goal] as const] : []),
+    ...(context ? [[fieldId.context, context] as const] : []),
     ...variables,
     ...count,
   ]);
@@ -289,6 +378,7 @@ const blankToNull = (text: string): string | null => text.trim() || null;
 export const toCreateBody = (state: FormState): NewExperiment => ({
   title: state.title.trim(),
   goal: blankToNull(state.goal),
+  context: blankToNull(state.context),
   variables: state.variables.map((row) => ({
     name: row.name.trim(),
     unit: blankToNull(row.unit),

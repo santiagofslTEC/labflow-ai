@@ -2,6 +2,7 @@
 
 import {
   ArrowRightIcon,
+  CheckIcon,
   CircleCheckIcon,
   KeyboardIcon,
   MessageCircleQuestionIcon,
@@ -17,18 +18,21 @@ import type * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { formatQuantity } from "@/lib/format";
+import { formatExact } from "@/lib/format";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { duration, savedExit, settleMs, spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-import { announcement, copy } from "./copy";
+import { announcement, copy, saveLabel } from "./copy";
 import {
   flightLayoutId,
+  isFlagged,
   isUnsaved,
+  needsCheck,
   type ProposalCardProps,
   type ProposalCardState,
   type ProposalValue,
+  type TrialChoice,
 } from "./types";
 import { ValueField } from "./value-field";
 
@@ -48,6 +52,7 @@ function ProposalCard({
   phrase,
   source,
   state,
+  canConfirm,
   onConfirm,
   onEdit,
   onCommitEdit,
@@ -55,6 +60,8 @@ function ProposalCard({
   onDiscard,
   onRetry,
   onSettled,
+  onCheck,
+  onChooseTrial,
 }: ProposalCardProps) {
   const reduced = useReducedMotion();
   const titleId = useId();
@@ -62,6 +69,11 @@ function ProposalCard({
   const unsaved = isUnsaved(state);
   const saving = state.kind === "saving";
   const missing = values.find((value) => value.value === null);
+  const confirmable = canConfirm ?? (!missing && !values.some(needsCheck));
+  // A correction is never flagged per value: choosing "Corregir" was its extra step.
+  const flagged = isFlagged(values) && state.kind !== "correction";
+  const toCheck = values.some(needsCheck);
+  const label = saveLabel(values, trialNumber, state.kind === "correction");
 
   const liveRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
@@ -107,6 +119,8 @@ function ProposalCard({
     if (
       state.kind === "proposed" ||
       state.kind === "correction" ||
+      state.kind === "choose_trial" ||
+      state.kind === "pending_other_trial" ||
       state.kind === "save_error"
     ) {
       primaryRef.current?.focus();
@@ -162,11 +176,14 @@ function ProposalCard({
         aria-labelledby={titleId}
         data-state={state.kind}
         data-saved={!unsaved}
+        data-flagged={(flagged && unsaved) || undefined}
         className={cn(
           "flex flex-col gap-4 rounded-card p-4 text-ink shadow-card transition-colors duration-300 sm:p-5",
-          unsaved
-            ? "border border-dashed border-unsaved-border bg-unsaved"
-            : "border border-solid border-saved bg-surface",
+          !unsaved
+            ? "border border-solid border-saved bg-surface"
+            : flagged
+              ? "border-2 border-solid border-unsaved-border bg-unsaved"
+              : "border border-dashed border-unsaved-border bg-unsaved",
         )}
       >
         <div ref={liveRef} aria-live="polite" className="sr-only" />
@@ -219,7 +236,11 @@ function ProposalCard({
           transition={spring.snappy}
           className="flex flex-col gap-3"
         >
-          <Prompt state={state} trialNumber={trialNumber} />
+          <Prompt
+            state={state}
+            trialNumber={trialNumber}
+            toCheck={flagged && toCheck}
+          />
 
           <ul className="flex flex-col divide-y divide-line border-y border-line">
             {values.map((value) => (
@@ -241,6 +262,8 @@ function ProposalCard({
                 onEdit={onEdit}
                 onCommitEdit={onCommitEdit}
                 onCancelEdit={onCancelEdit}
+                showFlags={flagged}
+                onCheck={onCheck}
               />
             ))}
           </ul>
@@ -264,13 +287,16 @@ function ProposalCard({
           <Actions
             state={state}
             saving={saving}
-            confirmDisabled={Boolean(missing)}
+            confirmDisabled={!confirmable}
+            label={label}
+            trialNumber={trialNumber}
             editFormId={editFormId}
             primaryRef={primaryRef}
             onConfirm={onConfirm}
             onDiscard={onDiscard}
             onRetry={onRetry}
             onCancelEdit={onCancelEdit}
+            onChooseTrial={onChooseTrial}
           />
         </motion.div>
       </section>
@@ -281,12 +307,31 @@ function ProposalCard({
 function Prompt({
   state,
   trialNumber,
+  toCheck,
 }: {
   readonly state: ProposalCardState;
   readonly trialNumber: number | null;
+  readonly toCheck: boolean;
 }) {
+  if ((state.kind === "proposed" || state.kind === "checking") && toCheck)
+    return (
+      <p className="flex items-start gap-2 font-semibold text-warning-ink">
+        <TriangleAlertIcon aria-hidden className="mt-0.5 size-5 shrink-0" />
+        {copy.promptFlagged}
+      </p>
+    );
   if (state.kind === "proposed")
     return <p className="font-medium">{copy.promptProposed}</p>;
+  if (state.kind === "choose_trial" || state.kind === "pending_other_trial")
+    return (
+      <p className="flex items-start gap-2 font-medium">
+        <MessageCircleQuestionIcon
+          aria-hidden
+          className="mt-0.5 size-5 shrink-0 text-warning-ink"
+        />
+        {state.question}
+      </p>
+    );
   if (state.kind === "correction")
     return <p className="font-medium">{copy.promptCorrection(trialNumber)}</p>;
   if (state.kind === "needs_clarification")
@@ -313,6 +358,8 @@ type ValueRowProps = {
   readonly onEdit: (variableId: number) => void;
   readonly onCommitEdit: (variableId: number, value: number) => void;
   readonly onCancelEdit: () => void;
+  readonly showFlags: boolean;
+  readonly onCheck: ((variableId: number) => void) | undefined;
 };
 
 function ValueRow({
@@ -326,6 +373,8 @@ function ValueRow({
   onEdit,
   onCommitEdit,
   onCancelEdit,
+  showFlags,
+  onCheck,
 }: ValueRowProps) {
   const { variableId, name, unit } = value;
   const editingThis =
@@ -334,6 +383,8 @@ function ValueRow({
   const canEdit =
     state.kind === "proposed" ||
     (state.kind === "needs_clarification" && value.value !== null);
+  const flags = showFlags && value.value !== null ? (value.flags ?? []) : [];
+  const checking = state.kind === "checking";
   const commit = (next: number) => onCommitEdit(variableId, next);
 
   return (
@@ -384,11 +435,44 @@ function ValueRow({
           </Button>
         ) : null}
       </div>
-      {value.warning ? (
-        <p className="flex items-center gap-2 text-sm text-warning-ink">
-          <TriangleAlertIcon aria-hidden className="size-4 shrink-0" />
-          {value.warning}
-        </p>
+      {flags.length > 0 && value.value !== null ? (
+        <div className="flex flex-col gap-2 rounded-control bg-surface/70 px-3 py-2">
+          <ul className="flex flex-col gap-1">
+            {flags.map((flag) => (
+              <li
+                key={flag.reason}
+                className="flex items-start gap-2 text-sm text-warning-ink"
+              >
+                <TriangleAlertIcon
+                  aria-hidden
+                  className="mt-0.5 size-4 shrink-0"
+                />
+                {flag.text}
+              </li>
+            ))}
+          </ul>
+          {value.checked ? (
+            <p className="flex items-center gap-1.5 text-sm text-ink-muted">
+              <CheckIcon aria-hidden className="size-4 text-saved" />
+              {copy.checkedNote}
+            </p>
+          ) : onCheck ? (
+            <Button
+              variant="secondary"
+              size="md"
+              className="self-start"
+              aria-disabled={checking || undefined}
+              onClick={checking ? undefined : () => onCheck(variableId)}
+            >
+              {checking && state.variableId === variableId ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <CheckIcon aria-hidden data-icon="inline-start" />
+              )}
+              {copy.check(value.value, unit)}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </li>
   );
@@ -415,20 +499,31 @@ function Reading({
       </span>
     );
 
-  const current = formatQuantity(value.value, value.unit);
+  const current = formatExact(value.value, value.unit);
   const changed =
     state.kind === "correction" &&
     value.previous !== undefined &&
     value.previous !== null &&
     value.previous !== value.value;
 
+  const said = value.saidText ?? null;
   return (
-    <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <span className="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-1">
+      {said !== null ? (
+        <span className="flex items-baseline gap-2 text-sm text-ink-muted">
+          <span className="sr-only">{copy.said}: </span>
+          <q className="italic">{said}</q>
+          <ArrowRightIcon aria-hidden className="size-3.5 self-center" />
+          <span className="sr-only">{copy.understood}: </span>
+        </span>
+      ) : value.saidText === null ? (
+        <span className="text-xs text-ink-muted">{copy.handwritten}</span>
+      ) : null}
       {changed && value.previous !== null && value.previous !== undefined ? (
         <>
           <del className="font-mono text-base text-ink-muted tabular-nums">
             <span className="sr-only">{copy.before}: </span>
-            {formatQuantity(value.previous, value.unit)}
+            {formatExact(value.previous, value.unit)}
           </del>
           <ArrowRightIcon
             aria-hidden
@@ -440,7 +535,11 @@ function Reading({
         layoutId={layoutId}
         layout="position"
         transition={spring.gentle}
-        className={cn(READOUT, "inline-block no-underline")}
+        className={cn(
+          READOUT,
+          "inline-block no-underline",
+          value.interpreted && "rounded-md bg-brand-soft px-1.5",
+        )}
       >
         {changed ? (
           <ins className="no-underline">
@@ -459,12 +558,15 @@ type ActionsProps = {
   readonly state: ProposalCardState;
   readonly saving: boolean;
   readonly confirmDisabled: boolean;
+  readonly label: string;
+  readonly trialNumber: number | null;
   readonly editFormId: string;
   readonly primaryRef: React.Ref<HTMLButtonElement>;
   readonly onConfirm: () => void;
   readonly onDiscard: () => void;
   readonly onRetry: () => void;
   readonly onCancelEdit: () => void;
+  readonly onChooseTrial: ((choice: TrialChoice) => void) | undefined;
 };
 
 // Left to right, primary last. While saving the buttons stay focusable
@@ -473,12 +575,15 @@ function Actions({
   state,
   saving,
   confirmDisabled,
+  label,
+  trialNumber,
   editFormId,
   primaryRef,
   onConfirm,
   onDiscard,
   onRetry,
   onCancelEdit,
+  onChooseTrial,
 }: ActionsProps) {
   if (state.kind === "saved") return null;
 
@@ -494,34 +599,51 @@ function Actions({
       </div>
     );
 
+  if (state.kind === "choose_trial")
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button variant="ghost" size="lg" onClick={onDiscard}>
+          {copy.actions.discard}
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
+          onClick={() => onChooseTrial?.("new")}
+        >
+          {copy.chooseNew}
+        </Button>
+        <Button
+          ref={primaryRef}
+          size="lg"
+          onClick={() => onChooseTrial?.("correction")}
+        >
+          {copy.chooseCorrection(trialNumber)}
+        </Button>
+      </div>
+    );
+
+  const busy = saving || state.kind === "checking";
   const primary =
-    state.kind === "correction"
-      ? { label: copy.actions.replace, onClick: onConfirm }
-      : state.kind === "save_error"
-        ? { label: copy.actions.retry, onClick: onRetry }
-        : { label: copy.actions.confirm, onClick: onConfirm };
+    state.kind === "save_error"
+      ? { label: copy.actions.retry, onClick: onRetry }
+      : { label, onClick: onConfirm };
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       <Button
         variant="ghost"
         size="lg"
-        aria-disabled={saving || undefined}
-        onClick={saving ? undefined : onDiscard}
+        aria-disabled={busy || undefined}
+        onClick={busy ? undefined : onDiscard}
       >
         {copy.actions.discard}
       </Button>
       <Button
         ref={primaryRef}
         size="lg"
-        disabled={
-          !saving &&
-          state.kind !== "correction" &&
-          state.kind !== "save_error" &&
-          confirmDisabled
-        }
-        aria-disabled={saving || undefined}
-        onClick={saving ? undefined : primary.onClick}
+        disabled={!busy && state.kind !== "save_error" && confirmDisabled}
+        aria-disabled={busy || undefined}
+        onClick={busy ? undefined : primary.onClick}
       >
         {saving ? (
           <>

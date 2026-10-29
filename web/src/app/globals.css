@@ -2,26 +2,30 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Design tokens (spec 0003, web/design.md). Light values here; dark overrides below.
+/* Design tokens (spec 0003, web/design.md; palette and green brand accent from the
+   2026-10-28 workspace redesign). Light values here; dark overrides below.
    `static` emits every token even before a class uses it (the chart tokens wait for feature 9).
    tokens.test.ts reads this block and the dark block to check contrast: hex values only. */
 @theme static {
-  --color-canvas: #fbfaf8;
+  --color-canvas: #faf9f7;
   --color-surface: #ffffff;
-  --color-sunken: #f3f1ec;
-  --color-ink: #1f1b16;
-  --color-ink-muted: #6b6358;
-  --color-on-ink: #faf8f4;
-  --color-line: #ebe7e0;
-  --color-control: #8c8377;
-  --color-saved: #0e6b6b;
-  --color-unsaved: #fdf6e7;
-  --color-unsaved-border: #b7791f;
-  --color-warning-ink: #8a5a00;
-  --color-danger: #b42318;
-  --color-focus: #0e6b6b;
-  --color-chart-1: #0e6b6b;
-  --color-chart-2: #b7791f;
+  --color-sunken: #f3f2ef;
+  --color-ink: #1b2331;
+  --color-ink-muted: #676b71;
+  --color-on-ink: #faf9f7;
+  --color-line: #e7e5e1;
+  --color-control: #85888d;
+  --color-brand: #17734a;
+  --color-brand-soft: #e7f3ec;
+  --color-on-brand: #ffffff;
+  --color-saved: #17734a;
+  --color-unsaved: #fef8e9;
+  --color-unsaved-border: #b56614;
+  --color-warning-ink: #8e4d07;
+  --color-danger: #b61f1a;
+  --color-focus: #17734a;
+  --color-chart-1: #17734a;
+  --color-chart-2: #b56614;
   --color-chart-3: #5b5bd6;
   --color-chart-4: #c2410c;
 
@@ -29,18 +33,21 @@
   --radius-control: 10px;
 
   --shadow-card:
-    0 1px 2px rgb(31 27 22 / 0.04), 0 4px 12px rgb(31 27 22 / 0.05);
+    0 1px 2px rgb(27 35 49 / 0.04), 0 4px 12px rgb(27 35 49 / 0.05);
   --shadow-dock:
-    0 1px 2px rgb(31 27 22 / 0.06), 0 8px 28px rgb(31 27 22 / 0.12);
-  --shadow-control: 0 1px 2px rgb(31 27 22 / 0.06);
+    0 1px 2px rgb(27 35 49 / 0.06), 0 8px 28px rgb(27 35 49 / 0.12);
+  --shadow-control: 0 1px 2px rgb(27 35 49 / 0.06);
 
   /* Type scale: display and readout have a phone size and an `-lg` size for 1024px and up. */
-  --text-display: 2rem;
-  --text-display--line-height: 2.25rem;
-  --text-display-lg: 2.5rem;
-  --text-display-lg--line-height: 2.75rem;
-  --text-title: 1.75rem;
-  --text-title--line-height: 2rem;
+  --text-display: 1.5rem;
+  --text-display--line-height: 2rem;
+  --text-display--letter-spacing: -0.015em;
+  --text-display-lg: 1.75rem;
+  --text-display-lg--line-height: 2.25rem;
+  --text-display-lg--letter-spacing: -0.02em;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-title--letter-spacing: -0.01em;
   --text-readout: 1.75rem;
   --text-readout--line-height: 2rem;
   --text-readout-lg: 2rem;
@@ -52,36 +59,38 @@
   --text-label--letter-spacing: 0.06em;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-canvas: #191817;
-    --color-surface: #201f1d;
-    --color-sunken: #292725;
-    --color-ink: #f1eee9;
-    --color-ink-muted: #a39d94;
-    --color-on-ink: #1f1b16;
-    --color-line: #33302c;
-    --color-control: #7d7569;
-    --color-saved: #4fb3a9;
-    --color-unsaved: #2b2418;
-    --color-unsaved-border: #e0a84a;
-    --color-warning-ink: #f0c27a;
-    --color-danger: #f2867a;
-    --color-focus: #4fb3a9;
-    --color-chart-1: #4fb3a9;
-    --color-chart-2: #e0a84a;
-    --color-chart-3: #9b9bf0;
-    --color-chart-4: #f4875a;
+/* The app is always light (2026-10-28). These dark values only apply when
+   <html data-theme="dark"> is set on purpose; nothing sets it today. */
+:root[data-theme="dark"] {
+  --color-canvas: #16181c;
+  --color-surface: #1d2024;
+  --color-sunken: #272a2f;
+  --color-ink: #eef0f2;
+  --color-ink-muted: #a3a7ae;
+  --color-on-ink: #1b2331;
+  --color-line: #31353b;
+  --color-control: #7c8088;
+  --color-brand: #4fbf8b;
+  --color-brand-soft: #1b3328;
+  --color-on-brand: #0d1a13;
+  --color-saved: #4fbf8b;
+  --color-unsaved: #2b2418;
+  --color-unsaved-border: #e0a84a;
+  --color-warning-ink: #f0c27a;
+  --color-danger: #f2867a;
+  --color-focus: #4fbf8b;
+  --color-chart-1: #4fbf8b;
+  --color-chart-2: #e0a84a;
+  --color-chart-3: #9b9bf0;
+  --color-chart-4: #f4875a;
 
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
-    --shadow-dock: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.5);
-    --shadow-control: 0 1px 2px rgb(0 0 0 / 0.3);
-  }
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
+  --shadow-dock: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.5);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.3);
 }
 
 /* Fonts come from next/font in layout.tsx. */
 @theme inline {
-  --font-serif: var(--font-instrument-serif);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
@@ -89,7 +98,7 @@
 
 /* shadcn's semantic names, aliased once to the tokens so its classes keep working. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --background: var(--color-canvas);
   --foreground: var(--color-ink);

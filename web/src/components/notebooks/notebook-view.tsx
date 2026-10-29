@@ -1,33 +1,30 @@
 "use client";
 
 import {
-  ArrowLeftIcon,
+  ChartColumnIcon,
+  ChevronRightIcon,
   CloudOffIcon,
+  DownloadIcon,
   FileQuestionIcon,
+  MessagesSquareIcon,
   RotateCwIcon,
-  TableIcon,
-  VariableIcon,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
-import type { ExperimentDetail } from "@/api/experiments";
+import { experimentKeys, type ExperimentDetail } from "@/api/experiments";
+import { CaptureStage } from "@/components/capture-stage/capture-stage";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { PanelHeading } from "@/components/app-shell/panel-heading";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useExperiment } from "@/hooks/use-experiments";
+import { useExperiment, useExperiments } from "@/hooks/use-experiments";
 import { useNow } from "@/hooks/use-now";
-import { formatRange } from "@/lib/format";
+import { protocolLabel } from "@/lib/instructions";
 import { formatShortDate } from "@/lib/relative-time";
+
+import { downloadNotebookCsv, NotebookInspector } from "./notebook-inspector";
 
 // A route segment that can name a notebook; anything else is "no existe"
 // without asking the API (AC-11).
@@ -65,92 +62,123 @@ function NotebookView({ rawId }: { readonly rawId: string }) {
 
 function BackLink() {
   return (
-    <Link
-      href="/cuadernos"
-      className="-ml-2 inline-flex h-10 w-fit items-center gap-1.5 rounded-control px-2 text-sm text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"
-    >
-      <ArrowLeftIcon aria-hidden className="size-4" />
-      Mis cuadernos
-    </Link>
+    <nav aria-label="Ruta" className="flex items-center gap-1 text-sm">
+      <Link
+        href="/cuadernos"
+        className="-ml-2 inline-flex h-9 items-center rounded-control px-2 text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"
+      >
+        Mis cuadernos
+      </Link>
+      <ChevronRightIcon aria-hidden className="size-4 text-ink-muted" />
+    </nav>
   );
 }
 
+// The notebook workspace (2026-10-28 redesign): the conversation column on the
+// left and a data panel on the right with the trials table and the variables.
+// The conversation column holds typed capture (feature 6): a sentence in, the
+// confirm card out. A save refreshes the notebook list's trial count.
 function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const now = useNow();
+  const queryClient = useQueryClient();
   const created = new Date(experiment.created_at);
-  const variables = experiment.variables;
+  const closed = experiment.status === "closed";
+  const trialCount = useExperiments().data?.find(
+    (notebook) => notebook.id === experiment.id,
+  )?.trial_count;
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-3">
-        <BackLink />
-        <PageHeader
-          title={experiment.title}
-          description={
-            <div className="flex flex-col gap-3">
-              {experiment.goal ? (
-                <p className="text-base whitespace-pre-line text-ink">
-                  {experiment.goal}
-                </p>
-              ) : null}
-              <p>
-                Creado por {experiment.created_by} ·{" "}
-                <time dateTime={experiment.created_at}>
-                  {formatShortDate(created, now)}
-                </time>{" "}
-                · {experiment.status === "closed" ? "Cerrado" : "Abierto"}
-              </p>
-            </div>
-          }
-        />
+    <div className="flex flex-1 flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
+      <div className="flex min-w-0 flex-col gap-8 lg:pr-10">
+        <div className="flex flex-col gap-2 border-b border-line pb-6">
+          <BackLink />
+          <PageHeader
+            title={experiment.title}
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => downloadNotebookCsv(experiment)}
+                >
+                  <DownloadIcon aria-hidden />
+                  Exportar datos
+                </Button>
+                <Button asChild>
+                  <a href="#inspector">
+                    <ChartColumnIcon aria-hidden />
+                    Ver resultados
+                  </a>
+                </Button>
+              </>
+            }
+            description={
+              <div className="flex flex-col gap-3">
+                {experiment.goal ? (
+                  <p className="text-base whitespace-pre-line text-ink">
+                    {experiment.goal}
+                  </p>
+                ) : null}
+                {experiment.context ? (
+                  <section
+                    aria-labelledby="contexto-titulo"
+                    className="flex flex-col gap-1 border-l-2 border-line pl-3"
+                  >
+                    <h2 id="contexto-titulo" className="text-xs text-ink-muted">
+                      Contexto
+                    </h2>
+                    <p className="text-sm whitespace-pre-line text-ink">
+                      {experiment.context}
+                    </p>
+                  </section>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={closed ? "neutral" : "saved"}>
+                    {closed ? "Cerrado" : "Abierto"}
+                  </Badge>
+                  <p>
+                    Creado por {experiment.created_by} ·{" "}
+                    <time dateTime={experiment.created_at}>
+                      {formatShortDate(created, now)}
+                    </time>
+                    {experiment.protocol
+                      ? ` · ${protocolLabel(experiment.protocol)}`
+                      : null}
+                  </p>
+                </div>
+              </div>
+            }
+          />
+        </div>
+
+        {closed ? (
+          <EmptyState
+            icon={MessagesSquareIcon}
+            title="Este cuaderno está cerrado"
+            description="Ya no recibe mediciones nuevas."
+            className="flex-1 justify-center"
+          />
+        ) : (
+          <section
+            aria-label="Registrar una medición"
+            className="flex flex-col gap-3"
+          >
+            <p className="text-sm text-ink-muted">
+              Escribe un ensayo y LabFlow te mostrará lo que entendió antes de
+              guardarlo.
+            </p>
+            <CaptureStage
+              experimentId={experiment.id}
+              onSaved={() =>
+                void queryClient.invalidateQueries({
+                  queryKey: experimentKeys.all,
+                })
+              }
+            />
+          </section>
+        )}
       </div>
 
-      <section aria-labelledby="variables" className="flex flex-col gap-2">
-        <PanelHeading
-          id="variables"
-          icon={VariableIcon}
-          title="Variables"
-          meta={<span className="tabular-nums">{variables.length}</span>}
-        />
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Unidad</TableHead>
-              <TableHead>Rango</TableHead>
-              <TableHead>Tipo</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {variables.map((variable) => (
-              <TableRow key={variable.id}>
-                <TableCell className="font-medium text-ink">
-                  {variable.name}
-                </TableCell>
-                <TableCell className="font-mono">
-                  {variable.unit ?? "—"}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {formatRange(variable.min_value, variable.max_value)}
-                </TableCell>
-                <TableCell className="text-ink-muted">
-                  {variable.required ? "Requerida" : "Opcional"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </section>
-
-      <section aria-labelledby="ensayos" className="flex flex-col gap-2">
-        <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
-        <EmptyState
-          icon={TableIcon}
-          headingLevel="h3"
-          title="Aún no hay ensayos"
-          description="Cuando confirmes tu primera medición, aparecerá aquí como una fila de la tabla."
-        />
-      </section>
+      <NotebookInspector experiment={experiment} trialCount={trialCount} />
     </div>
   );
 }

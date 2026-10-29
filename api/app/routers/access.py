@@ -12,7 +12,7 @@ from app.core.access import (
     sign_session,
 )
 from app.core.errors import ApiError, ApiErrorBody
-from app.core.gate import attempt_log, client_ip
+from app.core.gate import HolderDep, attempt_log, client_ip
 from app.core.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -75,3 +75,24 @@ async def grant_access(body: AccessRequest, request: Request, response: Response
     )
     logger.info("access granted", extra={"holder": holder})
     return AccessGranted(holder=holder)
+
+
+@router.get(
+    "",
+    responses={401: {"model": ApiErrorBody, "description": "No valid access session"}},
+)
+def read_access(holder: HolderDep) -> AccessGranted:
+    """Who is signed in, for the settings page."""
+    return AccessGranted(holder=holder)
+
+
+@router.delete("", status_code=204)
+def revoke_access(response: Response) -> None:
+    """Sign out: the cookie is httpOnly, so only the API can clear it."""
+    response.delete_cookie(
+        SESSION_COOKIE,
+        httponly=True,
+        samesite="lax",
+        secure=get_settings().env != "dev",
+    )
+    logger.info("access revoked")

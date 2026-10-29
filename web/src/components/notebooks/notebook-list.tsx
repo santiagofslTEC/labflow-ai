@@ -154,4 +154,4 @@ function NotebookRow({ notebook }: { readonly notebook: ExperimentSummary }) {
   );
 }
 
-export { NotebookList };
+export { NotebookList, NotebookRow };

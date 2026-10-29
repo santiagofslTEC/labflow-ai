@@ -6,11 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import HTMLResponse
 
+from app.ai.deps import make_clients
 from app.core.db import get_engine
 from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
+from app.core.instruction_reads import InstructionReads
 from app.core.settings import get_settings
-from app.routers import access, experiments, health
+from app.routers import access, capture, experiments, health
 
 
 @asynccontextmanager
@@ -19,6 +21,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     get_settings()
     attempts: AttemptLog = {}
     app.state.access_attempts = attempts
+    app.state.llm_clients = make_clients(get_settings())
+    app.state.instruction_reads = InstructionReads()
     yield
     get_engine().dispose()
 
@@ -58,3 +62,4 @@ def redoc_docs() -> HTMLResponse:
 app.include_router(health.router)
 app.include_router(access.router)
 app.include_router(experiments.router)
+app.include_router(capture.router)

@@ -10,6 +10,7 @@ from app.services.results import DuplicateVariableName, InvalidRange, NewExperim
 
 TITLE_MAX = 200
 GOAL_MAX = 1000
+CONTEXT_MAX = 600
 NAME_MAX = 80
 UNIT_MAX = 20
 VARIABLES_MAX = 12
@@ -38,9 +39,10 @@ class NewExperiment(BaseModel):
 
     title: str = Field(min_length=1, max_length=TITLE_MAX)
     goal: str | None = Field(default=None, max_length=GOAL_MAX)
+    context: str | None = Field(default=None, max_length=CONTEXT_MAX)  # for the capture prompt
     variables: tuple[NewVariable, ...] = Field(min_length=1, max_length=VARIABLES_MAX)
 
-    _goal = field_validator("goal")(_blank_to_none)
+    _optional_text = field_validator("goal", "context")(_blank_to_none)
 
 
 def check_new_experiment(body: NewExperiment) -> NewExperimentError | None:

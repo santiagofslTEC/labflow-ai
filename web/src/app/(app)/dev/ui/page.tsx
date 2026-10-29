@@ -61,6 +61,8 @@ const COLORS = [
   ["on-ink", "bg-on-ink", "Texto sobre el botón principal"],
   ["line", "bg-line", "Divisores decorativos"],
   ["control", "bg-control", "Bordes de campos (3:1)"],
+  ["brand", "bg-brand", "Acento: acción principal, micrófono"],
+  ["brand-soft", "bg-brand-soft", "Acento suave: activo, halo"],
   ["saved", "bg-saved", "Guardado"],
   ["unsaved", "bg-unsaved", "Tinte sin guardar"],
   ["unsaved-border", "bg-unsaved-border", "Borde sin guardar"],
@@ -99,10 +101,7 @@ function Section({
       className="flex scroll-mt-24 flex-col gap-6 border-t border-line pt-10"
     >
       <div className="flex flex-col gap-1">
-        <h2
-          id={`${id}-title`}
-          className="font-serif text-title font-normal text-ink"
-        >
+        <h2 id={`${id}-title`} className="text-title font-semibold text-ink">
           {title}
         </h2>
         {description ? (
@@ -191,10 +190,10 @@ export default function DevUiPage() {
 
         <Specimen label="Tipografía">
           <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-6">
-            <p className="font-serif text-display text-ink lg:text-display-lg">
+            <p className="text-display font-semibold text-ink lg:text-display-lg">
               Tu cuaderno de laboratorio
             </p>
-            <p className="font-serif text-title text-ink">
+            <p className="text-title font-semibold text-ink">
               {SAMPLE_EXPERIMENT_TITLE}
             </p>
             <p className="text-base text-ink">

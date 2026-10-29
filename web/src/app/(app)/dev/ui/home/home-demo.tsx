@@ -167,12 +167,12 @@ function HomeDemo() {
         ) : listening || processing ? (
           <p
             aria-live="off"
-            className="max-w-xl text-center font-serif text-display text-balance text-ink lg:text-display-lg"
+            className="max-w-xl text-center text-display font-semibold text-balance text-ink lg:text-display-lg"
           >
             {partial || "…"}
           </p>
         ) : (
-          <p className="max-w-md text-center font-serif text-display text-balance text-ink-muted lg:text-display-lg">
+          <p className="max-w-md text-center text-display font-semibold text-balance text-ink-muted lg:text-display-lg">
             ¿Qué mediste?
           </p>
         )}

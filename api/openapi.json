@@ -27,6 +27,36 @@
       }
     },
     "/api/access": {
+      "get": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Read Access",
+        "description": "Who is signed in, for the settings page.",
+        "operationId": "read_access_api_access_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessGranted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "access"
@@ -83,6 +113,19 @@
                 }
               }
             }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Revoke Access",
+        "description": "Sign out: the cookie is httpOnly, so only the API can clear it.",
+        "operationId": "revoke_access_api_access_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           }
         }
       }
@@ -232,6 +275,704 @@
           }
         }
       }
+    },
+    "/api/experiments/instructions/read": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Read Instructions",
+        "description": "Reads the instructions once and proposes a notebook. Stores nothing (AC-32).",
+        "operationId": "read_instructions_api_experiments_instructions_read_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_read_instructions_api_experiments_instructions_read_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionsRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "file_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, or pages_too_long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "reading_in_progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "reading_failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/experiments/with-instructions": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create With Instructions",
+        "description": "The notebook, its variables, and its instructions in one transaction (AC-29). The\ninstructions are checked again here; text from the browser is never trusted.",
+        "operationId": "create_with_instructions_api_experiments_with_instructions_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_with_instructions_api_experiments_with_instructions_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "file_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, or invalid_range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/experiments/{experiment_id}/utterances": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Post Utterance",
+        "operationId": "post_utterance_api_experiments__experiment_id__utterances_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtteranceIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The AI could not process the sentence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/experiments/{experiment_id}/proposal": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Get Proposal",
+        "operationId": "get_proposal_api_experiments__experiment_id__proposal_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProposalView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Proposal Api Experiments  Experiment Id  Proposal Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/proposals/{proposal_id}/values/{variable_id}": {
+      "put": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Put Value",
+        "description": "A hand edit (AC-4): no AI. Checked before the \"Editado\" turn is stored, so a\nrejected edit leaves no turn behind. It counts as checked (AC-23).",
+        "operationId": "put_value_api_proposals__proposal_id__values__variable_id__put",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          },
+          {
+            "name": "variable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Variable Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValueIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The card cannot take this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/proposals/{proposal_id}/trial": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Post Trial",
+        "description": "Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial.",
+        "operationId": "post_trial_api_proposals__proposal_id__trial_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrialChoiceIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The card cannot take this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/proposals/{proposal_id}/values/{variable_id}/check": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Post Check",
+        "description": "Check a flagged value (AC-24). Stores no turn.",
+        "operationId": "post_check_api_proposals__proposal_id__values__variable_id__check_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          },
+          {
+            "name": "variable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Variable Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The card cannot take this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/proposals/{proposal_id}/confirm": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Post Confirm",
+        "description": "Save the card (AC-2). Flagged values must be checked first (AC-24), whatever the\npath; a repeat confirm returns the same trial (spec 0002).",
+        "operationId": "post_confirm_api_proposals__proposal_id__confirm_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The card cannot take this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/proposals/{proposal_id}/discard": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Post Discard",
+        "description": "Drop the card; nothing is saved (AC-13).",
+        "operationId": "post_discard_api_proposals__proposal_id__discard_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The card cannot take this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -282,6 +1023,119 @@
         ],
         "title": "ApiErrorBody"
       },
+      "Body_create_with_instructions_api_experiments_with_instructions_post": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "contentMediaType": "application/json",
+            "contentSchema": {
+              "$ref": "#/components/schemas/NewExperiment"
+            },
+            "title": "Body"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "instructions_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions Text"
+          },
+          "read_from_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read From Page"
+          },
+          "read_to_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read To Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "Body_create_with_instructions_api_experiments_with_instructions_post"
+      },
+      "Body_read_instructions_api_experiments_instructions_read_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "from_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Page"
+          },
+          "to_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Page"
+          }
+        },
+        "type": "object",
+        "title": "Body_read_instructions_api_experiments_instructions_read_post"
+      },
       "ExperimentDetail": {
         "properties": {
           "id": {
@@ -303,6 +1157,17 @@
             ],
             "title": "Goal"
           },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
           "status": {
             "$ref": "#/components/schemas/ExperimentStatus"
           },
@@ -321,6 +1186,16 @@
             },
             "type": "array",
             "title": "Variables"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProtocolSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -328,13 +1203,15 @@
           "id",
           "title",
           "goal",
+          "context",
           "status",
           "created_by",
           "created_at",
-          "variables"
+          "variables",
+          "protocol"
         ],
         "title": "ExperimentDetail",
-        "description": "A notebook with its variables in `position` order (spec 0005, AC-16)."
+        "description": "A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31)."
       },
       "ExperimentStatus": {
         "type": "string",
@@ -378,6 +1255,45 @@
         "title": "ExperimentSummary",
         "description": "One row of the notebook list (spec 0005, AC-14)."
       },
+      "FlagReason": {
+        "type": "string",
+        "enum": [
+          "out_of_range",
+          "converted",
+          "code_match"
+        ],
+        "title": "FlagReason"
+      },
+      "FlagView": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/FlagReason"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason",
+          "text"
+        ],
+        "title": "FlagView"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
       "Health": {
         "properties": {
           "status": {
@@ -401,6 +1317,139 @@
         ],
         "title": "Health"
       },
+      "InstructionsNeedPages": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "needs_pages",
+            "title": "Kind",
+            "default": "needs_pages"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "char_count": {
+            "type": "integer",
+            "title": "Char Count"
+          },
+          "max_chars": {
+            "type": "integer",
+            "title": "Max Chars",
+            "default": 100000
+          }
+        },
+        "type": "object",
+        "required": [
+          "page_count",
+          "char_count"
+        ],
+        "title": "InstructionsNeedPages",
+        "description": "The PDF is too long to read whole: ask which pages (AC-22)."
+      },
+      "InstructionsProposal": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "proposal",
+            "title": "Kind",
+            "default": "proposal"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedVariableOut"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "found_count": {
+            "type": "integer",
+            "title": "Found Count"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "read_from_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read From Page"
+          },
+          "read_to_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read To Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "goal",
+          "context",
+          "variables",
+          "found_count",
+          "page_count",
+          "read_from_page",
+          "read_to_page"
+        ],
+        "title": "InstructionsProposal",
+        "description": "A checked proposal that fills the form (AC-23)."
+      },
+      "InstructionsRead": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/InstructionsProposal"
+          },
+          {
+            "$ref": "#/components/schemas/InstructionsNeedPages"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "needs_pages": "#/components/schemas/InstructionsNeedPages",
+            "proposal": "#/components/schemas/InstructionsProposal"
+          }
+        }
+      },
       "NewExperiment": {
         "properties": {
           "title": {
@@ -420,6 +1469,18 @@
               }
             ],
             "title": "Goal"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 600
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
           },
           "variables": {
             "items": {
@@ -493,6 +1554,510 @@
           "name"
         ],
         "title": "NewVariable"
+      },
+      "ProposalView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "trial_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Number"
+          },
+          "target_trial_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Trial Id"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "phrase": {
+            "type": "string",
+            "title": "Phrase"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "flagged": {
+            "type": "boolean",
+            "title": "Flagged"
+          },
+          "question": {
+            "$ref": "#/components/schemas/Reply"
+          },
+          "can_confirm": {
+            "type": "boolean",
+            "title": "Can Confirm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trial_number",
+          "target_trial_id",
+          "values",
+          "phrase",
+          "source",
+          "flagged",
+          "question",
+          "can_confirm"
+        ],
+        "title": "ProposalView"
+      },
+      "ProposedVariableOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "range_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Quote"
+          },
+          "range_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Range Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "unit",
+          "min_value",
+          "max_value",
+          "required",
+          "range_quote",
+          "range_page"
+        ],
+        "title": "ProposedVariableOut"
+      },
+      "ProtocolSummary": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "text"
+            ],
+            "title": "Source"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count"
+          },
+          "read_from_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read From Page"
+          },
+          "read_to_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read To Page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "filename",
+          "page_count",
+          "read_from_page",
+          "read_to_page"
+        ],
+        "title": "ProtocolSummary",
+        "description": "What a notebook shows of its instructions (spec 0005, AC-31): never the bytes or text."
+      },
+      "Reason": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "missing_values",
+          "missing_trial",
+          "choose_trial",
+          "pending_other_trial",
+          "ambiguous_variable",
+          "unknown_unit",
+          "unclear_number",
+          "check_values",
+          "saved",
+          "discarded",
+          "no_pending",
+          "not_supported_yet",
+          "off_topic"
+        ],
+        "title": "Reason"
+      },
+      "Reply": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/Reason"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason",
+          "text"
+        ],
+        "title": "Reply"
+      },
+      "SavedTrial": {
+        "properties": {
+          "trial_id": {
+            "type": "integer",
+            "title": "Trial Id"
+          },
+          "trial_number": {
+            "type": "integer",
+            "title": "Trial Number"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trial_id",
+          "trial_number",
+          "created"
+        ],
+        "title": "SavedTrial"
+      },
+      "Source": {
+        "type": "string",
+        "enum": [
+          "voice",
+          "text"
+        ],
+        "title": "Source"
+      },
+      "TrialChoiceIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "correction",
+              "new"
+            ],
+            "title": "Kind"
+          },
+          "trial_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "TrialChoiceIn"
+      },
+      "TurnResponse": {
+        "properties": {
+          "turn_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          },
+          "reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reply"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposalView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "saved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SavedTrial"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_id",
+          "reply",
+          "proposal",
+          "saved"
+        ],
+        "title": "TurnResponse"
+      },
+      "UtteranceIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "UtteranceIn"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValueIn": {
+        "properties": {
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "ValueIn"
+      },
+      "ValueView": {
+        "properties": {
+          "variable_id": {
+            "type": "integer",
+            "title": "Variable Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          },
+          "said_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Said Text"
+          },
+          "interpreted": {
+            "type": "boolean",
+            "title": "Interpreted"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagView"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "checked": {
+            "type": "boolean",
+            "title": "Checked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable_id",
+          "name",
+          "unit",
+          "value",
+          "previous",
+          "said_text",
+          "interpreted",
+          "flags",
+          "checked"
+        ],
+        "title": "ValueView"
       },
       "VariableDetail": {
         "properties": {

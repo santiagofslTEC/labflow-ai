@@ -101,16 +101,28 @@ class VariableDetail(_Result):
     position: int
 
 
+class ProtocolSummary(_Result):
+    """What a notebook shows of its instructions (spec 0005, AC-31): never the bytes or text."""
+
+    source: Literal["pdf", "text"]
+    filename: str | None
+    page_count: int
+    read_from_page: int | None
+    read_to_page: int | None
+
+
 class ExperimentDetail(_Result):
-    """A notebook with its variables in `position` order (spec 0005, AC-16)."""
+    """A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31)."""
 
     id: int
     title: str
     goal: str | None
+    context: str | None
     status: ExperimentStatus
     created_by: str
     created_at: datetime
     variables: tuple[VariableDetail, ...]
+    protocol: ProtocolSummary | None
 
 
 class DuplicateVariableName(_Result):
@@ -128,3 +140,78 @@ class InvalidRange(_Result):
 
 
 type NewExperimentError = DuplicateVariableName | InvalidRange
+
+
+# --- Instructions (spec 0005, AC-30): each check's failure, in the order they run ---
+
+
+class InstructionsMissing(_Result):
+    """Neither or both of a file and pasted text were sent."""
+
+    code: Literal["instructions_missing"] = "instructions_missing"
+
+
+class FileTooLarge(_Result):
+    code: Literal["file_too_large"] = "file_too_large"
+
+
+class PdfUnreadable(_Result):
+    """Not a PDF, damaged, encrypted with a real password, or too slow to extract."""
+
+    code: Literal["pdf_unreadable"] = "pdf_unreadable"
+
+
+class TooManyPages(_Result):
+    code: Literal["too_many_pages"] = "too_many_pages"
+    page_count: int
+
+
+class InvalidPageRange(_Result):
+    code: Literal["invalid_page_range"] = "invalid_page_range"
+    page_count: int
+
+
+class NoTextInPdf(_Result):
+    """Under 100 characters of text on the pages being read (a scanned PDF)."""
+
+    code: Literal["no_text_in_pdf"] = "no_text_in_pdf"
+
+
+class InstructionsTooShort(_Result):
+    code: Literal["instructions_too_short"] = "instructions_too_short"
+
+
+class TextTooLong(_Result):
+    code: Literal["text_too_long"] = "text_too_long"
+
+
+class NeedsPages(_Result):
+    """A long PDF read with no page range: ask which pages (AC-22). Not an error."""
+
+    page_count: int
+    char_count: int
+
+
+class ReadingInProgress(_Result):
+    """A read for the same holder is already running (AC-28)."""
+
+    code: Literal["reading_in_progress"] = "reading_in_progress"
+
+
+class ReadingFailed(_Result):
+    """No provider answered with a usable proposal in time (AC-28, AC-33)."""
+
+    code: Literal["reading_failed"] = "reading_failed"
+
+
+class PagesTooLong(_Result):
+    """The chosen pages are still over the read cap (AC-22)."""
+
+    code: Literal["pages_too_long"] = "pages_too_long"
+
+
+type TextError = InstructionsTooShort | TextTooLong
+type PdfError = PdfUnreadable | TooManyPages
+type InstructionsError = (
+    InstructionsMissing | FileTooLarge | PdfError | InvalidPageRange | NoTextInPdf | TextError
+)

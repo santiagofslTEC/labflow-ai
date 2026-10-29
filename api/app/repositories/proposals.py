@@ -1,19 +1,20 @@
-"""The proposal lifecycle (spec 0002, API surface): start, set trial, set value, confirm,
-discard. Each mutating function is one transaction. It locks its row before any check,
-commits on success, and rolls back before returning a typed error, so no lock stays open.
+"""The proposal lifecycle (spec 0002, API surface): start, set trial, set value, check a
+value (spec 0006), confirm, discard. Each mutating function is one transaction. It locks its
+row before any check, commits on success, and rolls back before returning a typed error, so
+no lock stays open.
 
 `proposals.confirm` is the only writer of `trial` and `measurement`.
 """
 
 from collections.abc import Sequence
 
-from sqlalchemy import tuple_
+from sqlalchemy import tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlmodel import Session, col, select
 
 from app.models import Experiment, Measurement, Proposal, ProposalValue, Trial, Turn, Variable
 from app.models.columns import utc_now
-from app.models.enums import ProposalStatus
+from app.models.enums import Grounding, ProposalStatus
 from app.services.proposal_rules import (
     CreateTrial,
     UseTrial,
@@ -21,9 +22,11 @@ from app.services.proposal_rules import (
     check_pending,
     check_target_trial,
     check_trial_number,
-    check_value,
     check_value_sources,
     plan_confirm,
+)
+from app.services.proposal_rules import (
+    check_value as check_finite,
 )
 from app.services.results import (
     Confirmed,
@@ -37,6 +40,7 @@ from app.services.results import (
     SetValueError,
     StartError,
     TrialExists,
+    VariableNotInExperiment,
 )
 
 
@@ -95,12 +99,14 @@ def set_trial(
     session: Session, proposal_id: int, trial_number: int | None, target_trial_id: int | None
 ) -> Proposal | SetTrialError:
     """Set the dictated trial number, or point the card at a saved trial to correct it
-    (RN-02). With a target, its number is copied so the two never disagree."""
+    (RN-02). With a target, its number is copied so the two never disagree. Setting or
+    clearing the target clears every check on the card (spec 0006, AC-24)."""
     proposal = check_pending(_lock_proposal(session, proposal_id))
     if not isinstance(proposal, Proposal):
         session.rollback()
         return proposal
 
+    previous_target = proposal.target_trial_id
     if target_trial_id is None:
         if isinstance(checked := check_trial_number(trial_number), InvalidTrialNumber):
             session.rollback()
@@ -115,6 +121,12 @@ def set_trial(
         proposal.target_trial_id = target.id
         proposal.trial_number = target.number
 
+    if proposal.target_trial_id != previous_target:
+        session.exec(
+            update(ProposalValue)
+            .where(col(ProposalValue.proposal_id) == proposal_id)
+            .values(checked_at=None)
+        )
     proposal.updated_at = utc_now()
     session.add(proposal)
     session.commit()
@@ -123,11 +135,20 @@ def set_trial(
 
 
 def set_value(
-    session: Session, proposal_id: int, variable_id: int, value: float, turn_id: int
+    session: Session,
+    proposal_id: int,
+    variable_id: int,
+    value: float,
+    turn_id: int,
+    said_text: str | None = None,
+    grounding: Grounding | None = None,
 ) -> ProposalValue | SetValueError:
     """Put a value on the card, replacing any earlier value for the same variable (AC-5).
-    The phrase, source, and time come from the turn; the unit from the variable."""
-    if isinstance(checked := check_value(value), InvalidValue):
+    The phrase, source, and time come from the turn; the unit from the variable.
+
+    `said_text` and `grounding` are null for a hand edit, which counts as checked; a value
+    set from a sentence starts unchecked (spec 0006, AC-24)."""
+    if isinstance(checked := check_finite(value), InvalidValue):
         return checked
     proposal = check_pending(_lock_proposal(session, proposal_id))
     if not isinstance(proposal, Proposal):
@@ -151,8 +172,21 @@ def set_value(
         source=turn.source,
         said_at=turn.created_at,
         turn_id=turn.id,
+        said_text=said_text,
+        grounding=grounding,
+        checked_at=utc_now() if grounding is None else None,
     )
-    replaced = ("value", "unit", "original_phrase", "source", "said_at", "turn_id")
+    replaced = (
+        "value",
+        "unit",
+        "original_phrase",
+        "source",
+        "said_at",
+        "turn_id",
+        "said_text",
+        "grounding",
+        "checked_at",
+    )
     stmt = stmt.on_conflict_do_update(
         index_elements=["proposal_id", "variable_id"],
         set_={name: stmt.excluded[name] for name in replaced},
@@ -163,6 +197,35 @@ def set_value(
     session.add(proposal)
     session.commit()
     return session.exec(select(ProposalValue).where(ProposalValue.id == value_id)).one()
+
+
+def check_value(
+    session: Session, proposal_id: int, variable_id: int
+) -> ProposalValue | PendingError | VariableNotInExperiment:
+    """Mark a value as checked by the user (spec 0006, AC-24). A variable with no value on
+    the card is reported as not in the experiment: there is nothing of it to check."""
+    proposal = check_pending(_lock_proposal(session, proposal_id))
+    if not isinstance(proposal, Proposal):
+        session.rollback()
+        return proposal
+
+    row = session.exec(
+        select(ProposalValue)
+        .where(ProposalValue.proposal_id == proposal_id)
+        .where(ProposalValue.variable_id == variable_id)
+    ).first()
+    if row is None:
+        session.rollback()
+        return VariableNotInExperiment()
+
+    now = utc_now()
+    row.checked_at = now
+    proposal.updated_at = now
+    session.add(row)
+    session.add(proposal)
+    session.commit()
+    session.refresh(row)
+    return row
 
 
 def confirm(session: Session, proposal_id: int) -> Confirmed | ConfirmError:
@@ -273,6 +336,7 @@ def _upsert_measurements(
                 "source": v.source,
                 "said_at": v.said_at,
                 "turn_id": v.turn_id,
+                "said_text": v.said_text,
                 "proposal_id": proposal_id,
                 "confirmed_at": now,
             }
@@ -280,7 +344,16 @@ def _upsert_measurements(
         ]
     )
     new = stmt.excluded
-    replaced = ("value", "unit", "original_phrase", "source", "said_at", "turn_id", "proposal_id")
+    replaced = (
+        "value",
+        "unit",
+        "original_phrase",
+        "source",
+        "said_at",
+        "turn_id",
+        "said_text",
+        "proposal_id",
+    )
     stmt = stmt.on_conflict_do_update(
         index_elements=["trial_id", "variable_id"],
         set_={name: new[name] for name in replaced} | {"edited_at": now},

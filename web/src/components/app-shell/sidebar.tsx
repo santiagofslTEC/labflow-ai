@@ -8,12 +8,14 @@ import {
   MicIcon,
   PaletteIcon,
   PlusIcon,
+  SettingsIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { Suspense } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExperiments } from "@/hooks/use-experiments";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,10 @@ type NavLink = {
 
 const MAIN_LINKS: readonly NavLink[] = [
   { href: "/", label: "Inicio", icon: HouseIcon },
+];
+
+const FOOTER_LINKS: readonly NavLink[] = [
+  { href: "/configuracion", label: "Configuración", icon: SettingsIcon },
 ];
 
 // Only outside production, like /dev/ui itself (AC-16).
@@ -57,13 +63,21 @@ type Location = {
 // the path is known.
 const NO_LOCATION: Location = { pathname: "", openId: undefined };
 
-// The app's left rail (Linear, Notion): wordmark, main links, the notebooks
-// list, and the dev pages when they exist.
+// The app's left rail (Linear, Notion): wordmark, the new notebook button,
+// main links, the notebooks list, and the dev pages when they exist.
 function Sidebar(props: SidebarProps) {
   return (
-    <div className="flex h-full flex-col gap-6 px-3 pb-4">
-      <div className="flex h-14 items-center px-2">
-        <BrandMark />
+    <div className="flex h-full flex-col gap-5 px-3 pb-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex h-14 items-center px-1">
+          <BrandMark />
+        </div>
+        <Button asChild variant="secondary" className="justify-start px-3">
+          <Link href="/cuadernos/nuevo" onClick={props.onNavigate}>
+            <PlusIcon aria-hidden />
+            Nuevo cuaderno
+          </Link>
+        </Button>
       </div>
       <Suspense fallback={<SidebarNav {...props} location={NO_LOCATION} />}>
         <SidebarNavHere {...props} />
@@ -87,7 +101,7 @@ function SidebarNav({
   const { pathname } = location;
 
   return (
-    <nav aria-label="Principal" className="flex flex-col gap-6">
+    <nav aria-label="Principal" className="flex flex-1 flex-col gap-6">
       <NavList links={MAIN_LINKS} pathname={pathname} onNavigate={onNavigate} />
 
       <SidebarNotebooks location={location} onNavigate={onNavigate} />
@@ -107,6 +121,14 @@ function SidebarNav({
           />
         </section>
       ) : null}
+
+      <div className="mt-auto border-t border-line pt-3">
+        <NavList
+          links={FOOTER_LINKS}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
+      </div>
     </nav>
   );
 }
@@ -117,8 +139,8 @@ const linkClass = (current: boolean) =>
   cn(
     "flex h-10 items-center gap-2.5 rounded-control px-2 text-sm focus-ring transition-colors",
     current
-      ? "bg-sunken font-medium text-ink"
-      : "text-ink-muted hover:bg-sunken hover:text-ink",
+      ? "bg-brand-soft font-medium text-brand"
+      : "text-ink hover:bg-sunken",
   );
 
 // The 5 notebooks with the newest activity, from the same cached list as
@@ -179,7 +201,13 @@ function SidebarNotebooks({
                   onClick={onNavigate}
                   className={linkClass(current)}
                 >
-                  <BookOpenIcon aria-hidden className="size-4 shrink-0" />
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "mx-[5px] size-1.5 shrink-0 rounded-full",
+                      current ? "bg-brand" : "bg-control/50",
+                    )}
+                  />
                   <span className="truncate">{notebook.title}</span>
                 </Link>
               </li>

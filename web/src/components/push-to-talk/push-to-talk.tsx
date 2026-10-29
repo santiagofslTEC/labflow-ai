@@ -164,7 +164,7 @@ function PushToTalk({
             <span
               aria-hidden
               className={cn(
-                "absolute inset-0 rounded-full bg-ink/10",
+                "absolute inset-0 rounded-full bg-brand-soft",
                 !reduced && "transition-transform duration-100",
               )}
               style={{
@@ -198,7 +198,7 @@ function PushToTalk({
                 ? "cursor-not-allowed bg-sunken text-ink-muted"
                 : busy
                   ? "bg-sunken text-ink"
-                  : "bg-ink text-on-ink",
+                  : "bg-brand text-on-brand",
               listening && !reduced && "scale-105",
             )}
           >

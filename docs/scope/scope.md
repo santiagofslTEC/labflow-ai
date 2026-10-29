@@ -18,7 +18,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 3 | Data model | Foundation | in-progress |
 | 4 | Design system & UI foundation | Foundation | done |
 | 5 | Experiments: create and list | Release 1 | in-progress |
-| 6 | Text capture and confirm card | Release 1 | planned |
+| 6 | Text capture and confirm card | Release 1 | in-progress |
 | 7 | Trials table | Release 1 | planned |
 | 8 | Voice capture | Release 2 | planned |
 | 9 | Chart: X against Y | Release 3 | planned |
@@ -85,21 +85,34 @@ spec [0001](../specs/0001-stack-architecture/index.md) · code in `api/app/core/
 ## Release 1: Typed notebook (smallest usable whole)
 
 ### 5. Experiments: create and list · in-progress
-Screens P1 and P2: list your experiments, create one with a title, goal, and variables (name, unit, optional range, required or not). RF-01, RF-02.
-**Done when:** you can create the sample experiment with 3 variables, see it in the list, reload the page, and open it again with everything intact (PA-01, PA-08).
+Screens P1 and P2: list your experiments, create one with a title, goal, and variables (name, unit, optional range, required or not). RF-01, RF-02. Also create one from the experiment instructions (a PDF or pasted text): LabFlow reads them once, proposes the variables with unit and range (only ranges the text states), and writes a short context for capture; you review before creating, and the full PDF is saved for feature 17.
+**Done when:** you can create the sample experiment with 3 variables, see it in the list, reload the page, and open it again with everything intact (PA-01, PA-08); pasting a handout fills the form with quoted ranges and no invented numbers, the notebook keeps its instructions, and capture sees its context (spec 0005, AC-19 to AC-35).
 spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/routers/experiments.py`, `api/app/repositories/experiments.py`, `api/app/services/experiment_rules.py`, `web/src/app/(app)/cuadernos/`, `web/src/components/notebooks/`, `web/src/hooks/use-experiments.ts`
 - [x] Design it (spec): `/architect experiments create and list`
-- [x] Build it: `/develop experiments create and list`
+- [ ] Build it: `/develop experiments create and list`
   - [x] API: list, create, and open routes with pytest and `make openapi` (AC-14 to AC-17)
   - [x] Create a notebook and open it again: TanStack Query data layer, `/cuadernos/nuevo`, `/cuadernos/[id]` (AC-3 to AC-11)
   - [x] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
   - [x] Phone and accessibility pass (AC-18)
-- [x] Verify it: `/check verify experiments create and list`
+  - [x] Instructions, API side: migration (`context`, `protocol`, `protocol_page`), capture context, `ground_proposal`, `propose_setup` on the provider chain, the read and multipart create routes for pasted text (AC-25, AC-26, AC-29 to AC-34)
+  - [x] Instructions, screen for pasted text: panel, proposal fill with quotes, Contexto field, failure path, notebook page context, live tuning on real handouts (AC-19 to AC-21, AC-23, AC-24, AC-26 to AC-28, AC-31) (live read checked on a sample handout; tuning on real course PDFs still owed)
+  - [ ] Instructions, PDF: pypdf extraction, file limits, page range question, Vercel 9.5 MB upload check (AC-20, AC-22, AC-29, AC-30) (built and tested; only the Vercel 9.5 MB upload check on a preview deploy is left)
+  - [x] Instructions, phone and accessibility pass (AC-35)
+- [ ] Verify it: `/check verify experiments create and list` (the original slice is verified; the instructions steps in verify.md are open)
 
-### 6. Text capture and confirm card · needs a decision · Beta
+### 6. Text capture and confirm card · in-progress · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.
 **Done when:** nothing reaches the table before you confirm; a correction replaces the value with no duplicate; "Ensayo 6, 65 grados" makes it ask for the missing values; dictating a trial number that exists asks whether it is a correction; "grados" becomes °C and "por ciento" becomes % (PA-03, PA-04, PA-09).
-- [ ] Design it (spec): `/architect text capture and confirm card`
+spec [0006](../specs/0006-text-capture-confirm-card/index.md) · code in `api/app/routers/capture.py`, `api/app/services/turn_plan.py`, `web/src/components/capture-stage/`
+- [x] Design it (spec): `/architect text capture and confirm card`
+- [x] Build it: `/develop text capture and confirm card` (after feature 19)
+  - [x] The pure core: the said text and check columns (migration), number reading and grounding with said text, units, reply templates, the tool schema, the planner, flags, and the card view (AC-3, AC-5 to AC-12, AC-17, AC-21, AC-23, AC-24)
+  - [x] The AI edge: settings and keys, the Ollama, Claude, hedged fallback, and fake providers, the prompt, the Claude cap (AC-12, AC-14, AC-15, AC-19)
+  - [x] The routes: the turn service with its executor and stale check, the seven capture routes with the check guard on confirm, `make openapi` (AC-1 to AC-4, AC-6 to AC-8, AC-13, AC-16, AC-17, AC-19, AC-20, AC-24)
+  - [x] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
+  - [x] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
+- [ ] Verify it: `/check verify text capture and confirm card`
+- [ ] Test it: `/test text capture and confirm card`
 
 ### 7. Trials table
 The table of confirmed trials in the workspace (P3), updating the moment you confirm. RF-09.
