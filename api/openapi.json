@@ -964,6 +964,79 @@
         }
       }
     },
+    "/api/proposals/{proposal_id}/undo": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Post Undo",
+        "description": "Take back a save LabFlow made with no tap (AC-29): the same card comes back pending,\nand a \"Deshecho\" turn records it. Only until the next sentence.",
+        "operationId": "post_undo_api_proposals__proposal_id__undo_post",
+        "parameters": [
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The card cannot take this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/proposals/{proposal_id}/discard": {
       "post": {
         "tags": [
@@ -1832,10 +1905,12 @@
           "choose_trial",
           "pending_other_trial",
           "ambiguous_variable",
+          "two_values",
           "unknown_unit",
           "unclear_number",
           "check_values",
           "saved",
+          "auto_saved",
           "discarded",
           "no_pending",
           "not_supported_yet",
@@ -1902,15 +1977,69 @@
           "created": {
             "type": "boolean",
             "title": "Created"
+          },
+          "proposal_id": {
+            "type": "integer",
+            "title": "Proposal Id"
+          },
+          "auto": {
+            "type": "boolean",
+            "title": "Auto",
+            "default": false
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/SavedValue"
+            },
+            "type": "array",
+            "title": "Values",
+            "default": []
           }
         },
         "type": "object",
         "required": [
           "trial_id",
           "trial_number",
-          "created"
+          "created",
+          "proposal_id"
         ],
         "title": "SavedTrial"
+      },
+      "SavedValue": {
+        "properties": {
+          "variable_id": {
+            "type": "integer",
+            "title": "Variable Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable_id",
+          "name",
+          "value",
+          "unit"
+        ],
+        "title": "SavedValue",
+        "description": "One value a save wrote, for the notice of an auto save (spec 0006, AC-28)."
       },
       "Source": {
         "type": "string",

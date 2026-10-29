@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.models.enums import Grounding
-from app.services.flags import unchecked
+from app.services.flags import flags, unchecked
 from app.services.replies import Reason
 
 
@@ -46,6 +46,16 @@ class CardInfo:
         return next((v for v in self.values if v.variable_id == variable_id), None)
 
 
+@dataclass(frozen=True, slots=True)
+class RememberedTrial:
+    """The trial of the notebook's latest save: where a sentence with no trial number goes,
+    as a correction (spec 0006, AC-31)."""
+
+    trial_id: int
+    number: int
+    filled: frozenset[int]  # variable ids the trial already holds a value for
+
+
 def by_id(variables: Sequence[VariableInfo]) -> Mapping[int, VariableInfo]:
     return {v.id: v for v in variables}
 
@@ -80,6 +90,33 @@ def card_reason(
     if pending_checks := unchecked_ids(card, variables):
         return Reason.CHECK_VALUES, pending_checks
     return Reason.READY, ()
+
+
+def is_clean(
+    card: CardInfo,
+    variables: Sequence[VariableInfo],
+    trial_numbers: Mapping[int, int],
+    remembered: RememberedTrial | None,
+) -> bool:
+    """Whether code may save the card with no tap (spec 0006, AC-27): a new trial number,
+    or only empty slots of the remembered trial; every required variable filled; and no
+    value flagged. The model's confidence plays no part."""
+    if card.trial_number is None or not card.values:
+        return False
+    already: frozenset[int] = frozenset()
+    if card.target_trial_id is None:
+        if card.trial_number in trial_numbers:
+            return False
+    elif remembered is None or card.target_trial_id != remembered.trial_id:
+        return False
+    elif any(v.variable_id in remembered.filled for v in card.values):
+        return False  # it would replace a saved value: the correction card asks
+    else:
+        already = remembered.filled
+    known = by_id(variables)
+    if any(v.required and v.id not in already and card.value_of(v.id) is None for v in variables):
+        return False
+    return not any(v.variable_id in known and flags(v, known[v.variable_id]) for v in card.values)
 
 
 def can_confirm(

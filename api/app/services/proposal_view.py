@@ -43,6 +43,15 @@ class ValueView(_View):
     checked: bool
 
 
+class SavedValue(_View):
+    """One value a save wrote, for the notice of an auto save (spec 0006, AC-28)."""
+
+    variable_id: int
+    name: str
+    value: float
+    unit: str | None
+
+
 class ProposalView(_View):
     id: int
     trial_number: int | None
@@ -60,12 +69,13 @@ def reply_for(
     variable_ids: Sequence[int],
     variables: Sequence[VariableInfo],
     n: int | None,
+    said: Sequence[str] = (),
 ) -> Reply:
     """The template text for a reason, with names and the unit taken from the variables."""
     known = by_id(variables)
     named = [known[i] for i in variable_ids if i in known]
     unit = named[0].unit if named else None
-    return Reply(reason=reason, text=reply_text(reason, [v.name for v in named], n, unit))
+    return Reply(reason=reason, text=reply_text(reason, [v.name for v in named], n, unit, said))
 
 
 def proposal_view(

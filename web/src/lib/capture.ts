@@ -17,17 +17,29 @@ export type CardView = {
   readonly canConfirm: boolean;
 };
 
+// What a save wrote. `auto`: LabFlow saved a clean reading with no tap, and it
+// can be undone until the next sentence (spec 0006, AC-27 to AC-29).
+export type SavedTrial = {
+  readonly trialId: number;
+  readonly trialNumber: number;
+  readonly created: boolean;
+  readonly proposalId: number;
+  readonly auto: boolean;
+  readonly values: readonly {
+    readonly variableId: number;
+    readonly name: string;
+    readonly value: number;
+    readonly unit: string | null;
+  }[];
+};
+
 export type Turn = {
   readonly reply: {
     readonly reason: ReplyReason;
     readonly text: string;
   } | null;
   readonly card: CardView | null;
-  readonly saved: {
-    readonly trialId: number;
-    readonly trialNumber: number;
-    readonly created: boolean;
-  } | null;
+  readonly saved: SavedTrial | null;
 };
 
 export const toCard = (view: ProposalView): CardView => ({
@@ -60,6 +72,14 @@ export const toTurn = (response: TurnResponse): Turn => ({
         trialId: response.saved.trial_id,
         trialNumber: response.saved.trial_number,
         created: response.saved.created,
+        proposalId: response.saved.proposal_id,
+        auto: response.saved.auto,
+        values: response.saved.values.map((v) => ({
+          variableId: v.variable_id,
+          name: v.name,
+          value: v.value,
+          unit: v.unit ?? null,
+        })),
       }
     : null,
 });
@@ -67,6 +87,7 @@ export const toTurn = (response: TurnResponse): Turn => ({
 // Reasons that come from one sentence: shown as that turn's question (AC-17).
 const SENTENCE_REASONS: ReadonlySet<ReplyReason> = new Set([
   "ambiguous_variable",
+  "two_values",
   "unknown_unit",
   "unclear_number",
 ]);

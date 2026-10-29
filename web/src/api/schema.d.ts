@@ -258,6 +258,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/proposals/{proposal_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Undo
+         * @description Take back a save LabFlow made with no tap (AC-29): the same card comes back pending,
+         *     and a "Deshecho" turn records it. Only until the next sentence.
+         */
+        post: operations["post_undo_api_proposals__proposal_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/proposals/{proposal_id}/discard": {
         parameters: {
             query?: never;
@@ -534,7 +555,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic";
+        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "two_values" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "auto_saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic";
         /** RecentMeasurement */
         RecentMeasurement: {
             /** Trial Number */
@@ -563,6 +584,32 @@ export interface components {
             trial_number: number;
             /** Created */
             created: boolean;
+            /** Proposal Id */
+            proposal_id: number;
+            /**
+             * Auto
+             * @default false
+             */
+            auto: boolean;
+            /**
+             * Values
+             * @default []
+             */
+            values: components["schemas"]["SavedValue"][];
+        };
+        /**
+         * SavedValue
+         * @description One value a save wrote, for the notice of an auto save (spec 0006, AC-28).
+         */
+        SavedValue: {
+            /** Variable Id */
+            variable_id: number;
+            /** Name */
+            name: string;
+            /** Value */
+            value: number;
+            /** Unit */
+            unit: string | null;
         };
         /**
          * Source
@@ -1450,6 +1497,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    post_undo_api_proposals__proposal_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResponse"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The card cannot take this action */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

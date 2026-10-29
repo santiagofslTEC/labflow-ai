@@ -14,10 +14,12 @@ class Reason(StrEnum):
     CHOOSE_TRIAL = "choose_trial"
     PENDING_OTHER_TRIAL = "pending_other_trial"
     AMBIGUOUS_VARIABLE = "ambiguous_variable"
+    TWO_VALUES = "two_values"
     UNKNOWN_UNIT = "unknown_unit"
     UNCLEAR_NUMBER = "unclear_number"
     CHECK_VALUES = "check_values"
     SAVED = "saved"
+    AUTO_SAVED = "auto_saved"
     DISCARDED = "discarded"
     NO_PENDING = "no_pending"
     NOT_SUPPORTED_YET = "not_supported_yet"
@@ -28,6 +30,7 @@ class Reason(StrEnum):
 SENTENCE_REASONS = frozenset(
     {
         Reason.AMBIGUOUS_VARIABLE,
+        Reason.TWO_VALUES,
         Reason.UNKNOWN_UNIT,
         Reason.UNCLEAR_NUMBER,
         Reason.PENDING_OTHER_TRIAL,
@@ -36,10 +39,15 @@ SENTENCE_REASONS = frozenset(
 
 
 def reply_text(
-    reason: Reason, names: Sequence[str] = (), n: int | None = None, unit: str | None = None
+    reason: Reason,
+    names: Sequence[str] = (),
+    n: int | None = None,
+    unit: str | None = None,
+    said: Sequence[str] = (),
 ) -> str:
     """The Spanish reply. `names` are variable names, `n` a trial number from the database,
-    and `unit` the unit of the one variable an `unknown_unit` reply is about."""
+    `unit` the unit of the one variable an `unknown_unit` reply is about, and `said` the
+    user's own words for each value a `two_values` reply quotes."""
     listed = join_names(names)
     match reason:
         case Reason.READY:
@@ -57,6 +65,8 @@ def reply_text(
             if not names:
                 return "No sé a qué variable va ese valor. ¿A qué variable corresponde?"
             return f"No sé a qué variable va ese valor. ¿Es {listed}?"
+        case Reason.TWO_VALUES:
+            return f"Dijiste {join_names(said)} para {listed}. ¿Cuál guardo?"
         case Reason.UNKNOWN_UNIT:
             where = f"Dímelo en {unit}." if unit else "Dímelo sin unidad."
             return f"No reconozco esa unidad para {listed}. {where}"
@@ -66,6 +76,8 @@ def reply_text(
             return f"Antes de guardar, revisa {listed}."
         case Reason.SAVED:
             return f"Guardado el ensayo {n}."
+        case Reason.AUTO_SAVED:
+            return f"Guardé el ensayo {n}."
         case Reason.DISCARDED:
             return "Descarté la tarjeta."
         case Reason.NO_PENDING:

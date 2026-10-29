@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Index
+from sqlalchemy import BigInteger, CheckConstraint, Column, Index
 from sqlalchemy import text as sql
-from sqlmodel import SQLModel
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlmodel import Field, SQLModel
 
 from app.models.columns import fk_field, id_field, now_field, text_field
 from app.models.enums import Role, Source, check_in
@@ -25,4 +26,8 @@ class Turn(SQLModel, table=True):
     text: str = text_field()
     source: Source | None = text_field(nullable=True)  # set only on user turns
     tool_name: str | None = text_field(nullable=True)  # the tool an assistant turn used
+    # The variables an assistant reply named, so "sí" can accept a suggestion (spec 0006).
+    variable_ids: list[int] | None = Field(
+        default=None, sa_column=Column(ARRAY(BigInteger), nullable=True)
+    )
     created_at: datetime = now_field()

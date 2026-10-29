@@ -189,12 +189,17 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
             className="flex flex-col gap-3"
           >
             <p className="text-sm text-ink-muted">
-              Escribe un ensayo y LabFlow te mostrará lo que entendió antes de
-              guardarlo.
+              Escribe un ensayo. Si LabFlow lo entendió sin dudas, lo guarda y
+              puedes deshacerlo; si algo no cuadra, te pregunta.
             </p>
             <CaptureStage
               experimentId={experiment.id}
               onSaved={() =>
+                void queryClient.invalidateQueries({
+                  queryKey: experimentKeys.all,
+                })
+              }
+              onUndone={() =>
                 void queryClient.invalidateQueries({
                   queryKey: experimentKeys.all,
                 })
