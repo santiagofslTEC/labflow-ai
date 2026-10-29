@@ -230,7 +230,8 @@ describe("CaptureStage (spec 0006, AC-18)", () => {
     renderWithQuery(<CaptureStage experimentId={1} />);
     await screen.findByRole("button", { name: "Guardar ensayo 6 · 3 valores" });
     await user.type(field(), "Ensayo 7, 60 grados{Enter}");
-    await screen.findByText(/sin guardar/);
+    // The reply can show twice (transcript and live region), so wait for any copy.
+    await screen.findAllByText(/Tienes el ensayo 6 sin guardar/);
     await user.type(field(), "rendimiento 75{Enter}");
     await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(2));
     await user.click(
