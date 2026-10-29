@@ -23,11 +23,13 @@ from app.ai.tools import (
 from app.models.enums import Grounding
 from app.services.card_state import (
     CardInfo,
+    RememberedTrial,
     ValueInfo,
     VariableInfo,
     by_id,
     can_confirm,
     card_reason,
+    is_clean,
 )
 from app.services.numbers import Said, Span, find_numbers, ground, said_slice
 from app.services.replies import Reason
@@ -65,6 +67,7 @@ class TurnContext:
     last_turns: tuple[tuple[str, str], ...] = ()  # (role, text), oldest first
     context: str | None = None  # the notebook's "Contexto para la captura" (spec 0005, AC-26)
     last_question: LastQuestion | None = None
+    remembered: RememberedTrial | None = None  # the latest saved trial (AC-31)
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,7 +98,7 @@ class SetValue:
 
 @dataclass(frozen=True, slots=True)
 class Confirm:
-    pass
+    auto: bool = False  # code found the card clean and saves it with no tap (AC-27)
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,12 +231,20 @@ def _said_trial_number(trial_number: int | None, utterance: str) -> int | None:
 
 
 def _measurement_ops(
-    card: CardInfo | None, trial_number: int | None, values: tuple[SetValue, ...]
+    context: TurnContext, trial_number: int | None, values: tuple[SetValue, ...]
 ) -> tuple[tuple[Operation, ...], Reason | None]:
-    """Step 2: where `proponer_medicion` puts its trial number and values."""
+    """Step 2: where `proponer_medicion` puts its trial number and values. With no card and
+    no number, values go to the remembered trial as a correction of it (AC-31)."""
+    card, remembered = context.card, context.remembered
     if card is None:
         if trial_number is None and not values:
             return (), None
+        if trial_number is None and remembered is not None:
+            return (
+                StartProposal(remembered.number),
+                SetTarget(remembered.trial_id),
+                *values,
+            ), None
         return (StartProposal(trial_number), *values), None
     if trial_number is None or trial_number == card.trial_number:
         return values, None
@@ -285,12 +296,15 @@ def _with_state_reason(
     variable_ids: tuple[int, ...] = (),
     said: tuple[str, ...] = (),
 ) -> TurnPlan:
-    """Step 6: a reason from steps 1 to 5 wins; otherwise the card's own question."""
+    """Step 6: a reason from steps 1 to 5 wins; then a clean card that this turn changed is
+    saved with no tap (AC-27); otherwise the card's own question."""
     if reason is not None:
         return TurnPlan(ops, reason, variable_ids, said)
     card = _apply(context.card, ops, context.trial_numbers)
     if card is None:
         return TurnPlan(ops, Reason.AMBIGUOUS_VARIABLE)
+    if ops and is_clean(card, context.variables, context.trial_numbers, context.remembered):
+        return TurnPlan((*ops, Confirm(auto=True)), Reason.AUTO_SAVED)
     state, ids = card_reason(card, context.variables, context.trial_numbers)
     return TurnPlan(ops, state, ids)
 
@@ -338,7 +352,7 @@ def _set_from(
     )
     checked = _check_values([value], by_id(context.variables), sentence)
     accepted = tuple(replace(v, turn_id=turn_id) for v in checked.accepted)
-    ops, other = _measurement_ops(context.card, None, accepted)
+    ops, other = _measurement_ops(context, None, accepted)
     if other is not None:
         return TurnPlan((), other)
     return _with_state_reason(context, ops, checked.reason, checked.variable_ids)
@@ -389,7 +403,7 @@ def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
                 trial_number = _said_trial_number(
                     call.trial_number if isinstance(call, ProponerMedicion) else None, utterance
                 )
-            ops, other = _measurement_ops(card, trial_number, checked.accepted)
+            ops, other = _measurement_ops(context, trial_number, checked.accepted)
             if other is not None:
                 return TurnPlan((), other)
             reason, ids = checked.reason, checked.variable_ids

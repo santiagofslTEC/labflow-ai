@@ -19,6 +19,7 @@ class Reason(StrEnum):
     UNCLEAR_NUMBER = "unclear_number"
     CHECK_VALUES = "check_values"
     SAVED = "saved"
+    AUTO_SAVED = "auto_saved"
     DISCARDED = "discarded"
     NO_PENDING = "no_pending"
     NOT_SUPPORTED_YET = "not_supported_yet"
@@ -75,6 +76,8 @@ def reply_text(
             return f"Antes de guardar, revisa {listed}."
         case Reason.SAVED:
             return f"Guardado el ensayo {n}."
+        case Reason.AUTO_SAVED:
+            return f"Guardé el ensayo {n}."
         case Reason.DISCARDED:
             return "Descarté la tarjeta."
         case Reason.NO_PENDING:

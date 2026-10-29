@@ -11,6 +11,7 @@ import {
   editValue,
   getProposal,
   sendUtterance,
+  undoSave,
   type CaptureFailure,
   type CaptureResult,
   type ProposalView,
@@ -94,3 +95,6 @@ export const useDiscard = (experimentId: number) =>
   useTurnMutation(experimentId, (proposalId: number) =>
     discardProposal(proposalId),
   );
+
+export const useUndo = (experimentId: number) =>
+  useTurnMutation(experimentId, (proposalId: number) => undoSave(proposalId));

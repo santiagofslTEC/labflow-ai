@@ -20,7 +20,7 @@ from app.models import Turn
 from app.models.enums import Role, Source
 from app.repositories import capture, proposals, turns
 from app.services.card_state import VariableInfo
-from app.services.proposal_view import ProposalView, Reply, reply_for
+from app.services.proposal_view import ProposalView, Reply, SavedValue, reply_for
 from app.services.replies import Reason
 from app.services.results import (
     Confirmed,
@@ -54,6 +54,9 @@ class SavedTrial(BaseModel):
     trial_id: int
     trial_number: int
     created: bool
+    proposal_id: int  # the card that saved it; `POST /api/proposals/{id}/undo` takes it back
+    auto: bool = False  # saved with no tap; undo it until the next sentence (AC-27, AC-29)
+    values: list[SavedValue] = []  # what the save wrote, in position order
 
 
 class TurnResponse(BaseModel):
@@ -84,7 +87,7 @@ class Executed:
 
 
 def execute(
-    session: Session, context: TurnContext, plan: TurnPlan, turn_id: int
+    session: Session, context: TurnContext, plan: TurnPlan, turn_id: int, holder: str
 ) -> Executed | NotPending | TrialNotInExperiment:
     """Apply the operations in order. A typed error partway stops the rest: some become a
     reply (the card asks), the others an HTTP error at the router."""
@@ -115,14 +118,12 @@ def execute(
                     op.said_text,
                     op.grounding,
                 )
-            case Confirm():
-                confirmed = proposals.confirm(session, proposal_id)
+            case Confirm(auto=auto):
+                confirmed = proposals.confirm(session, proposal_id, holder, auto)
                 match confirmed:
                     case Confirmed(trial_id=trial_id, created_trial=created):
-                        number = context.card.trial_number if context.card else None
-                        assert number is not None  # confirm needs a trial number
-                        saved = SavedTrial(trial_id=trial_id, trial_number=number, created=created)
-                        return Executed(Reason.SAVED, (), saved)
+                        saved = saved_trial(session, proposal_id, trial_id, created, auto)
+                        return Executed(Reason.AUTO_SAVED if auto else Reason.SAVED, (), saved)
                     case TrialExists():
                         return Executed(Reason.CHOOSE_TRIAL, (), None)
                     case MissingTrialNumber():
@@ -143,6 +144,21 @@ def execute(
             case _:
                 pass
     return Executed(plan.reason, plan.variable_ids, None, plan.said)
+
+
+def saved_trial(
+    session: Session, proposal_id: int, trial_id: int, created: bool, auto: bool
+) -> SavedTrial:
+    """What a confirm saved, read back from the database."""
+    number = capture.trial_number_of(session, trial_id)
+    return SavedTrial(
+        trial_id=trial_id,
+        trial_number=number,
+        created=created,
+        proposal_id=proposal_id,
+        auto=auto,
+        values=capture.saved_values(session, proposal_id),
+    )
 
 
 def reply_after(
@@ -169,7 +185,12 @@ def _store_user_turn(
 
 
 def _apply(
-    session: Session, context: TurnContext, decision: Decision, utterance: str, turn_id: int
+    session: Session,
+    context: TurnContext,
+    decision: Decision,
+    utterance: str,
+    turn_id: int,
+    holder: str,
 ) -> TurnResponse | NotPending | TrialNotInExperiment:
     # The stale check: if the card changed while the model was thinking (another tab, a
     # double submit), plan the same tool call once more against the fresh state.
@@ -181,7 +202,7 @@ def _apply(
             return NotPending()
         context = reloaded
     plan = plan_turn(context, decision.call, utterance)
-    executed = execute(session, context, plan, turn_id)
+    executed = execute(session, context, plan, turn_id, holder)
     if not isinstance(executed, Executed):
         return executed
     view = capture.view_of(session, context.experiment_id)
@@ -228,7 +249,7 @@ async def handle_utterance(
         result = LLMUnavailable()  # the user turn stays; no assistant turn
     else:
         db_started = time.perf_counter()
-        result = await run_in_threadpool(_apply, session, context, outcome, text, turn.id)
+        result = await run_in_threadpool(_apply, session, context, outcome, text, turn.id, holder)
         db_ms += (time.perf_counter() - db_started) * 1000
 
     log = {

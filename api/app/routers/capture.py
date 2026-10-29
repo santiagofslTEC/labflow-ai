@@ -26,13 +26,15 @@ from app.services.results import (
     ExperimentNotFound,
     InvalidTrialNumber,
     MissingTrialNumber,
+    NotAutoSaved,
     NotPending,
     ProposalNotFound,
     TrialExists,
     TrialNotInExperiment,
+    UndoExpired,
     VariableNotInExperiment,
 )
-from app.services.turns import LLMUnavailable, SavedTrial, TurnResponse, handle_utterance
+from app.services.turns import LLMUnavailable, TurnResponse, handle_utterance, saved_trial
 
 router = APIRouter(tags=["capture"])
 
@@ -53,6 +55,8 @@ _MESSAGES = {
     "empty_proposal": "La tarjeta no tiene valores.",
     "trial_exists": "Ese ensayo ya existe. Elige si es una corrección o un ensayo nuevo.",
     "unchecked_values": "Antes de guardar, revisa los valores marcados.",
+    "undo_expired": "Ya no se puede deshacer; corrige el ensayo dictándolo de nuevo.",
+    "not_auto_saved": "Solo se puede deshacer un ensayo que LabFlow guardó solo.",
 }
 _STATUS = {
     "experiment_not_found": 404,
@@ -62,6 +66,8 @@ _STATUS = {
     "not_pending": 409,
     "trial_exists": 409,
     "unchecked_values": 409,
+    "undo_expired": 409,
+    "not_auto_saved": 409,
     "invalid_text": 422,
     "invalid_value": 422,
     "invalid_trial_number": 422,
@@ -235,7 +241,7 @@ def post_check(proposal_id: int, variable_id: int, session: SessionDep) -> TurnR
 
 
 @router.post("/api/proposals/{proposal_id}/confirm", responses=_errors(401, 404, 409, 422))
-def post_confirm(proposal_id: int, session: SessionDep) -> TurnResponse:
+def post_confirm(proposal_id: int, session: SessionDep, holder: HolderDep) -> TurnResponse:
     """Save the card (AC-2). Flagged values must be checked first (AC-24), whatever the
     path; a repeat confirm returns the same trial (spec 0002)."""
     proposal = session.get(Proposal, proposal_id) if 1 <= proposal_id <= _ID_MAX else None
@@ -247,14 +253,10 @@ def post_confirm(proposal_id: int, session: SessionDep) -> TurnResponse:
         card = capture.card_info(session, proposal)
         if unchecked_ids(card, capture.variables_of(session, experiment_id)):
             raise _fail("unchecked_values")
-    result = proposals.confirm(session, proposal_id)
+    result = proposals.confirm(session, proposal_id, holder)
     match result:
         case Confirmed(trial_id=trial_id, created_trial=created):
-            session.refresh(proposal)
-            assert proposal.trial_number is not None
-            saved = SavedTrial(
-                trial_id=trial_id, trial_number=proposal.trial_number, created=created
-            )
+            saved = saved_trial(session, proposal_id, trial_id, created, auto=False)
             return TurnResponse(
                 turn_id=None,
                 reply=reply_for(Reason.SAVED, (), (), saved.trial_number),
@@ -265,6 +267,29 @@ def post_confirm(proposal_id: int, session: SessionDep) -> TurnResponse:
             raise _fail(result.code)
         case EmptyProposal() | MissingTrialNumber():
             raise _fail(result.code)
+
+
+@router.post("/api/proposals/{proposal_id}/undo", responses=_errors(401, 404, 409))
+def post_undo(proposal_id: int, session: SessionDep) -> TurnResponse:
+    """Take back a save LabFlow made with no tap (AC-29): the same card comes back pending,
+    and a "Deshecho" turn records it. Only until the next sentence."""
+    if not 1 <= proposal_id <= _ID_MAX:
+        raise _fail("proposal_not_found")
+    result = proposals.undo_auto_save(session, proposal_id)
+    match result:
+        case ProposalNotFound() | NotAutoSaved() | UndoExpired():
+            raise _fail(result.code)
+        case Proposal():
+            pass
+    turn = turns.add_turn(
+        session,
+        result.experiment_id,
+        Role.USER,
+        f"Deshecho: ensayo {result.trial_number}",
+        Source.TEXT,
+    )
+    assert isinstance(turn, Turn) and turn.id is not None
+    return _card_response(session, result.experiment_id, turn.id)
 
 
 @router.post("/api/proposals/{proposal_id}/discard", responses=_errors(401, 404, 409))

@@ -130,6 +130,16 @@ export const confirmProposal = (
     }),
   );
 
+// Take back a save LabFlow made with no tap (AC-29); answers with the card reopened.
+export const undoSave = (
+  proposalId: number,
+): Promise<CaptureResult<TurnResponse>> =>
+  settle(() =>
+    api.POST("/api/proposals/{proposal_id}/undo", {
+      params: { path: { proposal_id: proposalId } },
+    }),
+  );
+
 export const discardProposal = (
   proposalId: number,
 ): Promise<CaptureResult<TurnResponse>> =>
