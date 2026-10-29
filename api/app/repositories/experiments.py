@@ -118,7 +118,7 @@ def create_experiment(
             session.flush()
     except IntegrityError as error:
         session.rollback()
-        if _is_unique_name_violation(error):
+        if is_unique_name_violation(error):
             return DuplicateVariableName(name=None)
         raise
     session.commit()
@@ -144,7 +144,7 @@ def get_experiment(session: Session, experiment_id: int) -> ExperimentDetail | E
         status=experiment.status,
         created_by=experiment.created_by,
         created_at=_utc(experiment.created_at),
-        variables=tuple(_variable_detail(v) for v in variables),
+        variables=tuple(variable_detail(v) for v in variables),
         protocol=_protocol_summary(session, experiment_id),
     )
 
@@ -195,7 +195,7 @@ def _utc(moment: datetime) -> datetime:
     return moment.astimezone(UTC)
 
 
-def _variable_detail(variable: Variable) -> VariableDetail:
+def variable_detail(variable: Variable) -> VariableDetail:
     assert variable.id is not None  # read back from the DB
     return VariableDetail(
         id=variable.id,
@@ -205,9 +205,10 @@ def _variable_detail(variable: Variable) -> VariableDetail:
         max_value=variable.max_value,
         required=variable.required,
         position=variable.position,
+        aliases=tuple(variable.aliases),
     )
 
 
-def _is_unique_name_violation(error: IntegrityError) -> bool:
+def is_unique_name_violation(error: IntegrityError) -> bool:
     cause = error.orig
     return isinstance(cause, UniqueViolation) and cause.diag.constraint_name == _UNIQUE_NAME_INDEX
