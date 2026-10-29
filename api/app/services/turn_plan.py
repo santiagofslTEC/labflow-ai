@@ -5,6 +5,7 @@ Every value is grounded in the sentence, cut to the user's own words, and conver
 before it can reach an operation; the model never picks the card or writes a reply.
 """
 
+import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -28,11 +29,29 @@ from app.services.card_state import (
     can_confirm,
     card_reason,
 )
-from app.services.numbers import Said, find_numbers, ground, said_slice
+from app.services.numbers import Said, Span, find_numbers, ground, said_slice
 from app.services.replies import Reason
+from app.services.text import fold
 from app.services.units import UnknownUnit, normalize
 
 _ARTICLES = frozenset({"un", "una", "uno"})
+# Words a short answer may carry around its one number ("el 5", "es el ensayo 5").
+_FILLER = frozenset({"el", "es", "la", "ensayo", "prueba", "corrida", "numero", "nro"})
+# A yes: every word in _YES_WORDS, and at least one of _YES ("sí", "sí, es esa", "correcto").
+_YES = frozenset({"si", "claro", "correcto", "exacto", "eso"})
+_YES_WORDS = _YES | frozenset({"es", "esa", "ese", "asi"})
+_WORD = re.compile(r"[a-zñ0-9]+")
+
+
+@dataclass(frozen=True, slots=True)
+class LastQuestion:
+    """LabFlow's previous reply and the user sentence it answered, so a short answer to it
+    ("5", "71", "sí") is planned by code against that question (spec 0006, Short answers)."""
+
+    reason: Reason
+    variable_ids: tuple[int, ...]  # the variables the reply named
+    sentence: str
+    sentence_turn_id: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +64,7 @@ class TurnContext:
     trial_numbers: Mapping[int, int]  # saved trial number → trial id
     last_turns: tuple[tuple[str, str], ...] = ()  # (role, text), oldest first
     context: str | None = None  # the notebook's "Contexto para la captura" (spec 0005, AC-26)
+    last_question: LastQuestion | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +90,7 @@ class SetValue:
     value: float  # in the variable's unit
     said_text: str
     grounding: Grounding
+    turn_id: int | None = None  # the sentence it was read from, when not this turn's
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +111,7 @@ class TurnPlan:
     operations: tuple[Operation, ...]
     reason: Reason
     variable_ids: tuple[int, ...] = ()
+    said: tuple[str, ...] = ()  # `two_values`: the user's words for each value, in order
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +122,19 @@ class _Values:
     reason: Reason | None
     variable_ids: tuple[int, ...]
     used: frozenset[int]  # starts of the spans the values were read from
+    said: tuple[str, ...] = ()
+
+
+def _said_values(
+    values: Sequence[ExtractedValue], variable: VariableInfo, utterance: str
+) -> tuple[str, ...]:
+    """The user's own words for each value of one variable, one per span, in sentence order."""
+    spans = {
+        found.span.start: found.span
+        for v in values
+        if (found := ground(utterance, v.number_text, v.value)) is not None
+    }
+    return tuple(said_slice(utterance, spans[start], variable.unit).text for start in sorted(spans))
 
 
 def _check_values(
@@ -109,11 +144,20 @@ def _check_values(
     problems: list[tuple[Reason, int | None]] = []
     counts = Counter(v.variable_id for v in values)
     candidates: list[ExtractedValue] = []
+    two_values: dict[int, tuple[str, ...]] = {}  # variable id → its said words
     for v in values:
         if v.variable_id not in variables:
             problems.append((Reason.AMBIGUOUS_VARIABLE, None))
         elif counts[v.variable_id] > 1:
-            problems.append((Reason.AMBIGUOUS_VARIABLE, v.variable_id))
+            if v.variable_id in two_values:
+                continue
+            same = [w for w in values if w.variable_id == v.variable_id]
+            said = _said_values(same, variables[v.variable_id], utterance)
+            # Two numbers the user said for one variable: ask which (never pick one).
+            two_values[v.variable_id] = said
+            problems.append(
+                (Reason.TWO_VALUES if len(said) > 1 else Reason.AMBIGUOUS_VARIABLE, v.variable_id)
+            )
         else:
             candidates.append(v)
 
@@ -149,7 +193,9 @@ def _check_values(
     used = frozenset(taken)
     if not problems:
         return _Values(tuple(accepted), None, (), used)
-    first = problems[0][0]
+    first, first_id = problems[0]
+    if first == Reason.TWO_VALUES and first_id is not None:
+        return _Values(tuple(accepted), first, (first_id,), used, two_values[first_id])
     ids = tuple(dict.fromkeys(i for r, i in problems if r == first and i is not None))
     return _Values(tuple(accepted), first, ids, used)
 
@@ -237,10 +283,11 @@ def _with_state_reason(
     ops: tuple[Operation, ...],
     reason: Reason | None = None,
     variable_ids: tuple[int, ...] = (),
+    said: tuple[str, ...] = (),
 ) -> TurnPlan:
     """Step 6: a reason from steps 1 to 5 wins; otherwise the card's own question."""
     if reason is not None:
-        return TurnPlan(ops, reason, variable_ids)
+        return TurnPlan(ops, reason, variable_ids, said)
     card = _apply(context.card, ops, context.trial_numbers)
     if card is None:
         return TurnPlan(ops, Reason.AMBIGUOUS_VARIABLE)
@@ -248,7 +295,89 @@ def _with_state_reason(
     return TurnPlan(ops, state, ids)
 
 
+def _only_number(utterance: str, own_unit: str | None = None) -> Span | None:
+    """The one number of a short answer: nothing else is said but filler words and the unit
+    words right after the number ("5", "el 5", "71 grados")."""
+    spans = find_numbers(utterance)
+    if len(spans) != 1:
+        return None
+    span = spans[0]
+    end = span.start + len(said_slice(utterance, span, own_unit).text)
+    rest = fold(utterance[: span.start] + " " + utterance[end:])
+    return span if all(word in _FILLER for word in _WORD.findall(rest)) else None
+
+
+def _is_yes(utterance: str) -> bool:
+    words = _WORD.findall(fold(utterance))
+    return bool(words) and set(words) <= _YES_WORDS and not _YES.isdisjoint(words)
+
+
+def _unplaced_in(asked: LastQuestion, card: CardInfo | None) -> Span | None:
+    """The one number of the asked about sentence that no value on the card was read from."""
+    placed = [
+        v.said_text
+        for v in (card.values if card else ())
+        if v.turn_id == asked.sentence_turn_id and v.said_text
+    ]
+    open_spans = [
+        span
+        for span in find_numbers(asked.sentence)
+        if not span.is_trial
+        and asked.sentence[span.start : span.end].lower() not in _ARTICLES
+        and not any(asked.sentence.startswith(said, span.start) for said in placed)
+    ]
+    return open_spans[0] if len(open_spans) == 1 else None
+
+
+def _set_from(
+    context: TurnContext, variable_id: int, span: Span, sentence: str, turn_id: int | None
+) -> TurnPlan:
+    """One value read by code from `span` of `sentence`, checked like a model value."""
+    value = ExtractedValue(
+        variable_id=variable_id, number_text=sentence[span.start : span.end], value=span.value
+    )
+    checked = _check_values([value], by_id(context.variables), sentence)
+    accepted = tuple(replace(v, turn_id=turn_id) for v in checked.accepted)
+    ops, other = _measurement_ops(context.card, None, accepted)
+    if other is not None:
+        return TurnPlan((), other)
+    return _with_state_reason(context, ops, checked.reason, checked.variable_ids)
+
+
+def _short_answer(context: TurnContext, utterance: str) -> TurnPlan | None:
+    """A short answer to the question LabFlow just asked, planned by code whatever the model
+    read (spec 0006, Short answers). None when the sentence is not one."""
+    asked = context.last_question
+    if asked is None:
+        return None
+    card = context.card
+    variables = by_id(context.variables)
+    one_variable = asked.variable_ids[0] if len(asked.variable_ids) == 1 else None
+    match asked.reason:
+        case Reason.MISSING_TRIAL if card is not None and card.trial_number is None:
+            span = _only_number(utterance)
+            if span is None or not span.value.is_integer() or span.value <= 0:
+                return None
+            return _with_state_reason(context, (SetTrial(int(span.value)),))
+        case Reason.TWO_VALUES if one_variable is not None and one_variable in variables:
+            span = _only_number(utterance, variables[one_variable].unit)
+            if span is None or span.is_trial:
+                return None
+            return _set_from(context, one_variable, span, utterance, None)
+        case Reason.AMBIGUOUS_VARIABLE if (
+            one_variable is not None and one_variable in variables and _is_yes(utterance)
+        ):
+            span = _unplaced_in(asked, card)
+            if span is None:
+                return None
+            return _set_from(context, one_variable, span, asked.sentence, asked.sentence_turn_id)
+        case _:
+            return None
+
+
 def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
+    if (short := _short_answer(context, utterance)) is not None:
+        return short
     card = context.card
     variables = by_id(context.variables)
     match call:
@@ -268,7 +397,7 @@ def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
                 reason, ids = Reason.AMBIGUOUS_VARIABLE, _open_variables(context)
             if not ops and reason is None and card is None:
                 return TurnPlan((), Reason.OFF_TOPIC)
-            return _with_state_reason(context, ops, reason, ids)
+            return _with_state_reason(context, ops, reason, ids, checked.said)
         case ElegirEnsayo(kind=kind, trial_number=n):
             if card is None:
                 return TurnPlan((), Reason.NO_PENDING)

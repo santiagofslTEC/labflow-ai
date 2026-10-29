@@ -1,7 +1,8 @@
 """Units (spec 0006, RN-01): synonyms to a canonical unit and the known conversions. Pure.
 
 Unit words match whole tokens after folding, so a lone `C` or `s` never matches inside a word.
-A variable whose own unit is not in the table accepts only its exact unit text, or none.
+A variable whose own unit is not in the table accepts only its exact unit text, or none. A
+unitless variable takes any known unit word as written, with no conversion.
 """
 
 from collections.abc import Callable, Mapping
@@ -120,10 +121,8 @@ def normalize(
     value: float, said_unit: str | None, variable_unit: str | None
 ) -> float | UnknownUnit:
     """`value` in the variable's unit. No unit said means the variable's unit already."""
-    if said_unit is None:
-        return value
-    if variable_unit is None:
-        return UnknownUnit()  # a unitless variable takes the number only when no unit is said
+    if said_unit is None or variable_unit is None:
+        return value  # a unitless variable takes the number as said; the words stay in said_text
     target = canonical(variable_unit)
     if said_unit == target:
         return value

@@ -80,6 +80,7 @@ class Executed:
     reason: Reason
     variable_ids: tuple[int, ...]
     saved: SavedTrial | None
+    said: tuple[str, ...] = ()
 
 
 def execute(
@@ -110,7 +111,7 @@ def execute(
                     proposal_id,
                     op.variable_id,
                     op.value,
-                    turn_id,
+                    op.turn_id if op.turn_id is not None else turn_id,
                     op.said_text,
                     op.grounding,
                 )
@@ -141,7 +142,7 @@ def execute(
                 return Executed(Reason.MISSING_TRIAL, (), None)
             case _:
                 pass
-    return Executed(plan.reason, plan.variable_ids, None)
+    return Executed(plan.reason, plan.variable_ids, None, plan.said)
 
 
 def reply_after(
@@ -152,7 +153,7 @@ def reply_after(
         n: int | None = executed.saved.trial_number
     else:
         n = view.trial_number if view is not None else None
-    return reply_for(executed.reason, executed.variable_ids, variables, n)
+    return reply_for(executed.reason, executed.variable_ids, variables, n, executed.said)
 
 
 def _store_user_turn(
@@ -186,7 +187,13 @@ def _apply(
     view = capture.view_of(session, context.experiment_id)
     reply = reply_after(executed, view, context.variables)
     stored = turns.add_turn(
-        session, context.experiment_id, Role.ASSISTANT, reply.text, None, tool_name=reply.reason
+        session,
+        context.experiment_id,
+        Role.ASSISTANT,
+        reply.text,
+        None,
+        tool_name=reply.reason,
+        variable_ids=executed.variable_ids,
     )
     assert isinstance(stored, Turn)
     return TurnResponse(turn_id=turn_id, reply=reply, proposal=view, saved=executed.saved)

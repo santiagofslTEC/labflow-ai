@@ -40,6 +40,7 @@ def test_canonical_synonyms(said: str, unit: str) -> None:
         (149.0, "°F", "°C", 65.0),
         (120.0, "min", "h", 2.0),
         (7.0, None, None, 7.0),
+        (65.0, "°C", None, 65.0),  # a unitless variable takes a unit word as written
     ],
 )
 def test_normalize_converts(
@@ -50,7 +51,7 @@ def test_normalize_converts(
 
 @pytest.mark.parametrize(
     ("said_unit", "variable_unit"),
-    [("%", "°C"), ("min", "°C"), ("°C", None), ("pascales", "°C")],
+    [("%", "°C"), ("min", "°C"), ("pascales", "°C")],
 )
 def test_normalize_wrong_kind_is_unknown(said_unit: str, variable_unit: str | None) -> None:
     assert isinstance(normalize(65.0, said_unit, variable_unit), UnknownUnit)
