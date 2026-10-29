@@ -44,6 +44,7 @@ class TurnContext:
     card: CardInfo | None
     trial_numbers: Mapping[int, int]  # saved trial number → trial id
     last_turns: tuple[tuple[str, str], ...] = ()  # (role, text), oldest first
+    context: str | None = None  # the notebook's "Contexto para la captura" (spec 0005, AC-26)
 
 
 @dataclass(frozen=True, slots=True)

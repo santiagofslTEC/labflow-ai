@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-haiku-5-5"
     claude_timeout_s: float = Field(default=3.0, gt=0)
     claude_max_calls_per_hour: int = Field(default=30, ge=0)
+    # Reading experiment instructions (spec 0005, AC-33): a much longer call than capture.
+    setup_hedge_s: float = Field(default=20, gt=0)
+    setup_deadline_s: float = Field(default=45, gt=0)
+    setup_claude_timeout_s: float = Field(default=25, gt=0)
+    setup_max_tokens: int = Field(default=6000, gt=0)
 
     @model_validator(mode="after")
     def _check_ai_keys(self) -> "Settings":
@@ -43,6 +48,8 @@ class Settings(BaseSettings):
                 raise ValueError("LLM_PROVIDER=fake is not allowed with ENV=prod")
             if not self.ollama_api_key or not self.anthropic_api_key:
                 raise ValueError("ENV=prod needs OLLAMA_API_KEY and ANTHROPIC_API_KEY")
+        if self.setup_hedge_s >= self.setup_deadline_s:
+            raise ValueError("SETUP_HEDGE_S must be below SETUP_DEADLINE_S")
         return self
 
     @field_validator("access_codes", mode="before")

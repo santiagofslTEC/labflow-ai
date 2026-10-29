@@ -7,9 +7,18 @@ import anthropic
 from anthropic.types import ToolParam
 from pydantic import ValidationError
 
-from app.ai.prompt import system_prompt
-from app.ai.provider import Decision, ProviderFailure
-from app.ai.tools import TOOLS, arguments_schema, parse_tool_call
+from app.ai.prompt import setup_prompt, system_prompt
+from app.ai.provider import Decision, ProviderFailure, SetupDecision
+from app.ai.tools import (
+    SETUP_TOOL_DESCRIPTION,
+    SETUP_TOOL_NAME,
+    TOOLS,
+    ProponerCuaderno,
+    arguments_schema,
+    model_schema,
+    parse_setup_call,
+    parse_tool_call,
+)
 from app.services.turn_plan import TurnContext
 
 
@@ -46,13 +55,32 @@ def tool_definitions() -> list[ToolParam]:
     ]
 
 
+def setup_tool_definition() -> ToolParam:
+    return {
+        "name": SETUP_TOOL_NAME,
+        "description": SETUP_TOOL_DESCRIPTION,
+        "input_schema": _strict(model_schema(ProponerCuaderno)),  # pyright: ignore[reportArgumentType]
+        "strict": True,
+    }
+
+
 class AnthropicProvider:
     name = "anthropic"
 
-    def __init__(self, client: anthropic.AsyncAnthropic, model: str, timeout_s: float) -> None:
+    def __init__(
+        self,
+        client: anthropic.AsyncAnthropic,
+        model: str,
+        timeout_s: float,
+        *,
+        setup_timeout_s: float,
+        setup_max_tokens: int,
+    ) -> None:
         self._client = client
         self._model = model
         self._timeout_s = timeout_s
+        self._setup_timeout_s = setup_timeout_s
+        self._setup_max_tokens = setup_max_tokens
 
     async def decide(self, context: TurnContext, utterance: str) -> Decision | ProviderFailure:
         try:
@@ -83,3 +111,32 @@ class AnthropicProvider:
         except (ValidationError, TypeError, ValueError) as exc:
             return ProviderFailure(self.name, "invalid_output", type(exc).__name__)
         return Decision(call=call, provider=self.name)
+
+    async def propose_setup(self, instructions: str) -> SetupDecision | ProviderFailure:
+        try:
+            message = await self._client.with_options(
+                timeout=self._setup_timeout_s, max_retries=0
+            ).messages.create(
+                model=self._model,
+                max_tokens=self._setup_max_tokens,
+                messages=[{"role": "user", "content": setup_prompt(instructions)}],
+                tools=[setup_tool_definition()],
+                tool_choice={"type": "auto"},
+                output_config={"effort": "low"},
+            )
+        except anthropic.APITimeoutError:
+            return ProviderFailure(self.name, "timeout")
+        except anthropic.APIError as exc:
+            return ProviderFailure(self.name, "error", type(exc).__name__)
+        if message.stop_reason == "refusal":
+            return ProviderFailure(self.name, "refusal")
+        uses = [block for block in message.content if block.type == "tool_use"]
+        if not uses:
+            return ProviderFailure(self.name, "invalid_output", "no tool call")
+        block = uses[0]
+        try:
+            arguments = {str(k): v for k, v in dict(block.input).items()}  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+            call = parse_setup_call(block.name, arguments)
+        except (ValidationError, TypeError, ValueError) as exc:
+            return ProviderFailure(self.name, "invalid_output", type(exc).__name__)
+        return SetupDecision(call=call, provider=self.name)

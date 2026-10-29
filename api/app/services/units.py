@@ -71,6 +71,12 @@ def canonical(unit: str) -> str:
     return next((name for word, name in _BY_WORDS if word == folded), unit.strip())
 
 
+def is_known_unit(unit: str) -> bool:
+    """Whether `canonical` finds the text in its table (spec 0005, AC-25 step 5)."""
+    folded = fold(unit.strip())
+    return any(word == folded for word, _ in _BY_WORDS)
+
+
 def _words(own_unit: str | None) -> tuple[tuple[str, str], ...]:
     """The table's words plus the variable's own unit text, when the table does not know it."""
     own = own_unit.strip() if own_unit is not None else ""

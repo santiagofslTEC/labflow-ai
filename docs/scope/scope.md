@@ -85,16 +85,20 @@ spec [0001](../specs/0001-stack-architecture/index.md) · code in `api/app/core/
 ## Release 1: Typed notebook (smallest usable whole)
 
 ### 5. Experiments: create and list · in-progress
-Screens P1 and P2: list your experiments, create one with a title, goal, and variables (name, unit, optional range, required or not). RF-01, RF-02.
-**Done when:** you can create the sample experiment with 3 variables, see it in the list, reload the page, and open it again with everything intact (PA-01, PA-08).
+Screens P1 and P2: list your experiments, create one with a title, goal, and variables (name, unit, optional range, required or not). RF-01, RF-02. Also create one from the experiment instructions (a PDF or pasted text): LabFlow reads them once, proposes the variables with unit and range (only ranges the text states), and writes a short context for capture; you review before creating, and the full PDF is saved for feature 17.
+**Done when:** you can create the sample experiment with 3 variables, see it in the list, reload the page, and open it again with everything intact (PA-01, PA-08); pasting a handout fills the form with quoted ranges and no invented numbers, the notebook keeps its instructions, and capture sees its context (spec 0005, AC-19 to AC-35).
 spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/routers/experiments.py`, `api/app/repositories/experiments.py`, `api/app/services/experiment_rules.py`, `web/src/app/(app)/cuadernos/`, `web/src/components/notebooks/`, `web/src/hooks/use-experiments.ts`
 - [x] Design it (spec): `/architect experiments create and list`
-- [x] Build it: `/develop experiments create and list`
+- [ ] Build it: `/develop experiments create and list`
   - [x] API: list, create, and open routes with pytest and `make openapi` (AC-14 to AC-17)
   - [x] Create a notebook and open it again: TanStack Query data layer, `/cuadernos/nuevo`, `/cuadernos/[id]` (AC-3 to AC-11)
   - [x] Find it: `/cuadernos` list, sidebar section, home links, "cuaderno" wording (AC-1, AC-2, AC-12, AC-13)
   - [x] Phone and accessibility pass (AC-18)
-- [x] Verify it: `/check verify experiments create and list`
+  - [x] Instructions, API side: migration (`context`, `protocol`, `protocol_page`), capture context, `ground_proposal`, `propose_setup` on the provider chain, the read and multipart create routes for pasted text (AC-25, AC-26, AC-29 to AC-34)
+  - [ ] Instructions, screen for pasted text: panel, proposal fill with quotes, Contexto field, failure path, notebook page context, live tuning on real handouts (AC-19 to AC-21, AC-23, AC-24, AC-26 to AC-28, AC-31)
+  - [ ] Instructions, PDF: pypdf extraction, file limits, page range question, Vercel 9.5 MB upload check (AC-20, AC-22, AC-29, AC-30)
+  - [ ] Instructions, phone and accessibility pass (AC-35)
+- [ ] Verify it: `/check verify experiments create and list` (the original slice is verified; the instructions steps in verify.md are open)
 
 ### 6. Text capture and confirm card · in-progress · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.

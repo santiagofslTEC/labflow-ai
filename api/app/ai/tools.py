@@ -5,7 +5,7 @@ code checks, converts, decides, and replies."""
 import unicodedata
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
@@ -93,6 +93,11 @@ TOOLS: Mapping[str, tuple[type[_Frozen], str]] = MappingProxyType(
 def arguments_schema(name: str) -> dict[str, object]:
     """The JSON schema of a tool's arguments, without the `tool` discriminator."""
     model, _ = TOOLS[name]
+    return model_schema(model)
+
+
+def model_schema(model: type[BaseModel]) -> dict[str, object]:
+    """A model's JSON schema, without the `tool` discriminator when it has one."""
     schema = model.model_json_schema()
     properties = dict(schema.get("properties", {}))
     properties.pop("tool", None)
@@ -119,3 +124,61 @@ def parse_tool_call(name: str, arguments: Mapping[str, object]) -> ToolCall:
             "kind": _KIND_SPELLINGS.get(fold(unicodedata.normalize("NFC", kind.strip())), kind),
         }
     return TOOL_CALL.validate_python({**arguments, "tool": name})
+
+
+# --- Reading experiment instructions (spec 0005, AC-33): one tool, `proponer_cuaderno` ---
+
+SETUP_VARIABLES_MAX = 30  # the model may list up to 30 so the count is honest; code cuts to 12
+
+
+class ProposedVariable(_Frozen):
+    name: str = Field(description="El nombre de la variable, corto («Temperatura»).")
+    unit: str | None = Field(
+        default=None, description="La unidad tal como está escrita («°C», «min», «%»), o null."
+    )
+    min_value: float | None = Field(
+        default=None, description="El mínimo, solo si el texto lo dice; si no, null."
+    )
+    max_value: float | None = Field(
+        default=None, description="El máximo, solo si el texto lo dice; si no, null."
+    )
+    required: bool = Field(default=True, description="false solo si el texto dice que es opcional.")
+    range_quote: str | None = Field(
+        default=None,
+        description="Las palabras EXACTAS del texto que dan el rango, sin cambios, o null.",
+    )
+
+
+class ProponerCuaderno(_Frozen):
+    title: str = Field(default="", description="Un título corto para el cuaderno.")
+    goal: str | None = Field(default=None, description="El objetivo de la práctica, o null.")
+    context: str | None = Field(
+        default=None,
+        description="Hasta 600 caracteres: qué se mide, cómo se organizan los ensayos, "
+        "y las condiciones clave.",
+    )
+    found_count: int = Field(
+        default=0, description="Cuántas variables encontraste en total (code recounts)."
+    )
+    variables: list[ProposedVariable] = Field(
+        default_factory=list[ProposedVariable], max_length=SETUP_VARIABLES_MAX
+    )
+
+
+SETUP_TOOL_NAME = "proponer_cuaderno"
+SETUP_TOOL_DESCRIPTION = (
+    "Proponer el título, el objetivo, el contexto y las variables del cuaderno leídos de las "
+    "instrucciones."
+)
+
+
+def parse_setup_call(name: str, arguments: Mapping[str, object]) -> ProponerCuaderno:
+    """Validate a `proponer_cuaderno` call. Raises `ValueError` for another tool, and
+    `pydantic.ValidationError` on bad arguments. A list over 30 is cut, not refused."""
+    if name != SETUP_TOOL_NAME:
+        raise ValueError(f"unexpected tool {name}")
+    variables = arguments.get("variables")
+    if isinstance(variables, list):
+        listed = cast(list[object], variables)
+        arguments = {**arguments, "variables": listed[:SETUP_VARIABLES_MAX]}
+    return ProponerCuaderno.model_validate(arguments)

@@ -5,9 +5,11 @@ export const sampleDetail: ExperimentDetail = {
   id: 7,
   title: "Rendimiento vs temperatura",
   goal: "Ver cómo la temperatura cambia el rendimiento de la reacción.",
+  context: null,
   status: "open",
   created_by: "ana",
   created_at: "2026-10-28T15:00:00Z",
+  protocol: null,
   variables: [
     {
       id: 1,

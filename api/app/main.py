@@ -10,6 +10,7 @@ from app.ai.deps import make_clients
 from app.core.db import get_engine
 from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
+from app.core.instruction_reads import InstructionReads
 from app.core.settings import get_settings
 from app.routers import access, capture, experiments, health
 
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     attempts: AttemptLog = {}
     app.state.access_attempts = attempts
     app.state.llm_clients = make_clients(get_settings())
+    app.state.instruction_reads = InstructionReads()
     yield
     get_engine().dispose()
 

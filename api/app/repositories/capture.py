@@ -80,7 +80,8 @@ def pending_card(session: Session, experiment_id: int) -> CardInfo | None:
 
 def load_context(session: Session, experiment_id: int) -> TurnContext | ExperimentNotFound:
     """Everything the prompt and the planner see, read in one pass before the model call."""
-    if session.get(Experiment, experiment_id) is None:
+    experiment = session.get(Experiment, experiment_id)
+    if experiment is None:
         return ExperimentNotFound()
     return TurnContext(
         experiment_id=experiment_id,
@@ -88,6 +89,7 @@ def load_context(session: Session, experiment_id: int) -> TurnContext | Experime
         card=pending_card(session, experiment_id),
         trial_numbers=trial_numbers(session, experiment_id),
         last_turns=tuple((str(t.role), t.text) for t in turns.last_turns(session, experiment_id)),
+        context=experiment.context,
     )
 
 

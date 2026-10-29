@@ -10,13 +10,26 @@ import httpx
 import ollama
 from pydantic import ValidationError
 
-from app.ai.prompt import system_prompt
-from app.ai.provider import Decision, ProviderFailure
-from app.ai.tools import TOOLS, arguments_schema, parse_tool_call
+from app.ai.prompt import setup_prompt, system_prompt
+from app.ai.provider import Decision, ProviderFailure, SetupDecision
+from app.ai.tools import (
+    SETUP_TOOL_DESCRIPTION,
+    SETUP_TOOL_NAME,
+    TOOLS,
+    ProponerCuaderno,
+    arguments_schema,
+    model_schema,
+    parse_setup_call,
+    parse_tool_call,
+)
 from app.services.numbers import parse_number
 from app.services.turn_plan import TurnContext
 
 logger = logging.getLogger(__name__)
+
+# Ollama's default context silently cuts long prompts; 100 000 characters is about 30 000
+# tokens (spec 0005, Settled rules).
+SETUP_NUM_CTX = 40_000
 
 
 def tool_definitions() -> list[dict[str, object]]:
@@ -31,6 +44,17 @@ def tool_definitions() -> list[dict[str, object]]:
         }
         for name, (_, description) in TOOLS.items()
     ]
+
+
+def setup_tool_definition() -> dict[str, object]:
+    return {
+        "type": "function",
+        "function": {
+            "name": SETUP_TOOL_NAME,
+            "description": SETUP_TOOL_DESCRIPTION,
+            "parameters": model_schema(ProponerCuaderno),
+        },
+    }
 
 
 def _arguments(raw: object) -> Mapping[str, object]:
@@ -92,3 +116,24 @@ class OllamaProvider:
         except (ValidationError, ValueError, TypeError) as exc:
             return ProviderFailure(self.name, "invalid_output", type(exc).__name__)
         return Decision(call=call, provider=self.name)
+
+    async def propose_setup(self, instructions: str) -> SetupDecision | ProviderFailure:
+        try:
+            response = await self._client.chat(  # pyright: ignore[reportUnknownMemberType]
+                model=self._model,
+                messages=[{"role": "user", "content": setup_prompt(instructions)}],
+                tools=[setup_tool_definition()],
+                think="low",
+                options={"temperature": 0, "num_ctx": SETUP_NUM_CTX},
+            )
+        except (ollama.ResponseError, httpx.HTTPError) as exc:
+            return ProviderFailure(self.name, "error", type(exc).__name__)
+        calls = response.message.tool_calls or []
+        if not calls:
+            return ProviderFailure(self.name, "invalid_output", "no tool call")
+        first = calls[0].function
+        try:
+            call = parse_setup_call(first.name, _arguments(first.arguments))
+        except (ValidationError, ValueError, TypeError) as exc:
+            return ProviderFailure(self.name, "invalid_output", type(exc).__name__)
+        return SetupDecision(call=call, provider=self.name)

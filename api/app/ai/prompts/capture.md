@@ -13,7 +13,7 @@ Reglas:
 
 Variables del experimento (id, nombre, unidad, otros nombres):
 {variables}
-
+{context}
 Tarjeta pendiente:
 {card}
 

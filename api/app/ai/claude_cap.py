@@ -6,7 +6,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 
-from app.ai.provider import Decision, LLMProvider, ProviderFailure
+from app.ai.provider import Decision, LLMProvider, ProviderFailure, SetupDecision
 from app.services.turn_plan import TurnContext
 
 WINDOW_S = 3600.0
@@ -48,3 +48,9 @@ class CappedProvider:
         if not await self._cap.take(self._holder):
             return ProviderFailure(self.name, "claude_cap")
         return await self._inner.decide(context, utterance)
+
+    async def propose_setup(self, instructions: str) -> SetupDecision | ProviderFailure:
+        """A read takes from the same hourly cap as a capture call (spec 0005, AC-33)."""
+        if not await self._cap.take(self._holder):
+            return ProviderFailure(self.name, "claude_cap")
+        return await self._inner.propose_setup(instructions)

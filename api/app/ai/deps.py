@@ -49,7 +49,11 @@ def build_provider(settings: Settings, clients: LLMClients, holder: str) -> LLMP
     backup = (
         CappedProvider(
             AnthropicProvider(
-                clients.anthropic, settings.anthropic_model, settings.claude_timeout_s
+                clients.anthropic,
+                settings.anthropic_model,
+                settings.claude_timeout_s,
+                setup_timeout_s=settings.setup_claude_timeout_s,
+                setup_max_tokens=settings.setup_max_tokens,
             ),
             clients.claude_cap,
             holder,
@@ -65,7 +69,12 @@ def build_provider(settings: Settings, clients: LLMClients, holder: str) -> LLMP
         case "fallback":
             if primary and backup:
                 return FallbackProvider(
-                    primary, backup, settings.ollama_hedge_s, settings.llm_deadline_s
+                    primary,
+                    backup,
+                    settings.ollama_hedge_s,
+                    settings.llm_deadline_s,
+                    setup_hedge_s=settings.setup_hedge_s,
+                    setup_deadline_s=settings.setup_deadline_s,
                 )
             return primary or backup
 

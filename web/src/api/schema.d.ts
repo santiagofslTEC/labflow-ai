@@ -81,6 +81,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/instructions/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Instructions
+         * @description Reads the instructions once and proposes a notebook. Stores nothing (AC-32).
+         */
+        post: operations["read_instructions_api_experiments_instructions_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/with-instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create With Instructions
+         * @description The notebook, its variables, and its instructions in one transaction (AC-29). The
+         *     instructions are checked again here; text from the browser is never trusted.
+         */
+        post: operations["create_with_instructions_api_experiments_with_instructions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/experiments/{experiment_id}/utterances": {
         parameters: {
             query?: never;
@@ -238,9 +279,29 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** Body_create_with_instructions_api_experiments_with_instructions_post */
+        Body_create_with_instructions_api_experiments_with_instructions_post: {
+            /** Body */
+            body: string;
+            /** Instructions Text */
+            instructions_text?: string | null;
+            /** Read From Page */
+            read_from_page?: number | null;
+            /** Read To Page */
+            read_to_page?: number | null;
+        };
+        /** Body_read_instructions_api_experiments_instructions_read_post */
+        Body_read_instructions_api_experiments_instructions_read_post: {
+            /** Text */
+            text?: string | null;
+            /** From Page */
+            from_page?: number | null;
+            /** To Page */
+            to_page?: number | null;
+        };
         /**
          * ExperimentDetail
-         * @description A notebook with its variables in `position` order (spec 0005, AC-16).
+         * @description A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31).
          */
         ExperimentDetail: {
             /** Id */
@@ -249,6 +310,8 @@ export interface components {
             title: string;
             /** Goal */
             goal: string | null;
+            /** Context */
+            context: string | null;
             status: components["schemas"]["ExperimentStatus"];
             /** Created By */
             created_by: string;
@@ -259,6 +322,7 @@ export interface components {
             created_at: string;
             /** Variables */
             variables: components["schemas"]["VariableDetail"][];
+            protocol: components["schemas"]["ProtocolSummary"] | null;
         };
         /**
          * ExperimentStatus
@@ -312,12 +376,62 @@ export interface components {
              */
             env: "dev" | "prod";
         };
+        /**
+         * InstructionsNeedPages
+         * @description The PDF is too long to read whole: ask which pages (AC-22).
+         */
+        InstructionsNeedPages: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "needs_pages";
+            /** Page Count */
+            page_count: number;
+            /** Char Count */
+            char_count: number;
+            /**
+             * Max Chars
+             * @default 100000
+             */
+            max_chars: number;
+        };
+        /**
+         * InstructionsProposal
+         * @description A checked proposal that fills the form (AC-23).
+         */
+        InstructionsProposal: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "proposal";
+            /** Title */
+            title: string;
+            /** Goal */
+            goal: string | null;
+            /** Context */
+            context: string | null;
+            /** Variables */
+            variables: components["schemas"]["ProposedVariableOut"][];
+            /** Found Count */
+            found_count: number;
+            /** Page Count */
+            page_count: number;
+            /** Read From Page */
+            read_from_page: number | null;
+            /** Read To Page */
+            read_to_page: number | null;
+        };
+        InstructionsRead: components["schemas"]["InstructionsProposal"] | components["schemas"]["InstructionsNeedPages"];
         /** NewExperiment */
         NewExperiment: {
             /** Title */
             title: string;
             /** Goal */
             goal?: string | null;
+            /** Context */
+            context?: string | null;
             /** Variables */
             variables: components["schemas"]["NewVariable"][];
         };
@@ -355,6 +469,42 @@ export interface components {
             question: components["schemas"]["Reply"];
             /** Can Confirm */
             can_confirm: boolean;
+        };
+        /** ProposedVariableOut */
+        ProposedVariableOut: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string | null;
+            /** Min Value */
+            min_value: number | null;
+            /** Max Value */
+            max_value: number | null;
+            /** Required */
+            required: boolean;
+            /** Range Quote */
+            range_quote: string | null;
+            /** Range Page */
+            range_page: number | null;
+        };
+        /**
+         * ProtocolSummary
+         * @description What a notebook shows of its instructions (spec 0005, AC-31): never the bytes or text.
+         */
+        ProtocolSummary: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "pdf" | "text";
+            /** Filename */
+            filename: string | null;
+            /** Page Count */
+            page_count: number;
+            /** Read From Page */
+            read_from_page: number | null;
+            /** Read To Page */
+            read_to_page: number | null;
         };
         /**
          * Reason
@@ -697,6 +847,126 @@ export interface operations {
                 };
             };
             /** @description The id is not an integer */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    read_instructions_api_experiments_instructions_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["Body_read_instructions_api_experiments_instructions_read_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstructionsRead"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description reading_in_progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description file_too_large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, or pages_too_long */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description reading_failed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    create_with_instructions_api_experiments_with_instructions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["Body_create_with_instructions_api_experiments_with_instructions_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description file_too_large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, or invalid_range */
             422: {
                 headers: {
                     [name: string]: unknown;

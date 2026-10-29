@@ -87,7 +87,15 @@ def providers() -> list[LLMProvider]:
     if clients.ollama:
         found.append(OllamaProvider(clients.ollama, settings.ollama_model))
     if clients.anthropic:
-        found.append(AnthropicProvider(clients.anthropic, settings.anthropic_model, LIMIT_S))
+        found.append(
+            AnthropicProvider(
+                clients.anthropic,
+                settings.anthropic_model,
+                LIMIT_S,
+                setup_timeout_s=settings.setup_claude_timeout_s,
+                setup_max_tokens=settings.setup_max_tokens,
+            )
+        )
     return found
 
 

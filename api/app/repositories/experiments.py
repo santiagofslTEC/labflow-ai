@@ -1,4 +1,4 @@
-"""Notebooks: list, create, and open (spec 0005, AC-14 to AC-16)."""
+"""Notebooks: list, create, and open (spec 0005, AC-14 to AC-16, AC-29, AC-31)."""
 
 from datetime import UTC, datetime
 
@@ -8,13 +8,15 @@ from sqlalchemy import select as select_row
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
-from app.models import Experiment, Measurement, Trial, Turn, Variable
+from app.models import Experiment, Measurement, Protocol, ProtocolPage, Trial, Turn, Variable
 from app.services.experiment_rules import NewExperiment
+from app.services.instructions import NewProtocol
 from app.services.results import (
     DuplicateVariableName,
     ExperimentDetail,
     ExperimentNotFound,
     ExperimentSummary,
+    ProtocolSummary,
     VariableDetail,
 )
 
@@ -86,11 +88,14 @@ def list_summaries(session: Session, limit: int = LIST_LIMIT) -> list[Experiment
 
 
 def create_experiment(
-    session: Session, holder: str, body: NewExperiment
+    session: Session, holder: str, body: NewExperiment, protocol: NewProtocol | None = None
 ) -> ExperimentDetail | DuplicateVariableName:
-    """The notebook and its variables in one transaction, `position` in request order.
-    The unique index on `lower(name)` is the backstop for any case fold the pure check missed."""
-    experiment = Experiment(title=body.title, goal=body.goal, created_by=holder)
+    """The notebook, its variables, and its instructions (when sent) in one transaction,
+    `position` in request order. The unique index on `lower(name)` is the backstop for any
+    case fold the pure check missed."""
+    experiment = Experiment(
+        title=body.title, goal=body.goal, context=body.context, created_by=holder
+    )
     session.add(experiment)
     session.flush()
     assert experiment.id is not None  # set by the flush
@@ -108,6 +113,9 @@ def create_experiment(
     )
     try:
         session.flush()
+        if protocol is not None:
+            _add_protocol(session, experiment.id, protocol)
+            session.flush()
     except IntegrityError as error:
         session.rollback()
         if _is_unique_name_violation(error):
@@ -132,10 +140,54 @@ def get_experiment(session: Session, experiment_id: int) -> ExperimentDetail | E
         id=experiment.id,
         title=experiment.title,
         goal=experiment.goal,
+        context=experiment.context,
         status=experiment.status,
         created_by=experiment.created_by,
         created_at=_utc(experiment.created_at),
         variables=tuple(_variable_detail(v) for v in variables),
+        protocol=_protocol_summary(session, experiment_id),
+    )
+
+
+def _add_protocol(session: Session, experiment_id: int, protocol: NewProtocol) -> None:
+    row = Protocol(
+        experiment_id=experiment_id,
+        source=protocol.source,
+        filename=protocol.filename,
+        file_bytes=protocol.file_bytes,
+        byte_size=None if protocol.file_bytes is None else len(protocol.file_bytes),
+        page_count=len(protocol.pages),
+        read_from_page=protocol.read_from_page,
+        read_to_page=protocol.read_to_page,
+    )
+    session.add(row)
+    session.flush()
+    assert row.id is not None  # set by the flush
+    session.add_all(
+        ProtocolPage(protocol_id=row.id, page_number=number, text=text)
+        for number, text in enumerate(protocol.pages, start=1)
+    )
+
+
+def _protocol_summary(session: Session, experiment_id: int) -> ProtocolSummary | None:
+    """Explicit columns, so `file_bytes` is never loaded here."""
+    stmt = select_row(
+        col(Protocol.source),
+        col(Protocol.filename),
+        col(Protocol.page_count),
+        col(Protocol.read_from_page),
+        col(Protocol.read_to_page),
+    ).where(col(Protocol.experiment_id) == experiment_id)
+    row = session.connection().execute(stmt).first()
+    if row is None:
+        return None
+    source, filename, page_count, read_from_page, read_to_page = row
+    return ProtocolSummary(
+        source="pdf" if source == "pdf" else "text",
+        filename=filename,
+        page_count=page_count,
+        read_from_page=read_from_page,
+        read_to_page=read_to_page,
     )
 
 
