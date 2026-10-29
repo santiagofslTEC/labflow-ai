@@ -18,6 +18,7 @@ from app.ai.tools import (
     Descartar,
     ElegirEnsayo,
     ExtractedValue,
+    PedirAclaracion,
     ProponerMedicion,
     ToolCall,
 )
@@ -393,3 +394,96 @@ def test_a_card_changed_during_the_call_is_planned_again(
     # fresh card (no number) it sets 7 and adds the value.
     assert body["proposal"]["trial_number"] == 7
     assert values(body) == [65, None, 74]
+
+
+# --- Follow-up answers: the real conversations from notebook 326 and the unitless case ---
+
+
+@pytest.mark.parametrize(
+    "answer_call",
+    [ProponerMedicion(trial_number=5), PedirAclaracion(reason="ambiguous_variable")],
+    ids=["model_reads_trial", "model_asks_again"],
+)
+def test_a_bare_number_answers_the_trial_question(
+    authed: TestClient, nb: Notebook, script: list[Any], answer_call: ToolCall
+) -> None:
+    script += [ProponerMedicion(values=[ev(nb.temp, "65", 65, "grados")]), answer_call]
+    asked = say(authed, nb, "temperatura 65 grados")
+    assert asked["reply"]["reason"] == "missing_trial"
+    body = say(authed, nb, "5")
+    assert body["proposal"]["trial_number"] == 5 and values(body) == [65, None, None]
+    assert body["reply"]["reason"] == "missing_values"
+
+
+def test_a_bare_number_is_not_a_trial_unless_that_was_asked(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script += [
+        ProponerMedicion(trial_number=6, values=[ev(nb.temp, "65", 65)]),
+        PedirAclaracion(reason="ambiguous_variable"),
+    ]
+    say(authed, nb, "ensayo 6, temperatura 65")
+    body = say(authed, nb, "5")
+    assert body["proposal"]["trial_number"] == 6 and body["reply"]["reason"] == "ambiguous_variable"
+
+
+def test_two_values_for_one_variable_asks_which_then_takes_the_answer(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script += [
+        ProponerMedicion(values=[ev(nb.temp, "23", 23), ev(nb.temp, "71", 71)]),
+        PedirAclaracion(reason="ambiguous_variable"),
+    ]
+    asked = say(authed, nb, "esnayo 5: temperatura reflujo 23 a 71")
+    assert asked["reply"] == {
+        "reason": "two_values",
+        "text": "Dijiste 23 y 71 para Temperatura. ¿Cuál guardo?",
+    }
+    body = say(authed, nb, "71")
+    assert values(body) == [71, None, None] and body["reply"]["reason"] == "missing_trial"
+
+
+def test_si_accepts_the_one_suggested_variable(
+    authed: TestClient, session: Session, nb: Notebook, script: list[Any]
+) -> None:
+    script += [
+        PedirAclaracion(reason="ambiguous_variable", variable_ids=[nb.temp]),
+        PedirAclaracion(reason="ambiguous_variable", variable_ids=[nb.temp]),
+    ]
+    asked = say(authed, nb, "reflujo 71 grados")
+    assert asked["reply"]["text"] == "No sé a qué variable va ese valor. ¿Es Temperatura?"
+    body = say(authed, nb, "si")
+    temp = body["proposal"]["values"][0]
+    assert (temp["value"], temp["said_text"]) == (71, "71 grados")
+    assert body["proposal"]["phrase"] == "reflujo 71 grados"
+    assert body["reply"]["reason"] == "missing_trial"
+
+
+def test_si_after_a_question_with_several_candidates_does_not_guess(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script += [
+        PedirAclaracion(reason="ambiguous_variable", variable_ids=[nb.temp, nb.dur]),
+        Confirmar(),
+    ]
+    say(authed, nb, "71")
+    assert say(authed, nb, "si")["reply"]["reason"] == "no_pending"
+
+
+def test_a_unit_word_on_a_unitless_variable_is_taken_as_written(
+    authed: TestClient, script: list[Any]
+) -> None:
+    created = authed.post(
+        "/api/experiments",
+        json={"title": "Test", "variables": [{"name": "temperatura", "unit": None}]},
+    ).json()
+    experiment_id, variable_id = created["id"], created["variables"][0]["id"]
+    script.append(ProponerMedicion(values=[ev(variable_id, "65", 65, "grados")]))
+    response = authed.post(
+        f"/api/experiments/{experiment_id}/utterances", json={"text": "65 grados"}
+    )
+    body = response.json()
+    value = body["proposal"]["values"][0]
+    assert (value["value"], value["said_text"]) == (65, "65 grados")
+    assert value["flags"] == [] and not value["interpreted"]
+    assert body["reply"]["reason"] == "missing_trial"

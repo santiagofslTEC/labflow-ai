@@ -1769,6 +1769,7 @@
           "choose_trial",
           "pending_other_trial",
           "ambiguous_variable",
+          "two_values",
           "unknown_unit",
           "unclear_number",
           "check_values",

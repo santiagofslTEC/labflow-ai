@@ -1,6 +1,8 @@
 """The planner, flags, replies, and card view (spec 0006, AC-3 to AC-12, AC-17, AC-21 to
 AC-24). Pure, no database, no model: each test passes in the exact tool call it wants."""
 
+from dataclasses import replace
+
 import pytest
 
 from app.ai.tools import (
@@ -21,6 +23,7 @@ from app.services.replies import Reason, reply_text
 from app.services.turn_plan import (
     Confirm,
     Discard,
+    LastQuestion,
     SetTarget,
     SetTrial,
     SetValue,
@@ -259,11 +262,85 @@ def test_code_fallback_accepts_a_paraphrase_and_flags_it() -> None:
     assert plan.operations == (SetValue(REND, 73.0, "setenta y tres", Grounding.CODE),)
 
 
-def test_two_values_for_one_variable_are_both_dropped() -> None:
-    call = ProponerMedicion(values=[ev(TEMP, "50", 50), ev(TEMP, "60", 60)])
-    plan = plan_turn(ctx(card6()), call, "temperatura 50, temperatura 60")
+def test_two_values_for_one_variable_are_both_dropped_and_quoted() -> None:
+    call = ProponerMedicion(values=[ev(TEMP, "60", 60), ev(TEMP, "50", 50)])
+    plan = plan_turn(ctx(card6()), call, "temperatura 50 grados a 60")
     assert plan.operations == ()
+    assert plan.reason == Reason.TWO_VALUES and plan.variable_ids == (TEMP,)
+    assert plan.said == ("50 grados", "60")
+    assert reply_text(Reason.TWO_VALUES, ["Temperatura"], said=plan.said) == (
+        "Dijiste 50 grados y 60 para Temperatura. ¿Cuál guardo?"
+    )
+
+
+def test_two_values_with_one_not_in_the_sentence_is_ambiguous() -> None:
+    call = ProponerMedicion(values=[ev(TEMP, "50", 50), ev(TEMP, "60", 60)])
+    plan = plan_turn(ctx(card6()), call, "temperatura 50")
     assert plan.reason == Reason.AMBIGUOUS_VARIABLE and plan.variable_ids == (TEMP,)
+
+
+# --- Short answers: code plans a reply to the question just asked ---
+
+
+def asked(reason: Reason, sentence: str, *ids: int, turn_id: int = 40) -> LastQuestion:
+    return LastQuestion(reason, ids, sentence, turn_id)
+
+
+def after(question: LastQuestion, card: CardInfo | None = None) -> TurnContext:
+    return replace(ctx(card), last_question=question)
+
+
+@pytest.mark.parametrize("answer", ["5", "el 5", "es el ensayo 5", "Ensayo número 5."])
+def test_a_bare_number_after_missing_trial_sets_the_trial(answer: str) -> None:
+    card = card6(model_value(TEMP, 65, "65"), number=None)
+    context = after(asked(Reason.MISSING_TRIAL, "temperatura 65"), card)
+    plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), answer)
+    assert plan.operations == (SetTrial(5),) and plan.reason == Reason.MISSING_VALUES
+
+
+@pytest.mark.parametrize("answer", ["rendimiento 5", "5 y 6", "cinco coma dos", "0"])
+def test_more_than_a_bare_whole_number_is_left_to_the_model(answer: str) -> None:
+    card = card6(model_value(TEMP, 65, "65"), number=None)
+    context = after(asked(Reason.MISSING_TRIAL, "temperatura 65"), card)
+    plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), answer)
+    assert SetTrial(5) not in plan.operations and plan.reason == Reason.AMBIGUOUS_VARIABLE
+
+
+def test_a_bare_number_after_two_values_sets_that_variable() -> None:
+    context = after(asked(Reason.TWO_VALUES, "temperatura 23 a 71", TEMP))
+    plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), "71 grados")
+    assert plan.operations == (
+        StartProposal(None),
+        SetValue(TEMP, 71.0, "71 grados", Grounding.MODEL),
+    )
+
+
+@pytest.mark.parametrize("answer", ["si", "Sí.", "sí, es esa", "correcto", "claro"])
+def test_si_accepts_the_one_suggested_variable_from_the_earlier_sentence(answer: str) -> None:
+    context = after(asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 6, reflujo 71", TEMP), card6())
+    plan = plan_turn(context, Confirmar(), answer)
+    assert plan.operations == (SetValue(TEMP, 71.0, "71", Grounding.MODEL, turn_id=40),)
+
+
+def test_si_skips_numbers_already_placed_from_that_sentence() -> None:
+    placed = ValueInfo(REND, 74, "74", Grounding.MODEL, turn_id=40)
+    context = after(asked(Reason.AMBIGUOUS_VARIABLE, "74 y reflujo 71", TEMP), card6(placed))
+    plan = plan_turn(context, Confirmar(), "sí")
+    assert plan.operations == (SetValue(TEMP, 71.0, "71", Grounding.MODEL, turn_id=40),)
+
+
+@pytest.mark.parametrize(
+    ("question", "answer"),
+    [
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71", TEMP, DUR), "sí"),  # two candidates
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71 y 72", TEMP), "sí"),  # two numbers
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71", TEMP), "sí, guárdalo"),
+        (asked(Reason.READY, "ensayo 6, 65", TEMP), "sí"),
+    ],
+)
+def test_other_answers_go_to_the_model(question: LastQuestion, answer: str) -> None:
+    plan = plan_turn(after(question, card6()), Confirmar(), answer)
+    assert all(not isinstance(op, SetValue) for op in plan.operations)
 
 
 def test_one_number_for_two_variables_drops_both() -> None:

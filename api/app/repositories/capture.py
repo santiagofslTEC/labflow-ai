@@ -10,8 +10,11 @@ from app.models.enums import Role, Source
 from app.repositories import proposals, turns
 from app.services.card_state import CardInfo, ValueInfo, VariableInfo
 from app.services.proposal_view import ProposalView, proposal_view
+from app.services.replies import Reason
 from app.services.results import ExperimentNotFound
-from app.services.turn_plan import TurnContext
+from app.services.turn_plan import LastQuestion, TurnContext
+
+_REASONS = frozenset(r.value for r in Reason)
 
 
 def _variables(session: Session, experiment_id: int) -> tuple[VariableInfo, ...]:
@@ -78,18 +81,40 @@ def pending_card(session: Session, experiment_id: int) -> CardInfo | None:
     return None if proposal is None else card_info(session, proposal)
 
 
+def _last_question(rows: Sequence[Turn]) -> LastQuestion | None:
+    """The reply before the sentence being planned (the last row), and the sentence that
+    reply answered. None unless the three turns run user, assistant, user."""
+    if len(rows) < 3:
+        return None
+    sentence, reply, current = rows[-3:]
+    if (
+        (sentence.role, reply.role, current.role) != (Role.USER, Role.ASSISTANT, Role.USER)
+        or sentence.id is None
+        or reply.tool_name not in _REASONS
+    ):
+        return None
+    return LastQuestion(
+        reason=Reason(reply.tool_name),
+        variable_ids=tuple(reply.variable_ids or ()),
+        sentence=sentence.text,
+        sentence_turn_id=sentence.id,
+    )
+
+
 def load_context(session: Session, experiment_id: int) -> TurnContext | ExperimentNotFound:
     """Everything the prompt and the planner see, read in one pass before the model call."""
     experiment = session.get(Experiment, experiment_id)
     if experiment is None:
         return ExperimentNotFound()
+    recent = turns.last_turns(session, experiment_id)
     return TurnContext(
         experiment_id=experiment_id,
         variables=_variables(session, experiment_id),
         card=pending_card(session, experiment_id),
         trial_numbers=trial_numbers(session, experiment_id),
-        last_turns=tuple((str(t.role), t.text) for t in turns.last_turns(session, experiment_id)),
+        last_turns=tuple((str(t.role), t.text) for t in recent),
         context=experiment.context,
+        last_question=_last_question(recent),
     )
 
 

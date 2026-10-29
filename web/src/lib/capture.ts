@@ -67,6 +67,7 @@ export const toTurn = (response: TurnResponse): Turn => ({
 // Reasons that come from one sentence: shown as that turn's question (AC-17).
 const SENTENCE_REASONS: ReadonlySet<ReplyReason> = new Set([
   "ambiguous_variable",
+  "two_values",
   "unknown_unit",
   "unclear_number",
 ]);
