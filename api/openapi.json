@@ -276,6 +276,69 @@
         }
       }
     },
+    "/api/experiments/{experiment_id}/trials": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Read Trials",
+        "description": "The saved trials by number and the 5 newest measurements (spec 0007, AC-1).",
+        "operationId": "read_trials_api_experiments__experiment_id__trials_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialsView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No notebook with this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The id is not an integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experiments/instructions/read": {
       "post": {
         "tags": [
@@ -1780,6 +1843,35 @@
         ],
         "title": "Reason"
       },
+      "RecentMeasurement": {
+        "properties": {
+          "trial_number": {
+            "type": "integer",
+            "title": "Trial Number"
+          },
+          "variable_id": {
+            "type": "integer",
+            "title": "Variable Id"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Saved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trial_number",
+          "variable_id",
+          "value",
+          "saved_at"
+        ],
+        "title": "RecentMeasurement"
+      },
       "Reply": {
         "properties": {
           "reason": {
@@ -1828,6 +1920,43 @@
         ],
         "title": "Source"
       },
+      "TrialCell": {
+        "properties": {
+          "variable_id": {
+            "type": "integer",
+            "title": "Variable Id"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "said_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Said Text"
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Saved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable_id",
+          "value",
+          "said_text",
+          "saved_at"
+        ],
+        "title": "TrialCell",
+        "description": "One saved value of a trial (spec 0007, AC-1). `saved_at` is the last edit, else the\nfirst confirm."
+      },
       "TrialChoiceIn": {
         "properties": {
           "kind": {
@@ -1855,6 +1984,57 @@
           "kind"
         ],
         "title": "TrialChoiceIn"
+      },
+      "TrialRow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/TrialCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "number",
+          "cells"
+        ],
+        "title": "TrialRow"
+      },
+      "TrialsView": {
+        "properties": {
+          "trials": {
+            "items": {
+              "$ref": "#/components/schemas/TrialRow"
+            },
+            "type": "array",
+            "title": "Trials"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/RecentMeasurement"
+            },
+            "type": "array",
+            "title": "Recent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trials",
+          "recent"
+        ],
+        "title": "TrialsView",
+        "description": "A notebook's saved trials by number, and its 5 newest measurements (spec 0007)."
       },
       "TurnResponse": {
         "properties": {

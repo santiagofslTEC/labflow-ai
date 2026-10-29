@@ -111,6 +111,36 @@ class ProtocolSummary(_Result):
     read_to_page: int | None
 
 
+class TrialCell(_Result):
+    """One saved value of a trial (spec 0007, AC-1). `saved_at` is the last edit, else the
+    first confirm."""
+
+    variable_id: int
+    value: float  # in the variable's unit
+    said_text: str | None
+    saved_at: datetime  # UTC
+
+
+class TrialRow(_Result):
+    id: int
+    number: int
+    cells: tuple[TrialCell, ...]  # by variable id; the browser places them by position
+
+
+class RecentMeasurement(_Result):
+    trial_number: int
+    variable_id: int
+    value: float
+    saved_at: datetime  # UTC
+
+
+class TrialsView(_Result):
+    """A notebook's saved trials by number, and its 5 newest measurements (spec 0007)."""
+
+    trials: tuple[TrialRow, ...]
+    recent: tuple[RecentMeasurement, ...]
+
+
 class ExperimentDetail(_Result):
     """A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31)."""
 
