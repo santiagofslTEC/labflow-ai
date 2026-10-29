@@ -16,7 +16,7 @@ from app.ai.tools import (
     parse_tool_call,
 )
 from app.models.enums import Grounding, Source
-from app.services.card_state import CardInfo, ValueInfo, VariableInfo
+from app.services.card_state import CardInfo, RememberedTrial, ValueInfo, VariableInfo
 from app.services.flags import FlagReason, flags, interpreted
 from app.services.proposal_view import proposal_view
 from app.services.replies import Reason, reply_text
@@ -80,8 +80,9 @@ def test_full_sentence_starts_a_card_with_three_values() -> None:
         SetValue(TEMP, 65.0, "65 grados", Grounding.MODEL),
         SetValue(DUR, 20.0, "20 minutos", Grounding.MODEL),
         SetValue(REND, 74.0, "74 por ciento", Grounding.MODEL),
+        Confirm(auto=True),
     )
-    assert plan.reason == Reason.READY
+    assert plan.reason == Reason.AUTO_SAVED  # clean: saved with no tap (AC-27)
 
 
 # --- AC-3, AC-4, AC-5: parts and corrections ---
@@ -458,3 +459,58 @@ def test_view_choose_trial_blocks_confirm() -> None:
     view = proposal_view(card, VARIABLES, SAVED, {}, "frase", Source.TEXT)
     assert view.question.reason == Reason.CHOOSE_TRIAL and not view.can_confirm
     assert view.question.text == "El ensayo 3 ya existe. ¿Es una corrección o un ensayo nuevo?"
+
+
+# --- AC-27, AC-31: clean readings save with no tap; the remembered trial ---
+
+FULL = "Ensayo 6: temperatura 65, duración 20, rendimiento 74"
+
+
+def full_call(rend_text: str = "74") -> ProponerMedicion:
+    return ProponerMedicion(
+        trial_number=6, values=[ev(TEMP, "65", 65), ev(DUR, "20", 20), ev(REND, rend_text, 74)]
+    )
+
+
+def test_a_code_side_match_is_not_clean() -> None:
+    plan = plan_turn(ctx(), full_call(rend_text="setenta y cuatro"), FULL)
+    assert Confirm(auto=True) not in plan.operations and plan.reason == Reason.CHECK_VALUES
+
+
+def test_a_converted_unit_is_not_clean() -> None:
+    call = ProponerMedicion(
+        trial_number=6,
+        values=[ev(TEMP, "65", 65), ev(DUR, "2", 2, "horas"), ev(REND, "74", 74)],
+    )
+    plan = plan_turn(ctx(), call, "Ensayo 6: temperatura 65, duración 2 horas, rendimiento 74")
+    assert Confirm(auto=True) not in plan.operations
+
+
+def test_a_saved_trial_number_is_not_clean() -> None:
+    call = ProponerMedicion(
+        trial_number=3, values=[ev(TEMP, "65", 65), ev(DUR, "20", 20), ev(REND, "74", 74)]
+    )
+    plan = plan_turn(ctx(), call, "Ensayo 3: temperatura 65, duración 20, rendimiento 74")
+    assert plan.reason == Reason.CHOOSE_TRIAL
+
+
+def remembering(*filled: int) -> TurnContext:
+    return replace(ctx(), remembered=RememberedTrial(33, 3, frozenset(filled)))
+
+
+def test_no_number_goes_to_the_remembered_trial_and_fills_an_empty_slot() -> None:
+    plan = plan_turn(remembering(TEMP, DUR), ProponerMedicion(values=[ev(REND, "74", 74)]), "74")
+    assert plan.operations == (
+        StartProposal(3),
+        SetTarget(33),
+        SetValue(REND, 74.0, "74", Grounding.MODEL),
+        Confirm(auto=True),
+    )
+
+
+def test_replacing_a_value_of_the_remembered_trial_waits_for_the_card() -> None:
+    plan = plan_turn(
+        remembering(TEMP, DUR, REND), ProponerMedicion(values=[ev(REND, "75", 75)]), "75"
+    )
+    assert plan.operations[:2] == (StartProposal(3), SetTarget(33))
+    assert Confirm(auto=True) not in plan.operations

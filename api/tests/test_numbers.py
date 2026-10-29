@@ -178,3 +178,17 @@ def test_said_slice_matches_a_variables_own_unit_outside_the_table() -> None:
     assert grounded is not None
     assert said_slice(sentence, grounded.span, "bar").unit == "bar"
     assert said_slice(sentence, grounded.span).unit is None
+
+
+@pytest.mark.parametrize(
+    "sentence", ["esnayo 5", "emsayo 5", "ensay 5", "ensallo 5", "prueva 5", "corida 5"]
+)
+def test_a_slip_in_the_trial_word_still_marks_a_trial_span(sentence: str) -> None:
+    (span,) = find_numbers(sentence)
+    assert span.value == 5 and span.is_trial
+
+
+@pytest.mark.parametrize("sentence", ["comida 5", "ensayamos 5", "presión 5"])
+def test_other_words_before_a_number_are_not_trial_words(sentence: str) -> None:
+    (span,) = find_numbers(sentence)
+    assert not span.is_trial
