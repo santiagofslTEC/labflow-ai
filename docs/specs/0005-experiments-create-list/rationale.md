@@ -65,3 +65,49 @@ The rest is about the Friday demo. No editing, no reordering, and no aliases kee
 - Activity text: `Intl.RelativeTimeFormat` with a switch to "12 oct" after a week, because relative times stop being useful past a few days; runner up, always relative.
 - Retries: TanStack Query `retry: 1`, because one quick retry hides a blip without hiding a real outage; runner up, the library default of 3.
 - Visual references (Mobbin): the list follows Basecamp's hairline rows with a meta line, the form follows Square's calm full page "New project", and both use the existing `design.md` tokens with no new colors.
+
+## Update 2026-10-29: notebook from instructions
+
+### Context
+
+> ⚠️ Premise note: this update joins the MVP line one day before the Friday demo, while features 6, 7, and 20 are still open. A late feature that touches the database, a new model call, and file uploads at once is how a demo breaks. The answer here is the slicing, not a smaller idea: pasted text works end to end first (build tasks 7 to 10), and the PDF (task 11) only adds to routes that already work, so it can slip to after Friday without leaving anything half built.
+
+Setting up a notebook by hand means reading the lab handout and typing every variable, unit, and range. Students already have that handout, usually as a PDF from the course, sometimes long (a whole manual with several practices). The product's promise is "no invented numbers", so anything read from the handout has to be traceable to its words, and the student has to review it before it counts. Feature 17 (questions about the protocol PDF) needs the same document later, with page numbers, to cite its answers. Capture (spec 0006) reads each sentence knowing only the variables; it has no idea what the experiment is about.
+
+The forces: the stack is fixed (FastAPI and SQLModel on Supabase Postgres, Railway, Vercel rewriting `/api/*`, the `LLMProvider` chain with Ollama first and Claude as the logged fallback). Nothing in the code stores files or parses PDFs yet. Spec 0002 AC-15 already says protocols arrive as a new table. The engineer's saved preferences ask to confirm less and to have code check what the model says. The Claude key has an hourly cap of 30 calls. Vercel's rewrite sits between the browser and the API for every upload.
+
+### Options considered
+
+**A. Stateless read plus a multipart create (chosen)**. The read returns a proposal and stores nothing; the browser keeps the file and sends it again with the create, which saves everything in one transaction.
+- Pros: no orphan uploads to clean up; one transaction means a notebook never exists without the instructions it was made from; the read can be retried or cancelled freely.
+- Cons: the PDF crosses the network twice; the server extracts the text twice.
+
+**B. Read saves a draft upload**. The read stores the file and returns a `draft_id` that the create points to.
+- Pros: one upload; the create request is small.
+- Cons: abandoned drafts pile up and need a cleanup job, which this project has no scheduler for; a draft table is one more state to reason about.
+
+**C. Create, then attach**. Create stays JSON; a second call uploads the protocol.
+- Pros: the simplest routes; the JSON create does not change.
+- Cons: the second call can fail after the notebook exists, leaving a notebook with no instructions and a retry path to build.
+
+**Storage**: `bytea` in Postgres (chosen) against a private Supabase Storage bucket (needs the service role key in Railway, a storage client, and a second write outside the transaction) and keeping only the text (feature 17 could never show or parse the original again).
+
+**PDF library**: pypdf (chosen: pure Python, BSD license, no system packages on Railway) against PyMuPDF (better layout and speed, but AGPL or a paid license) and pdfplumber (strong on tables, slow on 80 pages).
+
+**Model path**: the existing chain with its own timings (chosen) against Claude only (most reliable on long text, but every read spends the paid key and the hourly cap) and Ollama only (no fallback, so a bad read leaves only the blank form).
+
+### Rationale
+
+Option A wins on the force that matters most this week: nothing can be half saved. A read that stores nothing can fail, time out, or be cancelled with no cleanup, and the single transaction on create means the notebook and its instructions always agree. Uploading twice is a real cost on a phone, but at 10 MB and class scale it is seconds, and it is far cheaper than a cleanup job or a retry path for a half made notebook. A separate route (`/with-instructions`) instead of content negotiation on `POST /api/experiments` keeps one body type per route, which FastAPI's validation and the generated `openapi-fetch` types both expect; the runner up, one route reading either body, would need hand written parsing on both sides.
+
+Postgres `bytea` reuses what is running: no new key, no new client, and the file is deleted with its notebook by the cascade that already exists. Supabase Storage is the better home at scale and is the move once files grow past class size. The strict code check on ranges is what makes the feature honest: the model can propose, but a number only reaches the form when its words are in the document, and the page comes from code. This is the same idea as spec 0006's said vs understood grounding, applied once at setup. Reading whole documents up to a cap and asking for a page range beyond it gives one model call with a predictable time, where chunking and merging would multiply calls against the Claude cap and add merge bugs.
+
+**Smaller calls made in the spec** (pick, why, runner up):
+- Contexto on every form, manual included: capture benefits from context whatever the source, and it costs one field; runner up, only on notebooks from instructions.
+- The model may list up to 30 variables and code cuts to 12: so `found_count` is honest and the cut is code's, not the model's; runner up, ask the model for 12 directly (it would then hide what it dropped).
+- `needs_pages` is a 200 result, not an error: it is an expected step of the flow, so it is a typed value per AGENTS.md; runner up, a 422 code.
+- Store every page, not only the read range: feature 17 may need the rest of the manual; runner up, store only the read pages (smaller, but loses context).
+- Quote line hides for good once you edit Mín or Máx: the quote then no longer describes the number; runner up, keep it and mark it changed.
+- Replace confirm only when the form is dirty: a pristine form has nothing to lose, matching "confirm less"; runner up, always confirm.
+- Hedge 20 s, deadline 45 s: Ollama gets a fair chance on a long read before Claude spends the cap, and 45 s stays well under any proxy timeout; runner up, spec 0006's 1.5 s hedge (would almost always spend Claude).
+- Context sentences with an unfound number are removed, not the whole context: keeps the useful part; runner up, drop the whole context.

@@ -35,3 +35,29 @@ _Steps derived from spec 0005 acceptance criteria and its Value sourcing table. 
 
 ## Acceptance-criteria coverage
 - AC-1 list rows, order, pill · AC-2 loading, empty, error, background refetch · AC-3 form layout, 12 limit · AC-4 units, decimals · AC-5 client validation · AC-6 Usar ejemplo · AC-7 create, cache, no double send · AC-8 failures · AC-9 leave warning · AC-10 notebook page · AC-11 not found, error · AC-12 sidebar · AC-13 home, wording · AC-14 list API · AC-15 create API · AC-16 detail API · AC-17 gate · AC-18 accessibility and phone
+
+## Notebook from instructions (added 2026-10-29, AC-19 to AC-35)
+
+### UI / manual
+- [ ] Open `/cuadernos/nuevo` → the "Desde instrucciones" panel with Subir PDF and Pegar texto; Llenar a mano shows the empty form and a "Leer instrucciones" link → AC-19
+- [ ] Paste 20 characters → "Pega un poco más de las instrucciones." and no request (network tab); choose a PNG → "Elige un archivo PDF."; choose an 11 MB PDF → "El PDF pesa más de 10 MB." → AC-20
+- [ ] Paste a real handout, press Leer → "Leyendo instrucciones…", aria-disabled, "Puede tardar hasta un minuto."; Cancelar lectura returns to the panel with the text kept → AC-21
+- [ ] Let it finish → banner, chip "Texto pegado · {n} caracteres", Título, Objetivo, Contexto, and rows filled; a stated range shows «quote» under its row; a variable with no stated range has blank Mín and Máx → AC-23, AC-24
+- [ ] Change that row's Mín → the quote line disappears and stays gone → AC-24
+- [ ] Press Leer instrucciones again with the form changed → "¿Reemplazar lo que escribiste con lo que leímos?"; Cancelar keeps the form → AC-27
+- [ ] Press Crear → the notebook page shows the Contexto block and "Instrucciones: texto pegado"; reload, intact → AC-29, AC-31
+- [ ] Upload a 70 page manual → "Este PDF tiene 70 páginas…", enter 12 a 18 → rows with « » · p. 12 to 18; enter 1 a 70 → "Esas páginas tienen demasiado texto. Elige menos páginas." → AC-22
+- [ ] Upload a scanned PDF → "Este PDF no tiene texto. Pega las instrucciones."; an 81 page PDF → "El PDF tiene 81 páginas; el máximo es 80." → AC-30
+- [ ] Set `LLM_PROVIDER` so both providers fail (or stop the network to them) → "No pudimos leer las instrucciones…"; the form opens blank with the chip; fill it and Crear → the notebook page shows "Instrucciones: {file} ({n} págs)" → AC-28, AC-29
+- [ ] With instructions attached, Usar ejemplo is hidden and clicking a sidebar link asks before leaving; Quitar removes the chip and keeps every value → AC-23, AC-27
+- [ ] Make a manual notebook with a Contexto, then dictate in it → the capture log or the prompt test shows "Contexto del experimento" → AC-26
+- [ ] Keyboard only through the panel: radio group, file input, Leer, Cancelar lectura, Quitar; the reading status is announced; after a read focus lands on Título; at 320px nothing scrolls sideways → AC-35
+- [ ] On the Vercel preview, upload a 9.5 MB PDF → the read reaches Railway (no 413 from Vercel) → AC-29, AC-30
+
+### API / automated
+- [ ] pytest: the read route with the fake provider returns a proposal and writes no row in any table → AC-32, AC-33
+- [ ] pytest: `ground_proposal` drops an unquoted range, a range whose numbers are not in the quote, and min > max; computes the page; removes a context sentence with an unfound number; dedupes names; cuts to 12 with `found_count` 15 → AC-25
+- [ ] pytest: a multipart create with a duplicate name returns 422 `duplicate_variable_name` and leaves no `experiment`, `protocol`, or `protocol_page` row → AC-29
+- [ ] pytest: 413 at 10 485 761 bytes, `pdf_unreadable`, `too_many_pages`, `no_text_in_pdf`, `invalid_page_range`, `instructions_missing` on both routes → AC-30
+- [ ] pytest: `GET /api/experiments/{id}` returns `context` and the protocol summary, never `file_bytes` → AC-31
+- [ ] pytest: both new routes return 401 without a cookie → AC-34
