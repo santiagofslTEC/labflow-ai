@@ -299,6 +299,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/{experiment_id}/variables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Variable
+         * @description A new variable, last in the notebook (AC-2).
+         */
+        post: operations["add_variable_api_experiments__experiment_id__variables_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/variables/{variable_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Variable
+         * @description A full replacement; the unit locks once a value is saved (AC-3).
+         */
+        put: operations["update_variable_api_variables__variable_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/variables/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete Variables
+         * @description The variables, their saved values, and the trials left empty (AC-6).
+         */
+        post: operations["delete_variables_api_experiments__experiment_id__variables_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -343,6 +403,11 @@ export interface components {
             from_page?: number | null;
             /** To Page */
             to_page?: number | null;
+        };
+        /** DeleteVariablesIn */
+        DeleteVariablesIn: {
+            /** Variable Ids */
+            variable_ids: number[];
         };
         /**
          * ExperimentDetail
@@ -731,6 +796,48 @@ export interface components {
             required: boolean;
             /** Position */
             position: number;
+            /**
+             * Aliases
+             * @default []
+             */
+            aliases: string[];
+        };
+        /**
+         * VariableIn
+         * @description One variable added or edited after the notebook exists (spec 0008, AC-2 to AC-4): the
+         *     create fields plus `aliases`, the other names the capture prompt lists.
+         */
+        VariableIn: {
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Max Value */
+            max_value?: number | null;
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /**
+             * Aliases
+             * @default []
+             */
+            aliases: string[];
+        };
+        /**
+         * VariablesDeleted
+         * @description What a delete removed (spec 0008, AC-6).
+         */
+        VariablesDeleted: {
+            /** Variables */
+            variables: number;
+            /** Measurements */
+            measurements: number;
+            /** Trials */
+            trials: number;
         };
     };
     responses: never;
@@ -1613,6 +1720,192 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_variable_api_experiments__experiment_id__variables_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VariableIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableDetail"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description experiment_not_found or variable_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description experiment_closed, variables_full, unit_locked, or last_variable */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    update_variable_api_variables__variable_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                variable_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VariableIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariableDetail"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description experiment_not_found or variable_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description experiment_closed, variables_full, unit_locked, or last_variable */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    delete_variables_api_experiments__experiment_id__variables_delete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteVariablesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VariablesDeleted"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description experiment_not_found or variable_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description experiment_closed, variables_full, unit_locked, or last_variable */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
         };

@@ -1,7 +1,7 @@
 # 0008. Review, add, edit, and delete variables
 
 **Date**: 2026-10-29
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
@@ -54,7 +54,7 @@
 | `/api/variables/{id}` | PUT | `VariableIn` | `VariableDetail` | session | 401, 404 `variable_not_found`, 409 `unit_locked` or `experiment_closed`, 422 as above |
 | `/api/experiments/{id}/variables/delete` | POST | `{ variable_ids: int[] }` (1 to 12, unique, all in this notebook) | `{ variables, measurements, trials }` deleted counts | session | 401, 404 `experiment_not_found` or `variable_not_found`, 409 `last_variable` or `experiment_closed`, 422 `invalid_request` |
 
-`VariableIn` is spec 0005's `NewVariable` plus `aliases: list[str]` (at most 8, each 1 to 40 characters after stripping, blanks dropped, unique ignoring case). The rules live in `services/experiment_rules.py` next to the create rules, so both paths share one implementation; the web mirrors the limits in `lib/experiment-form.ts`. Every write logs `variable added`, `variable updated`, or `variables deleted` at INFO with the experiment id, the variable ids, the holder, and the counts (never names).
+`VariableDetail` (spec 0005) gains `aliases`, so the edit form shows the current other names; the field is additive. `VariableIn` is spec 0005's `NewVariable` plus `aliases: list[str]` (at most 8, each 1 to 40 characters after stripping, blanks dropped, unique ignoring case). The rules live in `services/experiment_rules.py` next to the create rules, so both paths share one implementation; the web mirrors the limits in `lib/experiment-form.ts`. Every write logs `variable added`, `variable updated`, or `variables deleted` at INFO with the experiment id, the variable ids, the holder, and the counts (never names).
 
 **Web structure**:
 - `web/src/api/experiments.ts`: `addVariable`, `updateVariable`, `deleteVariables` on the existing result union.

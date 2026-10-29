@@ -12,6 +12,8 @@ import type { components } from "./schema";
 export type ExperimentSummary = components["schemas"]["ExperimentSummary"];
 export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
 export type TrialsView = components["schemas"]["TrialsView"];
+export type VariableIn = components["schemas"]["VariableIn"];
+export type VariablesDeleted = components["schemas"]["VariablesDeleted"];
 export type VariableDetail = components["schemas"]["VariableDetail"];
 export type NewExperiment = components["schemas"]["NewExperiment"];
 export type InstructionsRead = components["schemas"]["InstructionsRead"];
@@ -54,6 +56,7 @@ const toResult = <T>({ data, error, response }: Answer<T>): ApiResult<T> => {
       return { ok: false, error: { kind: "unauthorized" } };
     case 404:
       return { ok: false, error: { kind: "not_found" } };
+    case 409:
     case 413:
     case 422:
       return {
@@ -100,6 +103,40 @@ export const getTrials = (id: number): Promise<ApiResult<TrialsView>> =>
   settle(() =>
     api.GET("/api/experiments/{experiment_id}/trials", {
       params: { path: { experiment_id: id } },
+    }),
+  );
+
+// Review variables after the notebook exists (spec 0008).
+export const addVariable = (
+  experimentId: number,
+  body: VariableIn,
+): Promise<ApiResult<VariableDetail>> =>
+  settle(() =>
+    api.POST("/api/experiments/{experiment_id}/variables", {
+      params: { path: { experiment_id: experimentId } },
+      body,
+    }),
+  );
+
+export const updateVariable = (
+  variableId: number,
+  body: VariableIn,
+): Promise<ApiResult<VariableDetail>> =>
+  settle(() =>
+    api.PUT("/api/variables/{variable_id}", {
+      params: { path: { variable_id: variableId } },
+      body,
+    }),
+  );
+
+export const deleteVariables = (
+  experimentId: number,
+  variableIds: readonly number[],
+): Promise<ApiResult<VariablesDeleted>> =>
+  settle(() =>
+    api.POST("/api/experiments/{experiment_id}/variables/delete", {
+      params: { path: { experiment_id: experimentId } },
+      body: { variable_ids: [...variableIds] },
     }),
   );
 
