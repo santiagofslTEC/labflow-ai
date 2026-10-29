@@ -23,7 +23,7 @@ from app.ai.tools import (
     ToolCall,
 )
 from app.main import app
-from app.models import Measurement, Turn
+from app.models import Measurement, Trial, Turn
 from app.models.enums import Role, Source
 from app.repositories import proposals, turns
 from app.services.turn_plan import TurnContext
@@ -72,6 +72,16 @@ def ac1_call(nb: Notebook) -> ProponerMedicion:
     )
 
 
+PARTIAL = "Ensayo 6: temperatura 65 grados, duración 20 minutos"
+
+
+def partial_call(nb: Notebook) -> ProponerMedicion:
+    """A reading with Rendimiento missing: not clean, so the card stays pending (AC-27)."""
+    return ProponerMedicion(
+        trial_number=6, values=[ev(nb.temp, "65", 65, "grados"), ev(nb.dur, "20", 20, "minutos")]
+    )
+
+
 def measurements(session: Session) -> int:
     return session.exec(select(func.count()).select_from(Measurement)).one()
 
@@ -80,42 +90,63 @@ def values(body: Json) -> list[Any]:
     return [v["value"] for v in body["proposal"]["values"]]
 
 
-# --- AC-1, AC-2, AC-20 ---
+# --- AC-1, AC-2, AC-20, AC-27, AC-30 ---
 
 
-def test_a_full_sentence_then_confirm(
-    authed: TestClient, session: Session, nb: Notebook, script: list[Any]
+def test_a_clean_sentence_saves_without_the_card(
+    authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
 ) -> None:
-    before = measurements(session)
     script.append(ac1_call(nb))
     body = say(authed, nb, AC1)
-    card = body["proposal"]
-    assert card["trial_number"] == 6 and values(body) == [65, 20, 74]
-    assert [v["said_text"] for v in card["values"]] == ["65 grados", "20 minutos", "74 por ciento"]
-    assert card["phrase"] == AC1 and card["source"] == "text"
-    assert body["reply"] == {"reason": "ready", "text": "¿Lo guardo?"} and card["can_confirm"]
-    assert measurements(session) == before
+    assert body["proposal"] is None
+    assert body["reply"] == {"reason": "auto_saved", "text": "Guardé el ensayo 6."}
+    saved = body["saved"]
+    assert saved["trial_number"] == 6 and saved["created"] and saved["auto"]
+    assert [(v["name"], v["value"], v["unit"]) for v in saved["values"]] == [
+        ("Temperatura", 65, "°C"),
+        ("Duración", 20, "min"),
+        ("Rendimiento", 74, "%"),
+    ]
+    rows = session.exec(select(Measurement).where(Measurement.trial_id == saved["trial_id"])).all()
+    assert sorted(m.said_text or "" for m in rows) == ["20 minutos", "65 grados", "74 por ciento"]
+    assert {(m.saved_by, m.auto_saved, m.original_phrase) for m in rows} == {(holder, True, AC1)}
     turns = session.exec(
         select(Turn).where(Turn.experiment_id == nb.experiment_id).order_by(col(Turn.id))
     ).all()
-    assert [(t.role, t.tool_name) for t in turns] == [("user", None), ("assistant", "ready")]
+    assert [(t.role, t.tool_name) for t in turns] == [("user", None), ("assistant", "auto_saved")]
+    assert all(m.turn_id == turns[0].id for m in rows)
+
+
+def test_a_partial_card_waits_then_confirm(
+    authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
+) -> None:
+    before = measurements(session)
+    script.append(partial_call(nb))
+    body = say(authed, nb, PARTIAL)
+    card = body["proposal"]
+    assert card["trial_number"] == 6 and values(body) == [65, 20, None]
+    assert [v["said_text"] for v in card["values"]] == ["65 grados", "20 minutos", None]
+    assert card["phrase"] == PARTIAL and card["source"] == "text" and card["can_confirm"]
+    assert body["reply"]["reason"] == "missing_values" and body["saved"] is None
+    assert measurements(session) == before
 
     saved = authed.post(f"/api/proposals/{card['id']}/confirm").json()
     assert saved["saved"]["trial_number"] == 6 and saved["saved"]["created"]
+    assert not saved["saved"]["auto"]
     assert saved["reply"]["text"] == "Guardado el ensayo 6." and saved["proposal"] is None
     again = authed.post(f"/api/proposals/{card['id']}/confirm").json()
     assert again["saved"]["trial_id"] == saved["saved"]["trial_id"]
     rows = session.exec(
         select(Measurement).where(Measurement.trial_id == saved["saved"]["trial_id"])
     ).all()
-    assert sorted(m.said_text or "" for m in rows) == ["20 minutos", "65 grados", "74 por ciento"]
+    assert {(m.saved_by, m.auto_saved) for m in rows} == {(holder, False)}
 
 
 def test_typing_si_confirms_and_with_no_card_replies_no_pending(
     authed: TestClient, nb: Notebook, script: list[Any]
 ) -> None:
-    script += [ac1_call(nb), Confirmar(), Confirmar()]
-    say(authed, nb, AC1)
+    script += [partial_call(nb), Confirmar(), Confirmar()]
+    say(authed, nb, PARTIAL)
     body = say(authed, nb, "sí, guárdalo")
     assert body["saved"]["trial_number"] == 6 and body["reply"]["reason"] == "saved"
     assert say(authed, nb, "sí")["reply"]["reason"] == "no_pending"
@@ -211,11 +242,14 @@ def test_choose_new_trial_by_button(authed: TestClient, nb: Notebook, script: li
 def test_another_trial_while_one_is_pending(
     authed: TestClient, nb: Notebook, script: list[Any]
 ) -> None:
-    script += [ac1_call(nb), ProponerMedicion(trial_number=7, values=[ev(nb.temp, "60", 60)])]
-    say(authed, nb, AC1)
+    script += [
+        partial_call(nb),
+        ProponerMedicion(trial_number=7, values=[ev(nb.temp, "60", 60)]),
+    ]
+    say(authed, nb, PARTIAL)
     body = say(authed, nb, "Ensayo 7, 60 grados")
     assert body["reply"]["text"] == "Tienes el ensayo 6 sin guardar. ¿Lo guardo o lo descarto?"
-    assert body["proposal"]["trial_number"] == 6 and values(body) == [65, 20, 74]
+    assert body["proposal"]["trial_number"] == 6 and values(body) == [65, 20, None]
 
 
 # --- AC-13 ---
@@ -223,8 +257,8 @@ def test_another_trial_while_one_is_pending(
 
 def test_discard(authed: TestClient, session: Session, nb: Notebook, script: list[Any]) -> None:
     before = measurements(session)
-    script += [ac1_call(nb), Descartar()]
-    card_id = say(authed, nb, AC1)["proposal"]["id"]
+    script += [partial_call(nb), Descartar()]
+    card_id = say(authed, nb, PARTIAL)["proposal"]["id"]
     body = authed.post(f"/api/proposals/{card_id}/discard").json()
     assert body["reply"]["text"] == "Descarté la tarjeta." and body["proposal"] is None
     assert say(authed, nb, "descártalo")["reply"]["reason"] == "no_pending"
@@ -239,8 +273,8 @@ def test_discard(authed: TestClient, session: Session, nb: Notebook, script: lis
 def test_llm_failure_is_503_and_keeps_the_card(
     authed: TestClient, session: Session, nb: Notebook, script: list[Any]
 ) -> None:
-    script += [ac1_call(nb), ProviderFailure("fallback", "deadline")]
-    card = say(authed, nb, AC1)["proposal"]
+    script += [partial_call(nb), ProviderFailure("fallback", "deadline")]
+    card = say(authed, nb, PARTIAL)["proposal"]
     response = authed.post(
         f"/api/experiments/{nb.experiment_id}/utterances", json={"text": "rendimiento 80"}
     )
@@ -265,8 +299,8 @@ def test_input_rules(authed: TestClient, nb: Notebook, script: list[Any]) -> Non
     assert missing.status_code == 404 and missing.json()["code"] == "experiment_not_found"
     assert authed.post("/api/proposals/999999999/confirm").json()["code"] == "proposal_not_found"
 
-    script.append(ac1_call(nb))
-    card_id = say(authed, nb, AC1)["proposal"]["id"]
+    script.append(partial_call(nb))
+    card_id = say(authed, nb, PARTIAL)["proposal"]["id"]
     other = make_notebook_variable_elsewhere(authed, nb)
     wrong = authed.put(f"/api/proposals/{card_id}/values/{other}", json={"value": 1})
     assert wrong.status_code == 404 and wrong.json()["code"] == "variable_not_in_experiment"
@@ -341,8 +375,8 @@ def test_a_flagged_card_needs_each_check(
 def test_a_hand_edit_out_of_range_counts_as_checked(
     authed: TestClient, nb: Notebook, script: list[Any]
 ) -> None:
-    script.append(ac1_call(nb))
-    card_id = say(authed, nb, AC1)["proposal"]["id"]
+    script.append(partial_call(nb))
+    card_id = say(authed, nb, PARTIAL)["proposal"]["id"]
     body = authed.put(f"/api/proposals/{card_id}/values/{nb.temp}", json={"value": 500}).json()
     temp = body["proposal"]["values"][0]
     assert temp["flags"][0]["reason"] == "out_of_range" and temp["checked"]
@@ -487,3 +521,120 @@ def test_a_unit_word_on_a_unitless_variable_is_taken_as_written(
     assert (value["value"], value["said_text"]) == (65, "65 grados")
     assert value["flags"] == [] and not value["interpreted"]
     assert body["reply"]["reason"] == "missing_trial"
+
+
+# --- AC-27 to AC-31: save without the card, undo, the remembered trial ---
+
+
+def test_undo_deletes_the_trial_and_reopens_the_same_card(
+    authed: TestClient, session: Session, nb: Notebook, script: list[Any]
+) -> None:
+    before = measurements(session)
+    script.append(ac1_call(nb))
+    saved = say(authed, nb, AC1)["saved"]
+    assert measurements(session) == before + 3
+    proposal_id = session.exec(
+        select(col(Measurement.proposal_id)).where(Measurement.trial_id == saved["trial_id"])
+    ).first()
+    body = authed.post(f"/api/proposals/{proposal_id}/undo").json()
+    card = body["proposal"]
+    assert card["id"] == proposal_id and card["trial_number"] == 6
+    assert values(body) == [65, 20, 74] and card["can_confirm"]
+    assert body["reply"]["reason"] == "ready" and body["saved"] is None
+    assert measurements(session) == before
+    assert session.get(Trial, saved["trial_id"]) is None
+    last = session.exec(
+        select(Turn).where(Turn.experiment_id == nb.experiment_id).order_by(col(Turn.id).desc())
+    ).first()
+    assert last is not None and (last.role, last.text) == ("user", "Deshecho: ensayo 6")
+
+    again = authed.post(f"/api/proposals/{proposal_id}/undo")
+    assert again.status_code == 409 and again.json()["code"] == "not_auto_saved"
+
+
+def test_undo_ends_with_the_next_sentence(
+    authed: TestClient, session: Session, nb: Notebook, script: list[Any]
+) -> None:
+    script += [ac1_call(nb), PedirAclaracion(reason="off_topic")]
+    saved = say(authed, nb, AC1)["saved"]
+    proposal_id = session.exec(
+        select(col(Measurement.proposal_id)).where(Measurement.trial_id == saved["trial_id"])
+    ).first()
+    say(authed, nb, "hola")
+    response = authed.post(f"/api/proposals/{proposal_id}/undo")
+    assert response.status_code == 409 and response.json()["code"] == "undo_expired"
+    assert session.get(Trial, saved["trial_id"]) is not None
+
+
+def test_a_confirmed_save_cannot_be_undone(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script.append(partial_call(nb))
+    card_id = say(authed, nb, PARTIAL)["proposal"]["id"]
+    authed.post(f"/api/proposals/{card_id}/confirm")
+    response = authed.post(f"/api/proposals/{card_id}/undo")
+    assert response.status_code == 409 and response.json()["code"] == "not_auto_saved"
+    assert authed.post("/api/proposals/999999999/undo").status_code == 404
+
+
+def test_completing_a_card_by_parts_saves_it(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script += [partial_call(nb), ProponerMedicion(values=[ev(nb.rend, "74", 74)])]
+    assert say(authed, nb, PARTIAL)["proposal"] is not None
+    body = say(authed, nb, "rendimiento 74")
+    assert body["saved"]["auto"] and body["proposal"] is None
+    assert [v["value"] for v in body["saved"]["values"]] == [65, 20, 74]
+
+
+def test_flagged_and_repeated_readings_still_show_the_card(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    _save_trial_3(authed, nb, script)
+    script += [
+        ProponerMedicion(
+            trial_number=3, values=[ev(nb.temp, "50", 50), ev(nb.dur, "9", 9), ev(nb.rend, "7", 7)]
+        ),
+        Descartar(),
+        ProponerMedicion(
+            trial_number=8,
+            values=[ev(nb.temp, "500", 500), ev(nb.dur, "9", 9), ev(nb.rend, "7", 7)],
+        ),
+    ]
+    repeated = say(authed, nb, "ensayo 3, temperatura 50, duración 9, rendimiento 7")
+    assert repeated["reply"]["reason"] == "choose_trial" and repeated["saved"] is None
+    say(authed, nb, "descártalo")
+    flagged = say(authed, nb, "ensayo 8, temperatura 500, duración 9, rendimiento 7")
+    assert flagged["proposal"]["flagged"] and flagged["saved"] is None
+
+
+def test_a_sentence_with_no_number_fills_the_remembered_trial(
+    authed: TestClient, session: Session, nb: Notebook, script: list[Any]
+) -> None:
+    script += [partial_call(nb), Confirmar(), ProponerMedicion(values=[ev(nb.rend, "75", 75)])]
+    say(authed, nb, PARTIAL)
+    first = say(authed, nb, "sí")["saved"]
+    body = say(authed, nb, "rendimiento 75")
+    assert body["saved"]["auto"] and body["saved"]["trial_id"] == first["trial_id"]
+    assert not body["saved"]["created"] and body["reply"]["text"] == "Guardé el ensayo 6."
+    rows = session.exec(select(Measurement).where(Measurement.trial_id == first["trial_id"])).all()
+    assert sorted(m.value for m in rows) == [20, 65, 75]
+
+
+def test_replacing_a_value_of_the_remembered_trial_shows_the_correction(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script += [ac1_call(nb), ProponerMedicion(values=[ev(nb.rend, "75", 75)])]
+    saved = say(authed, nb, AC1)["saved"]
+    body = say(authed, nb, "rendimiento 75")
+    card = body["proposal"]
+    assert body["saved"] is None and card["target_trial_id"] == saved["trial_id"]
+    assert (card["values"][2]["previous"], card["values"][2]["value"]) == (74, 75)
+
+
+def test_a_slip_in_the_trial_word_still_reads_the_trial(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script.append(ProponerMedicion(trial_number=5, values=[ev(nb.temp, "65", 65)]))
+    body = say(authed, nb, "esnayo 5: temperatura 65")
+    assert body["proposal"]["trial_number"] == 5 and values(body) == [65, None, None]

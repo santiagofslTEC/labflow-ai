@@ -8,13 +8,13 @@ no lock stays open.
 
 from collections.abc import Sequence
 
-from sqlalchemy import tuple_, update
+from sqlalchemy import delete, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlmodel import Session, col, select
 
 from app.models import Experiment, Measurement, Proposal, ProposalValue, Trial, Turn, Variable
 from app.models.columns import utc_now
-from app.models.enums import Grounding, ProposalStatus
+from app.models.enums import Grounding, ProposalStatus, Role
 from app.services.proposal_rules import (
     CreateTrial,
     UseTrial,
@@ -34,12 +34,15 @@ from app.services.results import (
     ExperimentNotFound,
     InvalidTrialNumber,
     InvalidValue,
+    NotAutoSaved,
     PendingError,
     ProposalNotFound,
     SetTrialError,
     SetValueError,
     StartError,
     TrialExists,
+    UndoError,
+    UndoExpired,
     VariableNotInExperiment,
 )
 
@@ -228,9 +231,12 @@ def check_value(
     return row
 
 
-def confirm(session: Session, proposal_id: int) -> Confirmed | ConfirmError:
+def confirm(
+    session: Session, proposal_id: int, saved_by: str | None = None, auto: bool = False
+) -> Confirmed | ConfirmError:
     """Save the card: one trial and one measurement per value, in one transaction (AC-3).
-    A repeat confirm returns the same trial and writes nothing (AC-4)."""
+    A repeat confirm returns the same trial and writes nothing (AC-4). Each row records
+    `saved_by` and whether LabFlow saved it with no tap (spec 0006, AC-30)."""
     proposal = _lock_proposal(session, proposal_id)
     if proposal is None:
         session.rollback()
@@ -253,7 +259,7 @@ def confirm(session: Session, proposal_id: int) -> Confirmed | ConfirmError:
             return plan
 
     now = utc_now()
-    _upsert_measurements(session, trial_id, proposal_id, values)
+    _upsert_measurements(session, trial_id, proposal_id, values, saved_by, auto)
     proposal.status = ProposalStatus.CONFIRMED
     proposal.confirmed_trial_id = trial_id
     proposal.resolved_at = now
@@ -261,6 +267,52 @@ def confirm(session: Session, proposal_id: int) -> Confirmed | ConfirmError:
     session.add(proposal)
     session.commit()
     return Confirmed(trial_id=trial_id, created_trial=created_trial)
+
+
+def undo_auto_save(session: Session, proposal_id: int) -> Proposal | UndoError:
+    """Take back a save LabFlow made with no tap (spec 0006, AC-29): delete the rows it
+    wrote, the trial too when nothing else is left in it, and put the same card back to
+    pending. Only while no user turn came after the save. An auto save never replaces a
+    value, so deleting its rows restores the trial as it was."""
+    proposal = _lock_proposal(session, proposal_id)
+    if proposal is None:
+        session.rollback()
+        return ProposalNotFound()
+    trial_id = proposal.confirmed_trial_id
+    auto_rows: Sequence[Measurement] = (
+        session.exec(
+            select(Measurement)
+            .where(Measurement.proposal_id == proposal_id)
+            .where(col(Measurement.auto_saved))
+        ).all()
+        if proposal.status == ProposalStatus.CONFIRMED and trial_id is not None
+        else []
+    )
+    if not auto_rows or proposal.resolved_at is None:
+        session.rollback()
+        return NotAutoSaved()
+    later = session.exec(
+        select(col(Turn.id))
+        .where(Turn.experiment_id == proposal.experiment_id)
+        .where(Turn.role == Role.USER)
+        .where(col(Turn.created_at) > proposal.resolved_at)
+    ).first()
+    if later is not None or get_pending(session, proposal.experiment_id) is not None:
+        session.rollback()
+        return UndoExpired()
+
+    session.exec(delete(Measurement).where(col(Measurement.proposal_id) == proposal_id))
+    left = session.exec(select(col(Measurement.id)).where(Measurement.trial_id == trial_id)).first()
+    if left is None:
+        session.exec(delete(Trial).where(col(Trial.id) == trial_id))
+    proposal.status = ProposalStatus.PENDING
+    proposal.confirmed_trial_id = None
+    proposal.resolved_at = None
+    proposal.updated_at = utc_now()
+    session.add(proposal)
+    session.commit()
+    session.refresh(proposal)
+    return proposal
 
 
 def discard(session: Session, proposal_id: int) -> Proposal | PendingError:
@@ -320,7 +372,12 @@ def _trial_id_by_number(session: Session, experiment_id: int, number: int) -> in
 
 
 def _upsert_measurements(
-    session: Session, trial_id: int, proposal_id: int, values: Sequence[ProposalValue]
+    session: Session,
+    trial_id: int,
+    proposal_id: int,
+    values: Sequence[ProposalValue],
+    saved_by: str | None,
+    auto: bool,
 ) -> None:
     """One row per value. An existing row is updated, and stamped `edited_at`, only when
     its value, unit, or phrase really changed; `confirmed_at` is set only on insert."""
@@ -338,6 +395,8 @@ def _upsert_measurements(
                 "turn_id": v.turn_id,
                 "said_text": v.said_text,
                 "proposal_id": proposal_id,
+                "saved_by": saved_by,
+                "auto_saved": auto,
                 "confirmed_at": now,
             }
             for v in values
@@ -353,6 +412,8 @@ def _upsert_measurements(
         "turn_id",
         "said_text",
         "proposal_id",
+        "saved_by",
+        "auto_saved",
     )
     stmt = stmt.on_conflict_do_update(
         index_elements=["trial_id", "variable_id"],

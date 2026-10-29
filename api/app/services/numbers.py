@@ -90,6 +90,8 @@ _HUNDREDS: Mapping[str, int] = MappingProxyType(
 _DECIMAL_WORDS = frozenset({"coma", "punto"})
 _NEGATIVE_WORD = "menos"
 _TRIAL_WORDS = frozenset({"ensayo", "prueba", "corrida"})
+# Slips read as a trial word too (spec 0006, AC-32), besides one edit away from one.
+_TRIAL_SPELLINGS = frozenset({"ensallo", "enzayo", "ensaio"})
 _NUMBER_WORDS = frozenset({"numero", "no", "nro", "n"})  # "ensayo número 6"
 
 _DIGITS = re.compile(r"^-?(?:\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d+)?)$")
@@ -227,11 +229,35 @@ def _tokens(folded: str) -> list[_Token]:
     return [_Token(m.start(), m.end(), m.group()) for m in _TOKEN.finditer(folded)]
 
 
+def _one_edit(word: str, target: str) -> bool:
+    """One letter changed, added, or dropped, or two neighbors swapped ("esnayo")."""
+    if word == target or abs(len(word) - len(target)) > 1:
+        return word == target
+    if len(word) == len(target):
+        diff = [i for i, (a, b) in enumerate(zip(word, target, strict=True)) if a != b]
+        swapped = (
+            len(diff) == 2
+            and diff[1] == diff[0] + 1
+            and (word[diff[0]], word[diff[1]]) == (target[diff[1]], target[diff[0]])
+        )
+        return len(diff) == 1 or swapped
+    short, long = sorted((word, target), key=len)
+    return any(long[:i] + long[i + 1 :] == short for i in range(len(long)))
+
+
+def _is_trial_word(word: str) -> bool:
+    return (
+        word in _TRIAL_WORDS
+        or word in _TRIAL_SPELLINGS
+        or (len(word) >= 5 and any(_one_edit(word, t) for t in _TRIAL_WORDS))
+    )
+
+
 def _follows_trial_word(tokens: Sequence[_Token], index: int) -> bool:
     before = [t.text for t in tokens[max(0, index - 2) : index]]
-    if before and before[-1] in _TRIAL_WORDS:
+    if before and _is_trial_word(before[-1]):
         return True
-    return len(before) == 2 and before[0] in _TRIAL_WORDS and before[1] in _NUMBER_WORDS
+    return len(before) == 2 and _is_trial_word(before[0]) and before[1] in _NUMBER_WORDS
 
 
 def _could_start(token: _Token) -> bool:

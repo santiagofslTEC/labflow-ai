@@ -6,10 +6,10 @@ from collections.abc import Mapping, Sequence
 from sqlmodel import Session, col, select
 
 from app.models import Experiment, Measurement, Proposal, ProposalValue, Trial, Turn, Variable
-from app.models.enums import Role, Source
+from app.models.enums import ProposalStatus, Role, Source
 from app.repositories import proposals, turns
-from app.services.card_state import CardInfo, ValueInfo, VariableInfo
-from app.services.proposal_view import ProposalView, proposal_view
+from app.services.card_state import CardInfo, RememberedTrial, ValueInfo, VariableInfo
+from app.services.proposal_view import ProposalView, SavedValue, proposal_view
 from app.services.replies import Reason
 from app.services.results import ExperimentNotFound
 from app.services.turn_plan import LastQuestion, TurnContext
@@ -101,6 +101,45 @@ def _last_question(rows: Sequence[Turn]) -> LastQuestion | None:
     )
 
 
+def _remembered(session: Session, experiment_id: int) -> RememberedTrial | None:
+    """The trial of the notebook's latest confirmed or auto saved proposal (AC-31)."""
+    trial_id = session.exec(
+        select(col(Proposal.confirmed_trial_id))
+        .where(Proposal.experiment_id == experiment_id)
+        .where(Proposal.status == ProposalStatus.CONFIRMED)
+        .where(col(Proposal.confirmed_trial_id).is_not(None))
+        .order_by(col(Proposal.resolved_at).desc(), col(Proposal.id).desc())
+    ).first()
+    trial = session.get(Trial, trial_id) if trial_id is not None else None
+    if trial is None or trial.id is None:
+        return None
+    filled = session.exec(
+        select(col(Measurement.variable_id)).where(Measurement.trial_id == trial.id)
+    ).all()
+    return RememberedTrial(trial_id=trial.id, number=trial.number, filled=frozenset(filled))
+
+
+def trial_number_of(session: Session, trial_id: int) -> int:
+    trial = session.get(Trial, trial_id)
+    assert trial is not None  # read right after the confirm that wrote it
+    return trial.number
+
+
+def saved_values(session: Session, proposal_id: int) -> list[SavedValue]:
+    """The rows a proposal's confirm wrote, in variable position order."""
+    rows = session.exec(
+        select(Measurement, Variable)
+        .join(Variable, col(Variable.id) == col(Measurement.variable_id))
+        .where(Measurement.proposal_id == proposal_id)
+        .order_by(col(Variable.position), col(Variable.id))
+    ).all()
+    return [
+        SavedValue(variable_id=v.id, name=v.name, value=m.value, unit=v.unit)
+        for m, v in rows
+        if v.id is not None
+    ]
+
+
 def load_context(session: Session, experiment_id: int) -> TurnContext | ExperimentNotFound:
     """Everything the prompt and the planner see, read in one pass before the model call."""
     experiment = session.get(Experiment, experiment_id)
@@ -115,6 +154,7 @@ def load_context(session: Session, experiment_id: int) -> TurnContext | Experime
         last_turns=tuple((str(t.role), t.text) for t in recent),
         context=experiment.context,
         last_question=_last_question(recent),
+        remembered=_remembered(session, experiment_id),
     )
 
 

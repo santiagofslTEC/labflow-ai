@@ -22,16 +22,19 @@ import {
   useEditValue,
   usePendingProposal,
   useSendUtterance,
+  useUndo,
 } from "@/hooks/use-capture";
 import {
   cardState,
   keepsWaiting,
   releasesWaiting,
   type CardView,
+  type SavedTrial,
   type Turn,
 } from "@/lib/capture";
 
 import { copy, failureMessage } from "./copy";
+import { SavedNotice } from "./saved-notice";
 
 const TEXT_MAX = 500;
 
@@ -46,11 +49,12 @@ type Origin = "sentence" | "check" | "button";
 export type CaptureStageProps = {
   readonly experimentId: number;
   // Features 7 and 20 refresh the table and "Último" here.
-  readonly onSaved?: (saved: NonNullable<Turn["saved"]>) => void;
+  readonly onSaved?: (saved: SavedTrial) => void;
+  readonly onUndone?: () => void;
 };
 
 // The typed capture loop (spec 0006, AC-18): a text field above the confirm card.
-function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
+function CaptureStage({ experimentId, onSaved, onUndone }: CaptureStageProps) {
   const pending = usePendingProposal(experimentId);
   const send = useSendUtterance(experimentId);
   const edit = useEditValue(experimentId);
@@ -58,12 +62,15 @@ function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
   const choose = useChooseTrial(experimentId);
   const confirm = useConfirm(experimentId);
   const discard = useDiscard(experimentId);
+  const undo = useUndo(experimentId);
 
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState<Turn["reply"]>(null);
   const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [savedCard, setSavedCard] = useState<CardView | null>(null);
+  // AC-28: the last auto save, undoable until the next sentence is sent.
+  const [notice, setNotice] = useState<SavedTrial | null>(null);
   // AC-8: the sentence for another trial, sent again once the pending card is
   // saved or discarded. Browser only; nothing about it is stored.
   const waiting = useRef<string | null>(null);
@@ -75,7 +82,8 @@ function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
     check.isPending ||
     choose.isPending ||
     confirm.isPending ||
-    discard.isPending;
+    discard.isPending ||
+    undo.isPending;
   const card = pending.data ?? null;
 
   const handleTurn = (
@@ -87,7 +95,8 @@ function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
     setOverlay(null);
     setReply(turn.reply);
     if (turn.saved) {
-      if (before) setSavedCard(before);
+      if (turn.saved.auto) setNotice(turn.saved);
+      else if (before) setSavedCard(before);
       onSaved?.(turn.saved);
     }
     const held = waiting.current;
@@ -108,6 +117,7 @@ function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
     const sentence = text.trim();
     if (!sentence || (busy && !isResend)) return;
     setError(null);
+    setNotice(null); // the next sentence ends the undo window (AC-29)
     const before = card;
     send.mutate(sentence, {
       onSuccess: (turn) => {
@@ -137,6 +147,22 @@ function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
       onSuccess: (turn) => handleTurn(turn, "button", target),
       onError: (failure) =>
         setOverlay({ kind: "save_error", message: failureMessage(failure) }),
+    });
+  };
+
+  const doUndo = (target: SavedTrial) => {
+    if (busy) return;
+    setError(null);
+    undo.mutate(target.proposalId, {
+      onSuccess: (turn) => {
+        setNotice(null);
+        handleTurn(turn, "button", null);
+        onUndone?.();
+      },
+      onError: (failure) => {
+        setNotice(null);
+        setError(failureMessage(failure));
+      },
     });
   };
 
@@ -253,6 +279,13 @@ function CaptureStage({ experimentId, onSaved }: CaptureStageProps) {
             })
           }
           onSettled={noop}
+        />
+      ) : notice ? (
+        <SavedNotice
+          key={`notice-${notice.proposalId}`}
+          saved={notice}
+          undoing={undo.isPending}
+          onUndo={() => doUndo(notice)}
         />
       ) : reply ? (
         <p role="status" className="text-sm text-ink-muted">

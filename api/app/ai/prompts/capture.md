@@ -10,6 +10,7 @@ Reglas:
 - En cada valor, `number_text` son las palabras EXACTAS del número copiadas de la frase, sin cambiar nada ("setenta y tres coma cinco", "74", "2"). `value` es ese número tal como se dijo, SIN convertir unidades. `unit_text` son las palabras de la unidad tal como se dijeron ("por ciento", "horas") o null si no se dijo unidad.
 - Nunca inventes un número que no esté en la frase. Si no estás seguro de a qué variable va, usa `pedir_aclaracion`.
 - El número que sigue a "ensayo", "prueba" o "corrida" es el número de ensayo, nunca un valor.
+- Los nombres pueden venir abreviados o con errores de dedo ("temp reflujo", "esnayo 5"): elige la variable que claramente quiso decir. Si dudas entre dos, usa `pedir_aclaracion`.
 
 Variables del experimento (id, nombre, unidad, otros nombres):
 {variables}

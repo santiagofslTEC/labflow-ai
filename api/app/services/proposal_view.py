@@ -43,6 +43,15 @@ class ValueView(_View):
     checked: bool
 
 
+class SavedValue(_View):
+    """One value a save wrote, for the notice of an auto save (spec 0006, AC-28)."""
+
+    variable_id: int
+    name: str
+    value: float
+    unit: str | None
+
+
 class ProposalView(_View):
     id: int
     trial_number: int | None

@@ -74,11 +74,24 @@ class TrialExists(_Result):
     trial_id: int
 
 
+class NotAutoSaved(_Result):
+    """Only a save LabFlow made with no tap can be undone (spec 0006, AC-29)."""
+
+    code: Literal["not_auto_saved"] = "not_auto_saved"
+
+
+class UndoExpired(_Result):
+    """A sentence came after the auto save, so it can no longer be undone (AC-29)."""
+
+    code: Literal["undo_expired"] = "undo_expired"
+
+
 type StartError = ExperimentNotFound | InvalidTrialNumber
 type PendingError = ProposalNotFound | NotPending
 type SetTrialError = PendingError | TrialNotInExperiment | InvalidTrialNumber
 type SetValueError = PendingError | VariableNotInExperiment | InvalidTurn | InvalidValue
 type ConfirmError = PendingError | EmptyProposal | MissingTrialNumber | TrialExists
+type UndoError = ProposalNotFound | NotAutoSaved | UndoExpired
 
 
 class ExperimentSummary(_Result):
