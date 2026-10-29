@@ -122,6 +122,9 @@ function VariableRowFields({
   onRequiredChange,
   onRemove,
 }: VariableRowFieldsProps) {
+  // Where the proposed range came from (AC-24), tied to Mín and Máx.
+  const quote = row.proposedRange ?? null;
+  const quoteId = `variable-${row.key}-cita`;
   const text = (
     field: VariableField,
     label: string,
@@ -134,6 +137,11 @@ function VariableRowFields({
       value={row[field]}
       error={errors[fieldId.variable(row.key, field)]}
       onValue={(value) => onChange(row.key, field, value)}
+      describedBy={
+        quote !== null && (field === "min" || field === "max")
+          ? quoteId
+          : undefined
+      }
       {...props}
     />
   );
@@ -211,6 +219,16 @@ function VariableRowFields({
       >
         <Trash2Icon aria-hidden />
       </Button>
+
+      {quote !== null ? (
+        <p
+          id={quoteId}
+          className="col-span-full pt-1 text-xs text-ink-muted sm:pt-2"
+        >
+          <span className="sr-only">Rango tomado de tus instrucciones: </span>«
+          {quote.quote}»{quote.page !== null ? ` · p. ${quote.page}` : ""}
+        </p>
+      ) : null}
     </li>
   );
 }
@@ -221,6 +239,7 @@ type RowTextFieldProps = Omit<React.ComponentProps<"input">, "value"> & {
   readonly number: number;
   readonly value: string;
   readonly error: string | undefined;
+  readonly describedBy?: string | undefined;
   readonly onValue: (value: string) => void;
 };
 
@@ -232,10 +251,15 @@ function RowTextField({
   number,
   value,
   error,
+  describedBy,
   onValue,
   className,
   ...props
 }: RowTextFieldProps) {
+  const described =
+    [error ? errorId(id) : null, describedBy ?? null]
+      .filter((part) => part !== null)
+      .join(" ") || undefined;
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <label htmlFor={id} className="text-xs text-ink-muted sm:sr-only">
@@ -247,7 +271,7 @@ function RowTextField({
         value={value}
         onChange={(event) => onValue(event.target.value)}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId(id) : undefined}
+        aria-describedby={described}
         className={className}
         {...props}
       />

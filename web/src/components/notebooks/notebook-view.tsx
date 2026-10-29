@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExperiment, useExperiments } from "@/hooks/use-experiments";
 import { useNow } from "@/hooks/use-now";
+import { protocolLabel } from "@/lib/instructions";
 import { formatShortDate } from "@/lib/relative-time";
 
 import { downloadNotebookCsv, NotebookInspector } from "./notebook-inspector";
@@ -117,6 +118,19 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                     {experiment.goal}
                   </p>
                 ) : null}
+                {experiment.context ? (
+                  <section
+                    aria-labelledby="contexto-titulo"
+                    className="flex flex-col gap-1 border-l-2 border-line pl-3"
+                  >
+                    <h2 id="contexto-titulo" className="text-xs text-ink-muted">
+                      Contexto
+                    </h2>
+                    <p className="text-sm whitespace-pre-line text-ink">
+                      {experiment.context}
+                    </p>
+                  </section>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={closed ? "neutral" : "saved"}>
                     {closed ? "Cerrado" : "Abierto"}
@@ -126,6 +140,9 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                     <time dateTime={experiment.created_at}>
                       {formatShortDate(created, now)}
                     </time>
+                    {experiment.protocol
+                      ? ` · ${protocolLabel(experiment.protocol)}`
+                      : null}
                   </p>
                 </div>
               </div>

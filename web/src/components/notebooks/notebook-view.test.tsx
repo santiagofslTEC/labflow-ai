@@ -141,3 +141,40 @@ describe("Typed capture in the notebook (spec 0006)", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("NotebookView instructions (spec 0005, AC-31)", () => {
+  it("shows the context and the stored instructions", async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      data: {
+        ...sampleDetail,
+        context: "Se mide el rendimiento a 3 temperaturas.",
+        protocol: {
+          source: "pdf",
+          filename: "practica.pdf",
+          page_count: 12,
+          read_from_page: null,
+          read_to_page: null,
+        },
+      },
+    });
+    const { container } = renderWithQuery(<NotebookView rawId="7" />);
+
+    const context = await screen.findByRole("region", { name: "Contexto" });
+    expect(context).toHaveTextContent(
+      "Se mide el rendimiento a 3 temperaturas.",
+    );
+    expect(screen.getByText(/Creado por ana/)).toHaveTextContent(
+      "Creado por ana · 28 oct · Instrucciones: practica.pdf (12 págs)",
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows neither for a notebook made by hand", async () => {
+    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    renderWithQuery(<NotebookView rawId="7" />);
+    await screen.findByRole("heading", { level: 1, name: sampleDetail.title });
+    expect(screen.queryByRole("region", { name: "Contexto" })).toBeNull();
+    expect(screen.queryByText(/Instrucciones:/)).toBeNull();
+  });
+});

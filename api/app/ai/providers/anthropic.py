@@ -21,11 +21,16 @@ from app.ai.tools import (
 )
 from app.services.turn_plan import TurnContext
 
+# Keys strict tools refuse; code enforces them after parsing instead.
+_UNSUPPORTED = frozenset({"maxItems"})
+
 
 def _strict(schema: Mapping[str, object]) -> dict[str, object]:
     """Strict tools need every object closed and every property listed as required."""
     out: dict[str, object] = {}
     for key, value in schema.items():
+        if key in _UNSUPPORTED:
+            continue
         if isinstance(value, Mapping):
             out[key] = _strict(value)  # pyright: ignore[reportUnknownArgumentType]
         elif isinstance(value, list):

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { InstructionsProposal } from "@/api/experiments";
+
 import {
   EXAMPLE,
   LIMITS,
@@ -35,6 +37,7 @@ describe("limits (shared with the API)", () => {
     expect(LIMITS).toEqual({
       title: 200,
       goal: 1000,
+      context: 600,
       name: 80,
       unit: 20,
       variables: 12,
@@ -204,6 +207,7 @@ describe("toCreateBody", () => {
     expect(toCreateBody(state)).toEqual({
       title: "Cuaderno",
       goal: null,
+      context: null,
       variables: [
         {
           name: "pH",
@@ -224,5 +228,112 @@ describe("toCreateBody", () => {
       "Rendimiento",
     ]);
     expect(body.variables[1]).toMatchObject({ min_value: 0, max_value: 180 });
+  });
+});
+
+describe("from instructions (AC-23, AC-24, AC-26, AC-27)", () => {
+  const proposal = (
+    variables: InstructionsProposal["variables"],
+  ): InstructionsProposal => ({
+    kind: "proposal",
+    title: "Práctica 3",
+    goal: null,
+    context: "Se mide el rendimiento.",
+    variables,
+    found_count: variables.length,
+    page_count: 1,
+    read_from_page: null,
+    read_to_page: null,
+  });
+  const temperatura = {
+    name: "Temperatura",
+    unit: "°C",
+    min_value: 40.5,
+    max_value: 10000,
+    required: true,
+    range_quote: "entre 40,5 y 10000 °C",
+    range_page: 2,
+  };
+  const attached = { kind: "text", text: "instrucciones" } as const;
+  const filled = (variables: InstructionsProposal["variables"]) =>
+    apply(
+      { type: "set_title", value: "Lo que escribí" },
+      { type: "fill_from_proposal", proposal: proposal(variables), attached },
+    );
+
+  it("replaces every value and keeps the quote of a kept range", () => {
+    const state = filled([
+      temperatura,
+      {
+        ...temperatura,
+        name: "Rendimiento",
+        unit: "%",
+        min_value: null,
+        max_value: null,
+        range_quote: null,
+        range_page: null,
+      },
+    ]);
+    expect(state.title).toBe("Práctica 3");
+    expect(state.context).toBe("Se mide el rendimiento.");
+    expect(state.instructions).toEqual(attached);
+    const [first, second] = state.variables;
+    expect(first).toMatchObject({
+      name: "Temperatura",
+      unit: "°C",
+      min: "40,5",
+      max: "10000",
+      proposedRange: { quote: "entre 40,5 y 10000 °C", page: 2 },
+    });
+    expect(second).toMatchObject({ min: "", max: "", proposedRange: null });
+    expect(toCreateBody(state).variables[0]).toMatchObject({
+      min_value: 40.5,
+      max_value: 10000,
+    });
+  });
+
+  it("keeps one empty row when nothing was proposed", () => {
+    const state = filled([]);
+    expect(state.variables).toHaveLength(1);
+    expect(state.variables[0]?.name).toBe("");
+  });
+
+  it("stops at 12 rows", () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({
+      ...temperatura,
+      name: `V${i}`,
+    }));
+    expect(filled(many).variables).toHaveLength(12);
+  });
+
+  it("forgets the quote for good once a bound is edited", () => {
+    const state = filled([temperatura]);
+    const key = state.variables[0]?.key ?? -1;
+    const edited = formReducer(state, setRow(key, "max", "90"));
+    expect(edited.variables[0]?.proposedRange).toBe(null);
+    const back = formReducer(edited, setRow(key, "max", "10000"));
+    expect(back.variables[0]?.proposedRange).toBe(null);
+  });
+
+  it("counts attached instructions or a context as a change", () => {
+    expect(isPristine(apply({ type: "attach_instructions", attached }))).toBe(
+      false,
+    );
+    expect(isPristine(apply({ type: "set_context", value: "x" }))).toBe(false);
+    expect(
+      isPristine(
+        apply(
+          { type: "attach_instructions", attached },
+          { type: "detach_instructions" },
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("blocks a context over 600", () => {
+    const state = valid({ type: "set_context", value: "x".repeat(601) });
+    expect(validateExperimentForm(state)[fieldId.context]).toBe(
+      MESSAGES.tooLong(600),
+    );
   });
 });

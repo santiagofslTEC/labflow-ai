@@ -256,6 +256,7 @@ def test_the_setup_tool_is_strict_and_closed_for_claude() -> None:
     schema = tool["input_schema"]
     assert tool.get("strict") is True
     assert schema.get("additionalProperties") is False
+    assert "maxItems" not in str(schema)  # strict tools refuse it; code cuts to 30
     assert set(schema.get("required", [])) == {
         "title",
         "goal",
