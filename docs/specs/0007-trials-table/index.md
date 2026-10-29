@@ -22,6 +22,7 @@ The notebook's side panel (the "Inspector activo") already draws a trials table,
 - **AC-5**: While the trials load, the table shows three skeleton rows and the recent list one skeleton line; a failed load shows "No pudimos cargar los ensayos" with a Reintentar button (secondary), and the rest of the panel still works.
 - **AC-6**: "Exportar CSV" downloads `{slug}.csv` with the header row (`Ensayo`, then `{name} ({unit})` or `{name}`, as today) and one row per trial in table order: the trial number, then each value with a dot decimal and no thousands separator (`73.5`, `1200`), or an empty field when the trial has no value. Fields are quoted only when needed (RFC 4180, today's `csvField`), the file starts with a UTF-8 BOM so Excel keeps the accents, and the rows are exactly the ones the table shows. While the trials have not loaded, the action is `aria-disabled` with the label "Exportar CSV (cargando…)".
 - **AC-7**: vitest-axe reports no violations on the panel with trials, with none, while loading, and on the load error.
+- **AC-8** (2026-10-29): "Tabla completa" in Acciones rápidas opens a dialog instead of jumping to the panel's table: the title "Ensayos · {notebook title}", "{n} ensayos guardados" (or "Cargando ensayos…"), the same table with the same rows and states as the panel, wide enough for every column (it scrolls inside when the rows do not fit the screen), and an "Exportar CSV" button with the same file as AC-6. Escape or Cerrar closes it and focus returns to "Tabla completa". vitest-axe reports no violations with it open.
 
 ## Decision
 
@@ -52,6 +53,7 @@ The notebook's side panel (the "Inspector activo") already draws a trials table,
 - `web/src/api/experiments.ts`: `getTrials(experimentId)` on the same result union as the other notebook reads, and `experimentKeys.trials(id)` = `["experiments", id, "trials"]`, under `experimentKeys.all`, so `onSaved`'s `invalidateQueries({ queryKey: experimentKeys.all })` refreshes it (AC-4).
 - `web/src/hooks/use-experiments.ts`: `useTrials(experimentId)`.
 - `web/src/lib/trials.ts` (pure): `tableRows(variables, trials)` (values in position order, `null` for a missing one), `recentLines(variables, recent)`, and `csvRows(rows)` with `csvNumber` (dot decimals) feeding the existing `trialsCsv`.
+- `TrialsTable` (inside `notebook-inspector.tsx`) renders the table and its states; the panel and the "Tabla completa" dialog both use it, so they never disagree (AC-8).
 - `NotebookView` reads `useTrials` and passes a `TrialsPanel` (`loading`, `error` with `onRetry`, or `ready`) to `NotebookInspector`, which stays presentational. Both export buttons ("Exportar datos" in the header and "Exportar CSV" in the panel) download the same rows and are `aria-disabled` until the trials load.
 
 **Value sourcing**:

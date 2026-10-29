@@ -15,6 +15,15 @@ import type * as React from "react";
 import type { ExperimentDetail, TrialsView } from "@/api/experiments";
 import { PanelHeading } from "@/components/app-shell/panel-heading";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -167,78 +176,7 @@ function NotebookInspector({
         className="flex scroll-mt-20 flex-col gap-2"
       >
         <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>#</TableHead>
-                {variables.map((variable) => (
-                  <TableHead key={variable.id} className="text-right">
-                    {variable.name}
-                    {variable.unit ? (
-                      <span className="font-mono"> ({variable.unit})</span>
-                    ) : null}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            {trials.kind === "loading" ? (
-              <TableBody aria-busy="true">
-                {[0, 1, 2].map((i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={variables.length + 1}>
-                      <Skeleton className="h-5 w-full" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            ) : rows.length > 0 ? (
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-ink tabular-nums">
-                      {formatNumber(row.number)}
-                    </TableCell>
-                    {row.values.map((value, i) => (
-                      <TableCell
-                        key={variables[i]?.id ?? i}
-                        className="text-right font-mono text-ink tabular-nums"
-                      >
-                        {value === null ? (
-                          <>
-                            <span aria-hidden className="text-ink-muted">
-                              —
-                            </span>
-                            <span className="sr-only">
-                              {variables[i]?.name} sin valor
-                            </span>
-                          </>
-                        ) : (
-                          formatQuantity(value, null)
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            ) : null}
-          </Table>
-        </div>
-        {trials.kind === "error" ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-2">
-            <p role="alert" className="text-sm text-ink">
-              No pudimos cargar los ensayos
-            </p>
-            <Button variant="secondary" onClick={trials.onRetry}>
-              Reintentar
-            </Button>
-          </div>
-        ) : trials.kind === "ready" && rows.length === 0 ? (
-          <p className="px-1 py-3 text-sm text-ink-muted">
-            <span className="font-medium text-ink">Aún no hay ensayos</span>.
-            Cada medición que confirmes será una fila.
-          </p>
-        ) : null}
+        <TrialsTable variables={variables} rows={rows} trials={trials} />
       </section>
 
       <section
@@ -288,11 +226,41 @@ function NotebookInspector({
         </h3>
         <ul className="flex flex-col gap-1.5">
           <li>
-            <QuickAction
-              href="#tabla"
-              icon={TableIcon}
-              label="Tabla completa"
-            />
+            <Dialog>
+              <DialogTrigger className={quickActionClass}>
+                <QuickActionContent icon={TableIcon} label="Tabla completa" />
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-5xl">
+                <DialogHeader>
+                  <DialogTitle>Ensayos · {experiment.title}</DialogTitle>
+                  <DialogDescription>
+                    {trials.kind === "ready"
+                      ? `${formatNumber(rows.length)} ${rows.length === 1 ? "ensayo guardado" : "ensayos guardados"}`
+                      : "Cargando ensayos…"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+                  <TrialsTable
+                    variables={variables}
+                    rows={rows}
+                    trials={trials}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="secondary"
+                    aria-disabled={trials.kind !== "ready" || undefined}
+                    onClick={() => {
+                      if (trials.kind === "ready")
+                        downloadNotebookCsv(experiment, rows);
+                    }}
+                  >
+                    <DownloadIcon aria-hidden />
+                    Exportar CSV
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </li>
           <li>
             <QuickAction
@@ -312,6 +280,95 @@ function NotebookInspector({
         </ul>
       </section>
     </aside>
+  );
+}
+
+// The trials table and its states, shared by the panel and the "Tabla
+// completa" dialog so both always show the same rows (spec 0007, AC-2, AC-8).
+function TrialsTable({
+  variables,
+  rows,
+  trials,
+}: {
+  readonly variables: ExperimentDetail["variables"];
+  readonly rows: readonly TrialTableRow[];
+  readonly trials: TrialsPanel;
+}) {
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              {variables.map((variable) => (
+                <TableHead key={variable.id} className="text-right">
+                  {variable.name}
+                  {variable.unit ? (
+                    <span className="font-mono"> ({variable.unit})</span>
+                  ) : null}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          {trials.kind === "loading" ? (
+            <TableBody aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={variables.length + 1}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          ) : rows.length > 0 ? (
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-mono text-ink tabular-nums">
+                    {formatNumber(row.number)}
+                  </TableCell>
+                  {row.values.map((value, i) => (
+                    <TableCell
+                      key={variables[i]?.id ?? i}
+                      className="text-right font-mono text-ink tabular-nums"
+                    >
+                      {value === null ? (
+                        <>
+                          <span aria-hidden className="text-ink-muted">
+                            —
+                          </span>
+                          <span className="sr-only">
+                            {variables[i]?.name} sin valor
+                          </span>
+                        </>
+                      ) : (
+                        formatQuantity(value, null)
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          ) : null}
+        </Table>
+      </div>
+      {trials.kind === "error" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-2">
+          <p role="alert" className="text-sm text-ink">
+            No pudimos cargar los ensayos
+          </p>
+          <Button variant="secondary" onClick={trials.onRetry}>
+            Reintentar
+          </Button>
+        </div>
+      ) : trials.kind === "ready" && rows.length === 0 ? (
+        <p className="px-1 py-3 text-sm text-ink-muted">
+          <span className="font-medium text-ink">Aún no hay ensayos</span>. Cada
+          medición que confirmes será una fila.
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -341,6 +398,22 @@ export const exportLabel = (trials: TrialsPanel): string =>
 const quickActionClass =
   "flex h-11 w-full items-center gap-3 rounded-control border border-line bg-surface px-3 text-left text-sm text-ink shadow-control focus-ring transition-colors hover:bg-sunken";
 
+function QuickActionContent({
+  icon: Icon,
+  label,
+}: {
+  readonly icon: LucideIcon;
+  readonly label: string;
+}) {
+  return (
+    <>
+      <Icon aria-hidden className="size-4 shrink-0 text-brand" />
+      <span className="flex-1">{label}</span>
+      <ChevronRightIcon aria-hidden className="size-4 text-ink-muted" />
+    </>
+  );
+}
+
 function QuickAction({
   icon: Icon,
   label,
@@ -354,13 +427,7 @@ function QuickAction({
   readonly onClick?: () => void;
   readonly disabled?: boolean;
 }) {
-  const content = (
-    <>
-      <Icon aria-hidden className="size-4 shrink-0 text-brand" />
-      <span className="flex-1">{label}</span>
-      <ChevronRightIcon aria-hidden className="size-4 text-ink-muted" />
-    </>
-  );
+  const content = <QuickActionContent icon={Icon} label={label} />;
   return href ? (
     <a href={href} className={quickActionClass}>
       {content}

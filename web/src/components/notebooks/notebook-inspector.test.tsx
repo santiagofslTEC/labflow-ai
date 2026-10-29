@@ -110,9 +110,6 @@ describe("NotebookInspector", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: "Tabla completa" }),
-    ).toHaveAttribute("href", "#tabla");
-    expect(
       screen.getByRole("link", { name: "Revisar variables" }),
     ).toHaveAttribute("href", "#lista-variables");
 
@@ -197,5 +194,36 @@ describe("NotebookInspector trials (spec 0007)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(onRetry).toHaveBeenCalledOnce();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("opens the full table in a dialog (spec 0007, AC-8)", async () => {
+    const user = userEvent.setup();
+    const { baseElement } = render(
+      <NotebookInspector
+        experiment={sampleDetail}
+        trialCount={2}
+        trials={READY}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Tabla completa" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: `Ensayos · ${sampleDetail.title}`,
+    });
+    expect(within(dialog).getByText("2 ensayos guardados")).toBeInTheDocument();
+    const rows = within(dialog).getAllByRole("row").slice(1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "165,520—pH sin valor",
+      "370—Duración sin valor7,25",
+    ]);
+    expect(
+      within(dialog).getByRole("button", { name: "Exportar CSV" }),
+    ).toBeEnabled();
+    expect(await axe(baseElement)).toHaveNoViolations();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Tabla completa" }),
+    ).toHaveFocus();
   });
 });
