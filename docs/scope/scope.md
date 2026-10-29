@@ -20,7 +20,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 5 | Experiments: create and list | Release 1 | in-progress |
 | 6 | Text capture and confirm card | Release 1 | in-progress |
 | 7 | Trials table | Release 1 | planned |
-| 8 | Voice capture | Release 2 | planned |
+| 8 | Voice capture | Release 2 | in-progress |
 | 9 | Chart: X against Y | Release 3 | planned |
 | 10 | Questions about the data | Release 3 | planned |
 | 11 | Range and unit warnings | Release 4 | planned |
@@ -133,10 +133,17 @@ spec [0004](../specs/0004-push-to-talk-main-page/index.md) · code in `web/src/a
 
 ## Release 2: Hands free
 
-### 8. Voice capture · needs a decision
+### 8. Voice capture · in-progress
 A mic button with a visible state; your dictation in Spanish (numbers in words, "coma" decimals) becomes the same proposal as typed text, and you can correct by voice ("No, el rendimiento es setenta y tres"). Decides the voice integration (an all in one voice agent platform vs speech to text plus your own agent). No audio stored. RF-03, RF-06, RNF-01, RNF-02, RNF-09.
-**Done when:** a full dictation shows a proposal in 5 s or less; a spoken correction updates the card; if the voice service fails, typing still works (PA-02).
-- [ ] Design it (spec): `/architect voice capture`
+**Done when:** a full dictation shows a proposal in 5 s or less; a spoken correction updates the card; if the voice service fails, typing still works (PA-02); a clean reading saves with a spoken read back and "deshacer" works (spec 0007, AC-1 to AC-20).
+spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md) · code in `api/app/voice/`, `api/app/routers/voice.py`, `api/voice/agent.json`, `api/scripts/sync_agent.py`, `web/src/hooks/use-voice-session.ts`, `web/src/components/push-to-talk/`
+- [x] Design it (spec): `/architect voice capture`
+- [ ] Build it: `/develop voice capture`
+  - [ ] Proof and brain: dev agent through a tunnel, the Custom LLM endpoint, session tokens, replays and caps (AC-3, AC-4, AC-12 to AC-15, AC-17)
+  - [ ] Auto save and undo: the `undone` status, clean check, "deshacer", last save and undo routes (AC-5 to AC-7)
+  - [ ] Voice on the main page: session start and stop, live words, refetches, saved notice, hold to talk, failure states (AC-1, AC-2, AC-8 to AC-11, AC-20)
+  - [ ] Prod agent, phone and accessibility pass, notebook page dock (AC-16 to AC-19)
+- [ ] Verify it: `/check verify voice capture`
 
 ## Release 3: Understand your data
 

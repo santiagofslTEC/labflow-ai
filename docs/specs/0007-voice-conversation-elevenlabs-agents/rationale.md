@@ -1,0 +1,86 @@
+# 0007. Voice conversation: rationale
+
+## Context
+
+> ⚠️ Premise note: this is asked for tomorrow's demo, but it stands on three things that are not in place today: the typed main page (spec 0004 Slice A) is not built, the Railway deploy has failed since 2026-10-28 (missing `ACCESS_CODES` and `SESSION_SECRET`), and the ElevenLabs docs do not confirm that the Custom LLM receives the raw transcript. A full spoken conversation is a large feature to land in a day. The build plan therefore starts with a proof slice that can stop the design early, and the demo should keep typed capture ready as the backup. If time runs short, the notebook page (where typed capture already works) is a faster place to show voice than `/`.
+
+LabFlow is a voice first lab notebook: students dictate measurements in Spanish with their hands busy. Spec 0001 planned speech to text with ElevenLabs Scribe and a plain tool loop in FastAPI ("no LangGraph"). Spec 0006 built the capture turn: one sentence in, one checked tool call, code grounds every number in the user's words, and the card asks before saving. Spec 0004 designed the main page around a hold to talk mic with live words.
+
+The engineer now wants a full spoken back and forth (LabFlow answers out loud and asks follow ups), wants to learn ElevenLabs Agents and LangGraph, and wants the verification card to appear only when LabFlow is unsure (pitch feedback: confirming every reading leads to tapping yes without reading). Both hands free and hold to talk must work, because labs are noisy and hands are busy.
+
+The forces: the "no invented numbers" promise must survive (every spoken and saved number checked by code), latency must stay within 5 s from the end of speech (RNF-02), typing must keep working when voice fails (RNF-09), the API key stays on the server, no audio is stored, and the team is two students with a demo on Friday 2026-10-30 and a small budget.
+
+## Options considered
+
+### Option 1: ElevenLabs Agent, our server as Custom LLM
+
+The agent handles microphone audio, speech to text, turn detection, interruptions, and text to speech. Its "LLM" is our endpoint: ElevenLabs posts the conversation in OpenAI chat format and we stream back our reply (basis: spec 0006's turn service, built to take `source`).
+
+**Pros**:
+- Our code stays the only brain; the agent cannot speak a number we did not write.
+- Turn taking, interruptions, and natural speech come for free.
+- Teaches the Agents platform, which the engineer wants.
+
+**Cons**:
+- Needs a public HTTPS endpoint (tunnel in dev, Railway in prod) and a second agent for dev.
+- Whether the user message is the raw transcript is not documented; a proof is needed.
+- Per minute cost; vendor lock on the voice layer.
+
+### Option 2: ElevenLabs Agent with its own LLM and webhook tools
+
+The agent's built in LLM runs the conversation and calls our API as tools (`registrar_medicion`, `guardar`).
+
+**Pros**:
+- The most "agentic" setup and the least server code for conversation flow.
+- Works with the agent's richest features (system tools, knowledge base).
+
+**Cons**:
+- The agent's LLM fills tool arguments from its own reasoning, so the user's exact words are not guaranteed to reach our grounding; it can also say numbers in its own words before our checks run. This breaks the core promise.
+- Two models in the loop add latency and cost.
+
+### Option 3: Build it ourselves: Scribe realtime, our turn, ElevenLabs text to speech
+
+The browser streams audio to Scribe realtime with a single use token, sends the committed transcript to our existing route, and plays our reply through ElevenLabs text to speech.
+
+**Pros**:
+- Full control, works on localhost, matches spec 0001 and 0004's design.
+- Each piece is simple and well documented (`scribe_v2_realtime`, `useScribe`).
+
+**Cons**:
+- Turn taking, interruptions, and echo handling are ours to build; a real conversation is much more work.
+- Does not use the Agents platform the engineer wants to learn.
+
+## Rationale
+
+The deciding force is the "no invented numbers" promise. Option 2 lets a second model choose what reaches our checks and what gets said, which reopens exactly the failure the product exists to prevent. Option 3 keeps control but makes the team build conversation mechanics (turns, barge in, playback) the week of the demo. Option 1 splits the work at the right seam: ElevenLabs does what it is best at (hearing and speaking Spanish, taking turns), and our server keeps every decision about numbers. Spec 0006's turn service already takes `source`, so the voice path is a thin adapter.
+
+The engineer chose "save clean readings at once" for voice ahead of the spec 0006 change being designed in parallel. That is the right call for a spoken flow (reading every value back and waiting for "sí" doubles every turn), but it only stays safe because "clean" is defined by code (grounding and flags), never by the model's confidence, and because an undo exists. The undo is deliberately narrow (last save, 5 minutes counted from the confirm, never a correction, never chained) so it needs no soft delete and no change to how every read filters rows. Five minutes rather than two because the user hears the reply a few seconds after the save and may not react at once.
+
+**Build order.** An independent cross check suggested shipping Option 3 first for the demo (Scribe hold to talk into the existing typed route, with text to speech of our reply: deterministic turn endings, no public endpoint, no tunnel) and the Agent second. That is the lower risk path for a demo tomorrow. The engineer chose Agent first, to learn the platform and show a real conversation; that is a fair call as long as build task 1 runs first and is allowed to stop the plan, typing stays the demo backup, and Option 3 remains the documented fallback.
+
+**Cross check (2026-10-29).** A read only review on another model raised 22 gaps (turn finished signal, auto save inside the plan with a race check, undo locking and chaining, a code word match instead of a model tool for "deshacer", system tools, the first message, token transport, replay keys and in flight waits, session caps and revocation, testable restatements of the criteria) and 5 soundness notes. All were applied to `index.md`.
+
+LangGraph does not fit capture: spec 0001 kept code in charge of state and the save rule, and capture is one decision per sentence. It does fit a multi step "questions about the data" agent (feature 10), which is where the engineer wants it; that gets its own spec.
+
+## References
+
+**Project sources**:
+- Spec 0001 (stack: Scribe from FastAPI, plain tool loop with no LangGraph, key on the server)
+- Spec 0004 (main page, press rules, live words, failure states)
+- Spec 0006 (turn service with `source`, grounding, flags AC-23, reply reasons)
+- `AGENTS.md` (layering, typed results, one error shape)
+- `docs/.agent-cache/research/elevenlabs-agents-voice.md` (the landscape check for this spec)
+
+**Practices & standards**:
+- Code owns state, the model proposes (spec 0001)
+- Idempotent retries for side effects (the AC-14 replay cache)
+- Hard delete over soft delete for a narrow undo
+
+**Links** (checked during the design conversation):
+- Custom LLM: https://elevenlabs.io/docs/eleven-agents/customization/llm/custom-llm
+- Tools: https://elevenlabs.io/docs/eleven-agents/customization/tools
+- React SDK: https://elevenlabs.io/docs/eleven-agents/libraries/react
+- Authentication and signed URLs: https://elevenlabs.io/docs/eleven-agents/customization/authentication
+- Conversation flow (turn timeout, eagerness, max duration): https://elevenlabs.io/docs/eleven-agents/customization/conversation-flow
+- Pricing: https://elevenlabs.io/pricing/agents
+- Scribe realtime client streaming: https://elevenlabs.io/docs/eleven-api/guides/how-to/speech-to-text/realtime/client-side-streaming
