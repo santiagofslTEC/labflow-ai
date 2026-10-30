@@ -82,6 +82,71 @@ const setupSteps = () => {
   render();
 };
 
+// Problem cards: the toggle switches all three between today and with LabFlow, a tap flips one.
+// Once the cards are on screen they turn to the fix by themselves, unless the visitor chose first.
+const setupProblem = () => {
+  const cards = $$(".pcard");
+  const options = $$(".toggle-opt");
+  const thumb = $(".toggle-thumb");
+  let mode = "before";
+  let touched = false;
+
+  const setCard = (card, state) => {
+    card.dataset.state = state;
+    card.setAttribute("aria-pressed", String(state === "after"));
+    card.querySelector(".pt-before").setAttribute("aria-hidden", String(state === "after"));
+    card.querySelector(".pt-after").setAttribute("aria-hidden", String(state !== "after"));
+  };
+  const setToggle = (next) => {
+    mode = next;
+    options.forEach((option) => option.setAttribute("aria-pressed", String(option.dataset.mode === next)));
+    const active = options.find((option) => option.dataset.mode === next);
+    thumb.style.width = `${active.offsetWidth}px`;
+    thumb.style.transform = `translateX(${active.offsetLeft - 4}px)`;
+  };
+  const setAll = (next) => {
+    cards.forEach((card, i) => setTimeout(() => setCard(card, next), reducedMotion ? 0 : i * 110));
+    setToggle(next);
+  };
+
+  options.forEach((option) =>
+    option.addEventListener("click", () => {
+      touched = true;
+      setAll(option.dataset.mode);
+    }),
+  );
+  cards.forEach((card) => {
+    card.setAttribute("role", "button");
+    const flip = () => {
+      touched = true;
+      const next = card.dataset.state === "after" ? "before" : "after";
+      setCard(card, next);
+      if (cards.every((other) => other.dataset.state === next)) setToggle(next);
+    };
+    card.addEventListener("click", flip);
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      flip();
+    });
+    setCard(card, "before");
+  });
+
+  setToggle("before");
+  addEventListener("resize", () => setToggle(mode));
+  document.fonts?.ready.then(() => setToggle(mode));
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      setTimeout(() => !touched && setAll("after"), 3200);
+    },
+    { threshold: 0.6 },
+  );
+  observer.observe($("#pcards"));
+};
+
 const showFinalDemo = () => {
   $("#transcript").textContent = TRANSCRIPT;
   $(".demo-status").lastChild.textContent = "Guardado";
@@ -191,6 +256,7 @@ const runDemo = async ({ animate }) => {
 
 setupNav();
 setupSteps();
+setupProblem();
 
 if (reducedMotion) {
   showFinalDemo();

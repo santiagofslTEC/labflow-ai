@@ -139,42 +139,126 @@
         </div>
       </section>
 
-      <!-- Problem -->
+      <!-- Problem: three cards that switch between today and with LabFlow -->
       <section class="section" id="problema">
-        <div class="wrap split">
-          <div class="reveal">
-            <p class="eyebrow">El problema</p>
-            <h2>Medir y anotar compiten por las mismas manos.</h2>
-            <p class="body">
-              En una práctica tienes guantes puestos, un reactivo en la mano o un equipo que vigilar.
-              Anotar un valor significa detenerte o confiar en la memoria. Los datos terminan
-              repartidos entre cuadernos, hojas sueltas y celulares, y después hay que pasarlos a una
-              hoja de cálculo.
-            </p>
+        <div class="wrap">
+          <div class="problem-head">
+            <div class="reveal">
+              <p class="eyebrow">El problema</p>
+              <h2>Medir y anotar compiten por las mismas manos.</h2>
+              <p class="body">
+                Guantes puestos, un reactivo en la mano, un equipo que vigilar. Anotar significa
+                detenerte o confiar en la memoria, y después pasar todo a una hoja de cálculo.
+              </p>
+            </div>
+            <div class="toggle reveal" role="group" aria-label="Comparar">
+              <span class="toggle-thumb" aria-hidden="true"></span>
+              <button type="button" class="toggle-opt" data-mode="before" aria-pressed="true">Hoy</button>
+              <button type="button" class="toggle-opt" data-mode="after" aria-pressed="false">Con LabFlow</button>
+            </div>
           </div>
-          <ol class="problems">
-            <li class="reveal">
-              <span class="mono big">46 → 64</span>
-              <div>
-                <h3>Errores al transcribir</h3>
-                <p>Un número que se copia mal al pasar del cuaderno a Excel, y nadie lo nota hasta el informe.</p>
+
+          <div class="pcards reveal" id="pcards">
+            <article class="pcard" tabindex="0">
+              <div class="pcard-visual" aria-hidden="true">
+                <div class="pv pv-before pv-row">
+                  <div class="scrap"><span class="scrap-label">Cuaderno</span><span class="hand">46</span></div>
+                  <svg class="pv-arrow" viewBox="0 0 40 12"><path d="M2 6h34M31 2l5 4-5 4" /></svg>
+                  <div class="cell"><span class="cell-label">Excel</span><span class="swap"><span class="ok">46</span><span class="bad">64</span></span></div>
+                </div>
+                <div class="pv pv-after">
+                  <div class="said-chip"><span class="muted">“cuarenta y seis”</span><span class="mono">46 %</span></div>
+                  <span class="match">
+                    <svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg>
+                    Coincide con lo que dijiste
+                  </span>
+                </div>
               </div>
-            </li>
-            <li class="reveal">
-              <span class="mono big">— °C</span>
-              <div>
-                <h3>Datos incompletos</h3>
-                <p>La unidad o la variable que nadie anotó, descubierta cuando el experimento ya terminó.</p>
+              <div class="pcard-text">
+                <span class="tag tag-before">46 → 64</span>
+                <span class="tag tag-after">Sin transcribir</span>
+                <div class="pt-swap">
+                  <div class="pt-before">
+                    <h3>Errores al transcribir</h3>
+                    <p>Un número se copia mal al pasar del cuaderno a Excel, y nadie lo nota hasta el informe.</p>
+                  </div>
+                  <div class="pt-after">
+                    <h3>Cada número sale de tu voz</h3>
+                    <p>LabFlow guarda la frase original junto al valor y comprueba que el número aparezca en ella.</p>
+                  </div>
+                </div>
               </div>
-            </li>
-            <li class="reveal">
-              <span class="mono big">× 2</span>
-              <div>
-                <h3>Trabajo repetido</h3>
-                <p>Escribir todo en la hoja y otra vez en la computadora, para luego armar tablas y gráficas a mano.</p>
+            </article>
+
+            <article class="pcard" tabindex="0">
+              <div class="pcard-visual" aria-hidden="true">
+                <div class="pv pv-before">
+                  <div class="minirow">
+                    <span class="muted">Temperatura</span>
+                    <span class="mono">50</span>
+                    <span class="missing">?</span>
+                  </div>
+                  <p class="pv-note">¿Grados C, K o F? Nadie lo anotó.</p>
+                </div>
+                <div class="pv pv-after">
+                  <div class="minirow">
+                    <span class="muted">Temperatura</span>
+                    <span class="mono">50</span>
+                    <span class="unit mono">°C</span>
+                  </div>
+                  <p class="pv-note">La unidad viene de la variable del experimento.</p>
+                </div>
               </div>
-            </li>
-          </ol>
+              <div class="pcard-text">
+                <span class="tag tag-before">— °C</span>
+                <span class="tag tag-after">Unidades claras</span>
+                <div class="pt-swap">
+                  <div class="pt-before">
+                    <h3>Datos incompletos</h3>
+                    <p>La unidad o la variable que nadie anotó aparece cuando el experimento ya terminó.</p>
+                  </div>
+                  <div class="pt-after">
+                    <h3>Cada lectura con su unidad</h3>
+                    <p>Defines las variables una vez al inicio y LabFlow las aplica a todo lo que dictas.</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="pcard" tabindex="0">
+              <div class="pcard-visual" aria-hidden="true">
+                <div class="pv pv-before">
+                  <div class="sheets">
+                    <div class="mini-sheet"><span class="scrap-label">Cuaderno</span><i></i><i></i><i></i></div>
+                    <div class="mini-sheet mini-sheet-copy"><span class="scrap-label">Excel</span><i></i><i></i><i></i></div>
+                  </div>
+                  <span class="times mono">× 2</span>
+                </div>
+                <div class="pv pv-after">
+                  <div class="sheets">
+                    <div class="mini-sheet mini-sheet-one"><span class="scrap-label">Tabla</span><i></i><i></i><i></i></div>
+                    <svg class="mini-chart" viewBox="0 0 60 40"><polyline points="4,34 20,24 34,18 56,6" /><circle cx="56" cy="6" r="3" /></svg>
+                  </div>
+                  <span class="times times-ok mono">× 1</span>
+                </div>
+              </div>
+              <div class="pcard-text">
+                <span class="tag tag-before">× 2</span>
+                <span class="tag tag-after">Una sola vez</span>
+                <div class="pt-swap">
+                  <div class="pt-before">
+                    <h3>Trabajo repetido</h3>
+                    <p>Escribir todo en la hoja y otra vez en la computadora, y luego armar tablas y gráficas a mano.</p>
+                  </div>
+                  <div class="pt-after">
+                    <h3>Se registra una sola vez</h3>
+                    <p>Dictas en la mesa y de ahí salen la tabla, la gráfica y el CSV, sin pasar nada a mano.</p>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+          <p class="pcards-hint">Toca una tarjeta para ver cómo lo resuelve LabFlow.</p>
         </div>
       </section>
 
