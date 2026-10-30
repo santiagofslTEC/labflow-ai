@@ -66,6 +66,9 @@ test("a tall card stays inside the chat and the page does not scroll", async ({
   await page.goto("/cuadernos/7");
   const card = page.getByText("Ensayo 1", { exact: true }).last();
   await expect(card).toBeVisible();
+  // Let the card's entrance finish: it was the settled layout that stretched
+  // the page (sr-only labels escaping the chat's scroll box).
+  await page.waitForTimeout(1500);
 
   const layout = await page.evaluate(() => {
     const field = document.getElementById("capture-text");

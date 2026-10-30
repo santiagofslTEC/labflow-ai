@@ -174,7 +174,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   return (
     <div
       data-vista={vista}
-      className="group/nb flex flex-1 flex-col gap-6 lg:grid lg:h-[calc(100svh-5rem-2px)] lg:min-h-0 lg:flex-none lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0"
+      className="group/nb flex flex-1 flex-col gap-6 lg:relative lg:grid lg:h-[calc(100svh-5rem-2px)] lg:min-h-0 lg:flex-none lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0 lg:overflow-hidden"
     >
       <div className="flex min-w-0 flex-col gap-6 lg:min-h-0 lg:gap-0 lg:overflow-hidden lg:pr-6">
         <div className="flex shrink-0 flex-col gap-2 border-b border-line pb-4">
@@ -216,7 +216,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                     className="size-4 transition-transform group-open/ctx:rotate-180"
                   />
                 </summary>
-                <div className="mt-2 max-h-48 overflow-y-auto pr-2">
+                <div className="relative mt-2 max-h-48 overflow-y-auto pr-2">
                   {details("contexto-titulo")}
                 </div>
               </details>
@@ -239,7 +239,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                   <DialogTitle>{experiment.title}</DialogTitle>
                   <DialogDescription>Objetivo y contexto</DialogDescription>
                 </DialogHeader>
-                <div className="min-h-0 overflow-y-auto text-sm text-ink-muted">
+                <div className="relative min-h-0 overflow-y-auto text-sm text-ink-muted">
                   {details("contexto-titulo-mas")}
                 </div>
                 <DialogFooter>
@@ -294,8 +294,10 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                 scroll box, so a tall card scrolls with the thread instead of
                 pushing past the window. The text field sticks to its bottom.
                 On desktop only this box scrolls; the header, the mic, and the
-                side panel stay put. */}
-            <div className="flex flex-1 flex-col gap-4 lg:-mr-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-4">
+                side panel stay put. `relative` keeps the sr-only labels inside
+                (an absolute child of an unpositioned scroll box escapes it and
+                stretches the page). */}
+            <div className="relative flex flex-1 flex-col gap-4 lg:-mr-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-4">
               <ConversationThread experimentId={experiment.id} />
               <CaptureStage
                 experimentId={experiment.id}
