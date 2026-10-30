@@ -9,6 +9,7 @@ import {
   deleteVariables,
   experimentKeys,
   getExperiment,
+  getResults,
   getTrials,
   listExperiments,
   readInstructions,
@@ -61,6 +62,15 @@ export function useTrials(id: number) {
   return useQuery({
     queryKey: experimentKeys.trials(id),
     queryFn: () => unwrap(getTrials(id)),
+    retry: retryOnce,
+  });
+}
+
+// The results summary (spec 0009, AC-8), refreshed by the same invalidation.
+export function useResults(id: number) {
+  return useQuery({
+    queryKey: experimentKeys.results(id),
+    queryFn: () => unwrap(getResults(id)),
     retry: retryOnce,
   });
 }

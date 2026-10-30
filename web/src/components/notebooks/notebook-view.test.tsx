@@ -59,6 +59,9 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
       "Creado por ana · 28 oct",
     );
     expect(screen.getByText("Abierto")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Ver resultados" }),
+    ).toHaveAttribute("href", "/cuadernos/7/resultados");
     expect(screen.getByRole("link", { name: "Mis cuadernos" })).toHaveAttribute(
       "href",
       "/cuadernos",

@@ -339,6 +339,69 @@
         }
       }
     },
+    "/api/experiments/{experiment_id}/results": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Read Results",
+        "description": "Count, min, max, and mean per variable, with the trials at each extreme (spec 0009).",
+        "operationId": "read_results_api_experiments__experiment_id__results_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultsView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No notebook with this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The id is not an integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experiments/instructions/read": {
       "post": {
         "tags": [
@@ -2232,6 +2295,22 @@
         ],
         "title": "Reply"
       },
+      "ResultsView": {
+        "properties": {
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableSummary"
+            },
+            "type": "array",
+            "title": "Variables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variables"
+        ],
+        "title": "ResultsView"
+      },
       "SavedTrial": {
         "properties": {
           "trial_id": {
@@ -2771,6 +2850,77 @@
         ],
         "title": "VariableIn",
         "description": "One variable added or edited after the notebook exists (spec 0008, AC-2 to AC-4): the\ncreate fields plus `aliases`, the other names the capture prompt lists."
+      },
+      "VariableSummary": {
+        "properties": {
+          "variable_id": {
+            "type": "integer",
+            "title": "Variable Id"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "min_trials": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Min Trials"
+          },
+          "max_trials": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Max Trials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable_id",
+          "count",
+          "min",
+          "max",
+          "mean",
+          "min_trials",
+          "max_trials"
+        ],
+        "title": "VariableSummary",
+        "description": "One variable's saved values, worked out with SQL (spec 0009, AC-7). The trial lists\nname every trial holding the extreme, ascending; empty when there are no values."
       },
       "VariablesDeleted": {
         "properties": {

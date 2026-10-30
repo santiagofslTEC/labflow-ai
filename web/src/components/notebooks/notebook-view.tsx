@@ -130,10 +130,10 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                   Exportar datos
                 </Button>
                 <Button asChild>
-                  <a href="#inspector">
+                  <Link href={`/cuadernos/${experiment.id}/resultados`}>
                     <ChartColumnIcon aria-hidden />
                     Ver resultados
-                  </a>
+                  </Link>
                 </Button>
               </>
             }
@@ -259,4 +259,4 @@ function NotFound() {
   );
 }
 
-export { NotebookSkeleton, NotebookView };
+export { NotFound as NotebookNotFound, NotebookSkeleton, NotebookView };

@@ -101,6 +101,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/{experiment_id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Results
+         * @description Count, min, max, and mean per variable, with the trials at each extreme (spec 0009).
+         */
+        get: operations["read_results_api_experiments__experiment_id__results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/experiments/instructions/read": {
         parameters: {
             query?: never;
@@ -641,6 +661,11 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ResultsView */
+        ResultsView: {
+            /** Variables */
+            variables: components["schemas"]["VariableSummary"][];
+        };
         /** SavedTrial */
         SavedTrial: {
             /** Trial Id */
@@ -826,6 +851,27 @@ export interface components {
              * @default []
              */
             aliases: string[];
+        };
+        /**
+         * VariableSummary
+         * @description One variable's saved values, worked out with SQL (spec 0009, AC-7). The trial lists
+         *     name every trial holding the extreme, ascending; empty when there are no values.
+         */
+        VariableSummary: {
+            /** Variable Id */
+            variable_id: number;
+            /** Count */
+            count: number;
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /** Mean */
+            mean: number | null;
+            /** Min Trials */
+            min_trials: number[];
+            /** Max Trials */
+            max_trials: number[];
         };
         /**
          * VariablesDeleted
@@ -1104,6 +1150,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrialsView"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description No notebook with this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The id is not an integer */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    read_results_api_experiments__experiment_id__results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultsView"];
                 };
             };
             /** @description No valid access session */

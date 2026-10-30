@@ -79,7 +79,9 @@
   --color-warning-ink: #f0c27a;
   --color-danger: #f2867a;
   --color-focus: #4fbf8b;
-  --color-chart-1: #4fbf8b;
+  /* One step darker than the brand's dark green, which sits above the chart
+     lightness band; this one passes the dataviz validator (spec 0009). */
+  --color-chart-1: #3faa7b;
   --color-chart-2: #e0a84a;
   --color-chart-3: #9b9bf0;
   --color-chart-4: #f4875a;

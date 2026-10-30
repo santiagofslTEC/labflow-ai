@@ -189,6 +189,23 @@ class VariablesDeleted(_Result):
     trials: int
 
 
+class VariableSummary(_Result):
+    """One variable's saved values, worked out with SQL (spec 0009, AC-7). The trial lists
+    name every trial holding the extreme, ascending; empty when there are no values."""
+
+    variable_id: int
+    count: int
+    min: float | None
+    max: float | None
+    mean: float | None
+    min_trials: tuple[int, ...]
+    max_trials: tuple[int, ...]
+
+
+class ResultsView(_Result):
+    variables: tuple[VariableSummary, ...]  # position order
+
+
 class ExperimentDetail(_Result):
     """A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31)."""
 
