@@ -424,6 +424,35 @@ def test_other_numbers_after_a_which_variable_question_go_to_the_model(
     assert plan.operations == () and plan.reason == Reason.AMBIGUOUS_VARIABLE
 
 
+@pytest.mark.parametrize("sentence", ["el 5", "5", "es el 5"])
+def test_a_lone_number_read_as_the_trial_opens_no_card(sentence: str) -> None:
+    """One number is the trial or a value, never both (AC-36)."""
+    plan = plan_turn(ctx(), ProponerMedicion(trial_number=5), sentence)
+    assert plan.operations == ()
+    assert plan.reason == Reason.AMBIGUOUS_VARIABLE and plan.variable_ids == (TEMP, DUR, REND)
+
+
+def test_a_trial_number_with_no_trial_word_is_kept_beside_a_value() -> None:
+    call = ProponerMedicion(trial_number=6, values=[ev(TEMP, "65", 65, "grados")])
+    plan = plan_turn(ctx(), call, "6: temperatura 65 grados")
+    assert plan.operations == (
+        StartProposal(6),
+        SetValue(TEMP, 65.0, "65 grados", Grounding.MODEL),
+    )
+    assert plan.reason == Reason.MISSING_VALUES  # nothing asks about the 6
+
+
+def test_a_lone_number_read_as_the_trial_leaves_a_pending_card_alone() -> None:
+    card = card6(model_value(TEMP, 65, "65"))
+    plan = plan_turn(ctx(card), ProponerMedicion(trial_number=5), "el 5")
+    assert plan.operations == () and plan.reason == Reason.AMBIGUOUS_VARIABLE
+
+
+def test_a_trial_word_still_starts_an_empty_card() -> None:
+    plan = plan_turn(ctx(), ProponerMedicion(trial_number=5), "ensayo 5")
+    assert plan.operations == (StartProposal(5),) and plan.reason == Reason.MISSING_VALUES
+
+
 def test_one_number_for_two_variables_drops_both() -> None:
     call = ProponerMedicion(values=[ev(TEMP, "50", 50), ev(REND, "50", 50)])
     plan = plan_turn(ctx(card6()), call, "50 grados")
