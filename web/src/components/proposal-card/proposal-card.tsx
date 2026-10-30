@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatExact } from "@/lib/format";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { duration, savedExit, settleMs, spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,7 @@ function ProposalCard({
   const editButtons = useRef(new Map<number, HTMLButtonElement>());
   const slotInputs = useRef(new Map<number, HTMLInputElement>());
   const previous = useRef<ProposalCardState | null>(null);
+  const desktop = useIsDesktop();
 
   // AC-11: one polite region, rendered empty, then updated per state.
   const liveText = announcement(state, trialNumber, values);
@@ -108,8 +110,9 @@ function ProposalCard({
     if (isTextField(document.activeElement)) return;
 
     if (state.kind === "needs_clarification") {
+      // On the phone a focused field opens the keyboard by itself (spec 0010, AC-8).
       const slot = values.find((value) => value.value === null);
-      if (slot) slotInputs.current.get(slot.variableId)?.focus();
+      if (slot && desktop) slotInputs.current.get(slot.variableId)?.focus();
       return;
     }
     if (state.kind === "proposed" && missing) {
@@ -125,7 +128,7 @@ function ProposalCard({
     ) {
       primaryRef.current?.focus();
     }
-  }, [state, values, missing]);
+  }, [state, values, missing, desktop]);
 
   // AC-15: onSettled once, when the saved exit has finished.
   const onSettledRef = useRef(onSettled);

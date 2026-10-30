@@ -12,6 +12,8 @@ import {
   SAMPLE_PROPOSAL_VALUES,
 } from "@/app/(app)/dev/ui/sample-data";
 
+import { stubMatchMedia } from "@/test/media";
+
 import { ProposalCard } from "./proposal-card";
 import type { ProposalCardProps, ProposalCardState } from "./types";
 
@@ -306,6 +308,7 @@ describe("Focus and keyboard (AC-10)", () => {
   });
 
   it("asks for missing values as slots and focuses the first one", async () => {
+    stubMatchMedia((query) => query === "(min-width: 1024px)");
     const user = userEvent.setup();
     const values = SAMPLE_PROPOSAL_VALUES.map((v) =>
       v.variableId === 2 ? { ...v, value: null } : v,
@@ -323,6 +326,22 @@ describe("Focus and keyboard (AC-10)", () => {
     await waitFor(() => expect(slot).toHaveFocus());
     await user.type(slot, "15{Enter}");
     expect(p.onCommitEdit).toHaveBeenCalledWith(2, 15);
+  });
+
+  it("leaves the slot unfocused on the phone, so the keyboard stays closed (spec 0010, AC-8)", async () => {
+    const values = SAMPLE_PROPOSAL_VALUES.map((v) =>
+      v.variableId === 2 ? { ...v, value: null } : v,
+    );
+    const p = props(
+      { kind: "needs_clarification", question: "¿Cuál fue la duración?" },
+      { values },
+    );
+    render(<ProposalCard {...p} />);
+    const slot = screen.getByRole("textbox", { name: "Duración" });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(slot).not.toHaveFocus();
   });
 });
 
