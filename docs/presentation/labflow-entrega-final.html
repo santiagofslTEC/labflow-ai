@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>LabFlow AI · Entrega final</title>
+<style>
+  @page { size: Letter; margin: 18mm 16mm; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; color: #1c1c1e; font-size: 10.5pt; line-height: 1.45; }
+  h1 { font-size: 24pt; margin: 0 0 4px; }
+  h2 { font-size: 15pt; border-bottom: 2px solid #1c1c1e; padding-bottom: 3px; margin-top: 0; page-break-before: always; }
+  h2.first { page-break-before: avoid; }
+  h3 { font-size: 11.5pt; margin: 14px 0 4px; }
+  .sub { color: #555; margin: 0 0 18px; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; font-size: 9.5pt; }
+  th, td { border: 1px solid #c8c8cc; padding: 4px 6px; vertical-align: top; text-align: left; }
+  th { background: #f2f2f4; }
+  td:first-child { white-space: nowrap; }
+  .canvas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 9pt; }
+  .canvas div { border: 1px solid #c8c8cc; padding: 6px 8px; border-radius: 4px; }
+  .canvas b { display: block; margin-bottom: 2px; }
+  .vp { grid-row: span 2; background: #f6f6f8; }
+  .mock { border: 1px solid #c8c8cc; border-radius: 6px; padding: 10px; font-family: Menlo, monospace; font-size: 8.5pt; white-space: pre; background: #fafafa; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  img { max-width: 100%; border: 1px solid #c8c8cc; border-radius: 6px; }
+  .note { color: #555; font-size: 9pt; }
+  code { font-family: Menlo, monospace; font-size: 9pt; background: #f2f2f4; padding: 0 3px; border-radius: 3px; }
+  svg text { font-family: -apple-system, Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<h1>LabFlow AI</h1>
+<p class="sub">Cuaderno de laboratorio por voz · Entrega final · 30 de octubre de 2026<br>
+Web: Vercel · API: <code>labflow-ai-production.up.railway.app</code></p>
+
+<h2 class="first">1. Descripción del producto y requerimientos</h2>
+<p><b>Problema.</b> Durante una práctica de laboratorio, el estudiante de ingeniería química tiene las manos ocupadas (guantes, material, reactivos). Detenerse a anotar interrumpe el experimento; pasar los datos a Excel después introduce errores, y las mediciones o unidades faltantes se descubren al final.</p>
+<p><b>Solución.</b> LabFlow AI es un cuaderno de laboratorio por voz. El estudiante dicta una medición (“ensayo 3, temperatura 65 grados”), LabFlow la entiende, la guarda o pregunta cuando no está seguro, y la muestra al instante en una tabla, un gráfico X contra Y y respuestas sobre los datos, <b>sin inventar cifras</b>: la IA solo extrae; todo cálculo lo hace código determinista sobre los datos guardados.</p>
+<p><b>Usuarios.</b> Estudiantes de ingeniería química y auxiliares de investigación (secundario: profesores).</p>
+
+<h3>Flujo principal</h3>
+<ol>
+  <li>Crear un cuaderno (experimento) con sus variables: nombre, unidad, rango esperado. Puede leerse de un protocolo en PDF.</li>
+  <li>Dictar (o escribir) una medición. Los valores limpios se guardan de inmediato con opción de “Deshacer”.</li>
+  <li>Si un valor reemplazaría a uno guardado, está fuera de rango, se convirtió de unidad o es ambiguo, LabFlow pregunta (“¿Cambio temperatura del ensayo 3 de 65 a 68 °C?”).</li>
+  <li>Ver tabla de ensayos, gráfico y resumen; exportar a CSV.</li>
+</ol>
+
+<h3>Requerimientos funcionales</h3>
+<table>
+<tr><th>ID</th><th>Requerimiento</th><th>Prioridad</th><th>Estado</th></tr>
+<tr><td>RF-01</td><td>Crear experimento con título, objetivo y variables (nombre, unidad, rango, esperada)</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-02</td><td>Listar y abrir experimentos</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-03</td><td>Registrar mediciones por voz</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-04</td><td>Registrar mediciones por texto (misma propuesta que dictada)</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-05</td><td>Mostrar propuesta y pedir confirmación cuando hay duda</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-06</td><td>Corregir por voz o editando, sin duplicados</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-07</td><td>Pedir aclaración ante datos ambiguos</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-09</td><td>Tabla de ensayos que coincide con lo guardado</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-10</td><td>Gráfico X contra Y</td><td>Imprescindible</td><td>Hecho</td></tr>
+<tr><td>RF-11</td><td>Preguntas: máximo, mínimo, promedio, conteo</td><td>Imprescindible</td><td>Resumen por variable hecho; preguntas por voz en curso</td></tr>
+<tr><td>RF-12</td><td>Advertir valores fuera de rango o unidades convertidas</td><td>Deseable</td><td>Hecho</td></tr>
+<tr><td>RF-14</td><td>Cargar protocolo PDF</td><td>Deseable</td><td>Hecho (propone variables)</td></tr>
+<tr><td>RF-15</td><td>Exportar a CSV</td><td>Deseable</td><td>Hecho</td></tr>
+</table>
+
+<h3>Requerimientos no funcionales</h3>
+<table>
+<tr><th>ID</th><th>Requerimiento</th><th>Cómo se cumple</th></tr>
+<tr><td>RNF-01</td><td>Español, números en palabras, decimales con coma</td><td>Lector de números y unidades en código (“setenta y tres coma cinco”, “grados” → °C)</td></tr>
+<tr><td>RNF-02</td><td>Propuesta en ≤ 5 s (objetivo 3 s)</td><td>Modelo rápido primero, respaldo con límite de tiempo, frase de relleno por voz</td></tr>
+<tr><td>RNF-04</td><td>Cero cifras inventadas</td><td>Cada número debe aparecer en la frase del usuario (grounding); las respuestas son plantillas fijas</td></tr>
+<tr><td>RNF-05</td><td>Trazabilidad</td><td>Cada medición guarda frase original, palabras dichas, origen (voz/texto), hora, turno y quién guardó</td></tr>
+<tr><td>RNF-06</td><td>Usabilidad</td><td>Micrófono siempre visible; versión de teléfono con barra inferior</td></tr>
+<tr><td>RNF-08</td><td>Seguridad</td><td>Claves solo en servidor; acceso por código; no se guarda audio</td></tr>
+<tr><td>RNF-09</td><td>Tolerancia a fallos</td><td>Si falla la voz o el modelo, el registro por texto sigue funcionando</td></tr>
+</table>
+
+<h2>2. ML Canvas</h2>
+<p class="note">Plantilla OwnML Machine Learning Canvas v1.2 (Louis Dorard, CC BY-SA 4.0), actualizada con lo construido.</p>
+<div class="canvas">
+  <div><b>Tarea de predicción</b>Por cada enunciado: transcripción (voz a texto), intención (registrar, corregir, confirmar, descartar, aclarar) y campos {ensayo, variable, valor, unidad}. Se observa al instante cuando el usuario confirma, corrige o deshace.</div>
+  <div><b>Decisiones</b>Valores limpios (casilla vacía, sin advertencias) se guardan solos con “Deshacer”. Si reemplazan un valor, están fuera de rango o son ambiguos, se pregunta. La IA nunca calcula cifras.</div>
+  <div class="vp"><b>Propuesta de valor</b>Registrar mediciones sin soltar el experimento. Dolores: interrumpir para anotar, errores al transcribir, datos faltantes al final. Solución: dictar, confirmar solo si hay duda y obtener tabla, gráfico y resumen al instante. Meta: ≥ 30 % menos tiempo documentando.</div>
+  <div><b>Recolección de datos</b>Set de evaluación escrito y dictado por el equipo (números en palabras, correcciones, ambiguos, fuera de rango). Cada propuesta y su versión confirmada o corregida es un nuevo par etiquetado.</div>
+  <div><b>Fuentes de datos</b>Definición del cuaderno (variables, unidades, rangos), transcripciones de ElevenLabs, mediciones guardadas con su frase (Supabase Postgres), protocolo PDF.</div>
+  <div><b>Simulación de impacto</b>Guardar un valor incorrecto es grave (mitigado: solo se guarda sin preguntar lo que no reemplaza nada y no tiene advertencias, y se puede deshacer). Una pregunta de más solo añade fricción. Criterio: ≥ 90 % exactitud por campo, 0 cifras inventadas, ≤ 5 s.</div>
+  <div><b>Predicciones</b>Tiempo real, una por enunciado. Presupuesto ≤ 5 s del fin del dictado a la respuesta. Modelos en la nube llamados desde el backend.</div>
+  <div><b>Construcción de modelos</b>No se entrena: modelos preentrenados por API. Se ajustan prompt, esquema de herramientas y modelo; cada cambio se valida con el set y una prueba en vivo.</div>
+  <div><b>Features</b>Transcripción, variables con unidades, rangos y alias, tarjeta pendiente, valores guardados por ensayo, último ensayo, historial corto, pregunta anterior. Normalización de números y unidades en código.</div>
+  <div style="grid-column: span 3"><b>Monitoreo</b>Calidad: % de propuestas corregidas o deshechas, tasa de preguntas, uso del modelo de respaldo. Usuario: tiempo para registrar 5 ensayos. Técnico: latencia por turno (registro JSON con proveedor, ms de modelo y de base de datos), fallos de voz.</div>
+</div>
+
+<h2>3. Mockups de la UI</h2>
+<h3>Dirección visual (Google Stitch)</h3>
+<p>Mockup de referencia: micrófono al centro (pulsar para hablar), tarjeta de confirmación debajo y tabla de ensayos al lado.</p>
+<img src="mockup-stitch.png" alt="Mockup de LabFlow AI en Google Stitch" style="max-height: 120mm;">
+
+<h3>Estados clave de la captura</h3>
+<div class="row">
+<div class="mock">┌ Escribe una medición ─────────┐
+│ ensayo 3, temperatura 65      │
+└───────────────────────────────┘
+┌───────────────────────────────┐
+│ ✓ Guardado ensayo 3 · 65 °C   │
+│                  [ Deshacer ] │
+└───────────────────────────────┘
+ Valor limpio: se guarda solo</div>
+<div class="mock">┌ Ensayo 3 ──────── Sin guardar ┐
+│ "ensayo 3, temperatura 68"    │
+│ ¿Cambio Temperatura del       │
+│  ensayo 3 de 65 a 68 °C?      │
+│ Temperatura  65 → 68 °C       │
+│ [Descartar] [Reemplazar 65 °C │
+│              por 68 °C]       │
+└───────────────────────────────┘
+ Reemplazo: pregunta primero</div>
+</div>
+<div class="row" style="margin-top:8px">
+<div class="mock">┌ Ensayo 5 ──────── Sin guardar ┐
+│ ⚠ Revisa antes de guardar     │
+│ Temperatura  650 °C           │
+│ ⚠ Fuera del rango: 20 a 100 °C│
+│ [ Sí, es 650 °C ]             │
+└───────────────────────────────┘
+ Valor fuera de rango</div>
+<div class="mock">  Ensayo 4 · esperando valores
+
+ ┌─────── Teléfono ─────────────┐
+ │ Capturar | Ensayos | Variables│
+ │         ( 🎤 )               │
+ │ Inicio Cuadernos Nuevo Ajustes│
+ └──────────────────────────────┘
+ Solo se dijo el ensayo · versión móvil</div>
+</div>
+
+<h2>4. Diseño arquitectónico</h2>
+<svg viewBox="0 0 720 300" width="100%">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#333"/></marker></defs>
+  <g font-size="11" fill="#1c1c1e" stroke="#333">
+    <rect x="10" y="20" width="150" height="60" rx="6" fill="#f2f2f4"/><text x="85" y="45" text-anchor="middle" stroke="none">Navegador</text><text x="85" y="62" text-anchor="middle" stroke="none" font-size="9">Chrome, laptop o teléfono</text>
+    <rect x="220" y="20" width="170" height="60" rx="6" fill="#f2f2f4"/><text x="305" y="42" text-anchor="middle" stroke="none">Web · Next.js 16</text><text x="305" y="58" text-anchor="middle" stroke="none" font-size="9">Vercel · TanStack Query · Plotly</text><text x="305" y="71" text-anchor="middle" stroke="none" font-size="9">reescribe /api/* al backend</text>
+    <rect x="450" y="20" width="200" height="70" rx="6" fill="#e8f0ff"/><text x="550" y="42" text-anchor="middle" stroke="none">API · FastAPI (Python 3.13)</text><text x="550" y="58" text-anchor="middle" stroke="none" font-size="9">Railway · routers → servicios puros</text><text x="550" y="72" text-anchor="middle" stroke="none" font-size="9">→ repositorios (SQLModel)</text>
+    <rect x="470" y="200" width="160" height="50" rx="6" fill="#f2f2f4"/><text x="550" y="222" text-anchor="middle" stroke="none">Supabase Postgres</text><text x="550" y="238" text-anchor="middle" stroke="none" font-size="9">Alembic · experimentos, ensayos, mediciones</text>
+    <rect x="250" y="200" width="170" height="60" rx="6" fill="#fff4e0"/><text x="335" y="222" text-anchor="middle" stroke="none">LLMProvider</text><text x="335" y="238" text-anchor="middle" stroke="none" font-size="9">Ollama Cloud (DeepSeek V4.1 Flash)</text><text x="335" y="251" text-anchor="middle" stroke="none" font-size="9">respaldo: Claude Haiku 5.5</text>
+    <rect x="10" y="200" width="190" height="60" rx="6" fill="#fff4e0"/><text x="105" y="222" text-anchor="middle" stroke="none">ElevenLabs Agent</text><text x="105" y="238" text-anchor="middle" stroke="none" font-size="9">Scribe (voz a texto) + Flash v2.5 (voz)</text><text x="105" y="251" text-anchor="middle" stroke="none" font-size="9">“Custom LLM” = nuestra API</text>
+    <line x1="160" y1="50" x2="218" y2="50" marker-end="url(#a)"/>
+    <line x1="390" y1="50" x2="448" y2="50" marker-end="url(#a)"/>
+    <line x1="550" y1="90" x2="550" y2="198" marker-end="url(#a)"/>
+    <line x1="500" y1="90" x2="380" y2="198" marker-end="url(#a)"/>
+    <line x1="85" y1="80" x2="85" y2="198" marker-end="url(#a)"/>
+    <line x1="200" y1="225" x2="455" y2="85" stroke-dasharray="4 3" marker-end="url(#a)"/>
+    <text x="300" y="150" stroke="none" font-size="9">voz: audio WebRTC al agente</text>
+    <text x="330" y="168" stroke="none" font-size="9">el agente llama a /api/voice/llm (SSE)</text>
+  </g>
+</svg>
+
+<h3>Decisiones principales</h3>
+<ul>
+  <li><b>Un solo cerebro para voz y texto.</b> La frase dictada y la escrita pasan por el mismo servicio de turnos (<code>handle_utterance</code>). El agente de ElevenLabs solo convierte voz a texto y texto a voz; usa nuestra API como su “Custom LLM”, así que la respuesta hablada es exactamente nuestro texto.</li>
+  <li><b>El modelo propone, el código decide.</b> El LLM devuelve una llamada a herramienta validada (<code>proponer_medicion</code>, <code>corregir</code>, <code>confirmar</code>, …). Un planificador puro en código ancla cada número en la frase del usuario, convierte unidades, aplica rangos y decide qué se guarda y qué se pregunta. Las respuestas al usuario salen de plantillas fijas en español.</li>
+  <li><b>Lecturas parciales (spec 0011).</b> Se guarda exactamente lo dicho; un valor nuevo en una casilla vacía se guarda solo, uno que reemplaza pide “¿Cambio…?”. Cada turno corre en una transacción y las inserciones automáticas nunca sobrescriben.</li>
+  <li><b>Contrato tipado.</b> Los modelos Pydantic son la fuente de verdad; se genera <code>openapi.json</code> y los tipos TypeScript del web.</li>
+  <li><b>Estilo funcional.</b> Funciones puras, datos inmutables, errores esperados como valores de retorno; la E/S (BD, LLM, ElevenLabs) solo en los bordes.</li>
+</ul>
+
+<h3>Modelo de datos</h3>
+<p><code>experiment</code> → <code>variable</code> (unidad, rango, esperada, alias) · <code>trial</code> (número) → <code>measurement</code> (valor, frase original, palabras dichas, origen, turno, guardado por, guardado automático) · <code>proposal</code> (tarjeta: pendiente, confirmada, descartada, reemplazada; una pendiente por cuaderno) · <code>turn</code> (historial de la conversación).</p>
+
+<h2>5. Diseño de pruebas</h2>
+<table>
+<tr><th>Nivel</th><th>Herramienta</th><th>Qué cubre</th><th>Cantidad</th></tr>
+<tr><td>Unitarias (API)</td><td>pytest</td><td>Planificador puro, lector de números y unidades, advertencias, plantillas de respuesta, reglas de sesión de voz</td><td rowspan="2">≈ 490 pruebas</td></tr>
+<tr><td>Integración (API)</td><td>pytest + FastAPI TestClient + Postgres real</td><td>Rutas de captura, voz (Custom LLM con SSE), deshacer, carreras entre pestañas; cada prueba corre en una transacción que se revierte</td></tr>
+<tr><td>Unitarias y de componentes (web)</td><td>Vitest + Testing Library + axe</td><td>Tarjeta, aviso de guardado, flujo de captura, tabla, gráfico, accesibilidad</td><td>570 pruebas</td></tr>
+<tr><td>Extremo a extremo (teléfono)</td><td>Playwright</td><td>iPhone 390×844 y Android 412×915: navegación, sin desplazamiento lateral, hojas a pantalla completa, campos de 16 px</td><td>42 pruebas</td></tr>
+<tr><td>Prueba en vivo de modelos</td><td>Smoke test con claves reales</td><td>Exactitud y latencia de cada proveedor sobre frases reales</td><td>Manual</td></tr>
+<tr><td>Verificación por spec</td><td><code>verify.md</code> por decisión</td><td>Pasos manuales trazados a cada criterio de aceptación (AC)</td><td>Por feature</td></tr>
+</table>
+
+<h3>Casos críticos</h3>
+<table>
+<tr><th>Caso</th><th>Esperado</th></tr>
+<tr><td>“ensayo 3, temperatura 65 grados”</td><td>Guarda 65 °C en el ensayo 3, no pregunta por las demás variables</td></tr>
+<tr><td>Valor que reemplaza uno guardado</td><td>No guarda; pregunta “¿Cambio … de 65 a 68 °C?”; “sí” reemplaza sin duplicar</td></tr>
+<tr><td>Mitad limpia y mitad dudosa</td><td>Guarda lo limpio, deja una tarjeta con lo dudoso</td></tr>
+<tr><td>Número que no está en la frase</td><td>Nunca llega a la tarjeta (anti alucinación)</td></tr>
+<tr><td>“23 a 71” para una variable</td><td>Pregunta cuál guardar, nunca elige</td></tr>
+<tr><td>Otra pestaña llena la casilla a la vez</td><td>La inserción no sobrescribe; pregunta el cambio</td></tr>
+<tr><td>“deshacer” por voz</td><td>Quita lo último guardado, deja la tarjeta pendiente</td></tr>
+<tr><td>Falla el modelo principal</td><td>Respaldo con Claude registrado en el log; si ambos fallan, 503 y la tarjeta sigue</td></tr>
+</table>
+<p><b>Integración continua.</b> GitHub Actions en cada PR y en <code>main</code>: lint, tipos (TypeScript estricto, pyright estricto) y pruebas de web y API. Antes de cada commit, lefthook corre formato, lint, tipos y pruebas.</p>
+
+<h2>6. Selección de modelos y model cards</h2>
+<p>LabFlow no entrena modelos: usa modelos preentrenados por API detrás de una interfaz (<code>LLMProvider</code>), lo que permite cambiarlos sin tocar la lógica. La selección se hizo con una prueba en vivo sobre frases reales de laboratorio (spec 0006).</p>
+
+<h3>Model card 1 · Extracción de mediciones: DeepSeek V4.1 Flash (Ollama Cloud)</h3>
+<table>
+<tr><th style="width:24%">Detalles</th><td>LLM de propósito general, versión <code>deepseek-v4.1-flash</code>, servido por Ollama Cloud. Proveedor principal.</td></tr>
+<tr><th>Uso previsto</th><td>Leer una frase en español y devolver una llamada a herramienta con ensayo, variable, valor y unidad, o la intención (confirmar, corregir, descartar, aclarar).</td></tr>
+<tr><th>Fuera de alcance</th><td>Calcular estadísticas, escribir respuestas al usuario, decidir qué se guarda. Eso lo hace el código.</td></tr>
+<tr><th>Entradas</th><td>Frase del usuario, variables del cuaderno con unidades y alias, tarjeta pendiente, historial corto, contexto del cuaderno.</td></tr>
+<tr><th>Métricas</th><td>Exactitud por campo, cifras inventadas (deben ser 0), latencia ≤ 5 s. Resultado en la prueba en vivo: 50/50 frases correctas.</td></tr>
+<tr><th>Por qué se eligió</th><td>Rápido y barato, buen español y buena llamada a herramientas.</td></tr>
+<tr><th>Limitaciones y mitigación</th><td>Puede leer un número que no se dijo o asignar mal la variable. Mitigación: cada número debe encontrarse en la frase; valores dudosos se marcan; nada se guarda sin pregunta si reemplaza o tiene advertencias; “Deshacer”.</td></tr>
+</table>
+
+<h3>Model card 2 · Respaldo: Claude Haiku 5.5 (Anthropic)</h3>
+<table>
+<tr><th style="width:24%">Detalles</th><td><code>claude-haiku-5-5</code>, mismo esquema de herramientas.</td></tr>
+<tr><th>Uso previsto</th><td>Respaldo automático cuando el principal falla o pasa su límite de tiempo (llamada “hedged”). Cada uso se registra.</td></tr>
+<tr><th>Métricas</th><td>Las mismas que el principal; se vigila la tasa de uso del respaldo.</td></tr>
+<tr><th>Limitaciones</th><td>Costo mayor: tiene un límite de llamadas por usuario. Mismas protecciones de código que el principal.</td></tr>
+</table>
+
+<h3>Model card 3 · Voz a texto: ElevenLabs Scribe (en el agente de ElevenLabs)</h3>
+<table>
+<tr><th style="width:24%">Detalles</th><td>Reconocimiento de voz de ElevenLabs dentro de un agente conversacional (detección de turno con “speculative turn”).</td></tr>
+<tr><th>Uso previsto</th><td>Transcribir el dictado en español en tiempo real, manos libres.</td></tr>
+<tr><th>Por qué se eligió</th><td>Comparado con Whisper: baja latencia en streaming, buen español, y el mismo agente maneja voz de entrada y salida.</td></tr>
+<tr><th>Limitaciones</th><td>Ruido del laboratorio, acentos, números parecidos (“sesenta” / “setenta”). Mitigación: la tarjeta muestra “Dijiste” contra “LabFlow entendió”; el texto escrito siempre está disponible. No se guarda audio.</td></tr>
+</table>
+
+<h3>Model card 4 · Texto a voz: ElevenLabs Flash v2.5</h3>
+<table>
+<tr><th style="width:24%">Detalles</th><td><code>eleven_flash_v2_5</code>, voz en español.</td></tr>
+<tr><th>Uso previsto</th><td>Leer en voz alta la respuesta fija de LabFlow (“Guardado ensayo 3: 65 °C. Di deshacer para quitarlo.”).</td></tr>
+<tr><th>Por qué se eligió</th><td>Latencia muy baja, adecuada para conversación.</td></tr>
+<tr><th>Limitaciones</th><td>Solo lee textos que genera nuestro servidor; nunca inventa contenido.</td></tr>
+</table>
+
+<h3>Consideraciones éticas y de riesgo</h3>
+<p>Datos ficticios o de práctica académica; claves solo en el servidor; acceso por código; sin almacenamiento de audio; cada medición es trazable a la frase que la produjo; la IA nunca calcula ni redacta cifras para el usuario.</p>
+
+</body>
+</html>
