@@ -1,9 +1,17 @@
 import type { MetadataRoute } from "next";
 
 // A manifest cannot read CSS, so these repeat the light --color-canvas and
-// --color-ink from globals.css; manifest.test.ts keeps them in sync.
+// --color-ink, and the dark --color-canvas, from globals.css;
+// manifest.test.ts keeps them in sync.
 const CANVAS = "#faf9f7";
 const INK = "#1b2331";
+const DARK_CANVAS = "#16181c";
+
+// The browser bar on the phone matches the canvas in each theme (spec 0010, AC-10).
+export const THEME_COLORS = [
+  { media: "(prefers-color-scheme: light)", color: CANVAS },
+  { media: "(prefers-color-scheme: dark)", color: DARK_CANVAS },
+] as const;
 
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -121,6 +121,13 @@
   --input: var(--color-control);
   --ring: var(--color-focus);
   --radius: var(--radius-control);
+
+  /* The phone's bottom tab bar (spec 0010, AC-1): 64px plus the home indicator. */
+  --tabbar-height: calc(4rem + env(safe-area-inset-bottom));
+
+  @media (min-width: 1024px) {
+    --tabbar-height: 0px;
+  }
 }
 
 @theme inline {
@@ -178,6 +185,12 @@
 @layer base {
   * {
     @apply border-border;
+  }
+  /* No elastic bounce at the ends of the page: LabFlow scrolls like an app on
+     the phone, and the bounce read as the page pushing back (spec 0010, AC-11). */
+  html,
+  body {
+    overscroll-behavior-y: none;
   }
   body {
     @apply bg-background font-sans text-foreground;

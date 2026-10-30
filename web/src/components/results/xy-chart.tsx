@@ -5,6 +5,7 @@ import { useId, useMemo, useSyncExternalStore } from "react";
 
 import type { ExperimentDetail } from "@/api/experiments";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { formatQuantity } from "@/lib/format";
 import {
   pointsInXOrder,
@@ -16,6 +17,8 @@ import {
 type Variable = ExperimentDetail["variables"][number];
 
 const CHART_HEIGHT = 360;
+// 18rem on the phone, so the summary starts on the first screen (spec 0010, AC-6).
+const PHONE_CHART_HEIGHT = 288;
 
 const Plot = dynamic(() => import("./plotly-chart").then((m) => m.Plot), {
   ssr: false,
@@ -87,6 +90,10 @@ type XYChartProps = {
 function XYChart({ x, y, points }: XYChartProps) {
   const colors = useColors();
   const titleId = useId();
+  // On the phone a drag scrolls the page and a tap shows the point; no zoom
+  // box and no mode bar (spec 0010, AC-6).
+  const desktop = useIsDesktop();
+  const height = desktop ? CHART_HEIGHT : PHONE_CHART_HEIGHT;
   const axis = (title: string) => ({
     title: { text: title, font: { color: colors.muted, size: 13 } },
     gridcolor: colors.line,
@@ -99,11 +106,7 @@ function XYChart({ x, y, points }: XYChartProps) {
 
   return (
     <figure className="flex flex-col gap-3">
-      <div
-        role="img"
-        aria-labelledby={titleId}
-        style={{ minHeight: CHART_HEIGHT }}
-      >
+      <div role="img" aria-labelledby={titleId} style={{ minHeight: height }}>
         <p id={titleId} className="sr-only">
           {summary}
         </p>
@@ -125,8 +128,9 @@ function XYChart({ x, y, points }: XYChartProps) {
               },
             ]}
             layout={{
-              height: CHART_HEIGHT,
+              height,
               autosize: true,
+              dragmode: desktop ? "zoom" : false,
               margin: { t: 12, r: 12, b: 48, l: 56 },
               paper_bgcolor: "transparent",
               plot_bgcolor: "transparent",
@@ -143,6 +147,8 @@ function XYChart({ x, y, points }: XYChartProps) {
             config={{
               displaylogo: false,
               responsive: true,
+              displayModeBar: desktop ? "hover" : false,
+              scrollZoom: false,
               modeBarButtonsToRemove: ["lasso2d", "select2d"],
             }}
             useResizeHandler

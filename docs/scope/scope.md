@@ -33,6 +33,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 18 | Draft report | Later | planned |
 | 19 | Access code gate | Foundation | done |
 | 20 | Push to talk main page | Release 1 (mic live in Release 2) | in-progress |
+| 21 | Mobile version | Release 2 | done |
 
 ## Foundations
 
@@ -139,6 +140,14 @@ spec [0004](../specs/0004-push-to-talk-main-page/index.md) · code in `web/src/a
 - [ ] Verify it: `/check verify push to talk main page`
 
 ## Release 2: Hands free
+
+### 21. Mobile version · done · from spec 0010
+The same app built for the phone below 1024px: a bottom tab bar, a notebook page with Capturar, Ensayos, and Variables tabs, full screen sheets, phone sized tables and results, 16px fields, the screen kept on while LabFlow listens, and an installable app with its own icon. Same API; desktop unchanged.
+**Done when:** on an iPhone and an Android phone every feature works with one thumb, with no sideways scroll, no zoom on a field, and the app installed from the home screen (spec 0010, AC-1 to AC-13).
+spec [0010](../specs/0010-mobile-ui/index.md) · code in `web/src/components/app-shell/`, `web/src/components/notebooks/`, `web/src/components/ui/`, `web/public/icons/`, `web/e2e/`
+- [x] Design it (spec): `/architect mobile version`
+- [x] Build it: `/develop mobile version`
+- [x] Verify it: `/check verify mobile version`
 
 ### 8. Voice capture · in-progress
 A mic button with a visible state; your dictation in Spanish (numbers in words, "coma" decimals) becomes the same proposal as typed text, and you can correct by voice ("No, el rendimiento es setenta y tres"). Decides the voice integration (an all in one voice agent platform vs speech to text plus your own agent). No audio stored. RF-03, RF-06, RNF-01, RNF-02, RNF-09.

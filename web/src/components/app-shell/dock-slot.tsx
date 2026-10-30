@@ -28,7 +28,7 @@ function DockSlot({ children }: { readonly children: React.ReactNode }) {
     <div
       ref={ref}
       data-slot="dock"
-      className="fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-[var(--tabbar-height)] z-40 lg:bottom-0 lg:pb-[env(safe-area-inset-bottom)]"
     >
       {children}
     </div>

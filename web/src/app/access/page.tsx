@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // Outside the app shell: one centered column on the canvas, the same on a phone.
 export default function AccessPage() {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-12">
+    <main className="flex min-h-svh items-center justify-center bg-canvas px-4 py-12">
       <div className="flex w-full max-w-[360px] flex-col gap-8">
         <BrandMark className="self-center" />
         <header className="flex flex-col gap-2 text-center">

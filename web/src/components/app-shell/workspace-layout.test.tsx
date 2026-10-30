@@ -79,9 +79,11 @@ describe("WorkspaceLayout (AC-14)", () => {
 
   it("pins the dock in a fixed slot and has no axe violations", async () => {
     const { container } = render(<WorkspaceLayout {...slots(true)} />);
+    // Above the phone's tab bar, at the bottom on desktop (spec 0010, AC-1).
     expect(screen.getByTestId("dock").closest("[data-slot=dock]")).toHaveClass(
       "fixed",
-      "bottom-0",
+      "bottom-[var(--tabbar-height)]",
+      "lg:bottom-0",
     );
     expect(await axe(container)).toHaveNoViolations();
   });

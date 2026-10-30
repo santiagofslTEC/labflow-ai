@@ -1,10 +1,10 @@
 // @vitest-environment node
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import manifest from "./manifest";
+import manifest, { THEME_COLORS } from "./manifest";
 
 const css = readFileSync(
   fileURLToPath(new URL("./globals.css", import.meta.url)),
@@ -36,6 +36,29 @@ describe("manifest", () => {
   it("uses the light canvas and ink tokens for its colors", () => {
     expect(result.background_color).toBe(lightToken("canvas"));
     expect(result.theme_color).toBe(lightToken("ink"));
+  });
+
+  it("colors the phone's browser bar with each theme's canvas", () => {
+    const dark = css.slice(css.indexOf(':root[data-theme="dark"]'));
+    const darkCanvas = dark.match(/--color-canvas:\s*(#[0-9a-f]{6})/i)?.[1];
+    expect(THEME_COLORS.map(({ color }) => color.toLowerCase())).toEqual([
+      lightToken("canvas"),
+      darkCanvas?.toLowerCase(),
+    ]);
+  });
+
+  it("names only icons that exist in public/ (spec 0010, AC-10)", () => {
+    const icons = [
+      ...(result.icons ?? []).map(({ src }) => src),
+      "/icons/apple-touch-icon.png",
+    ];
+    for (const src of icons)
+      expect(
+        existsSync(
+          fileURLToPath(new URL(`../../public${src}`, import.meta.url)),
+        ),
+        src,
+      ).toBe(true);
   });
 
   it("points to the three icons with their purposes", () => {

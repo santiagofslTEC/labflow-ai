@@ -60,6 +60,7 @@ export function AccessForm({
           type="password"
           autoComplete="current-password"
           autoCapitalize="off"
+          autoCorrect="off"
           spellCheck={false}
           value={code}
           onChange={(event) => {

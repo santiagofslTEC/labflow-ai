@@ -185,6 +185,7 @@ function CaptureStage({ experimentId, onSaved, onUndone }: CaptureStageProps) {
               value={draft}
               maxLength={TEXT_MAX}
               autoComplete="off"
+              enterKeyHint="send"
               placeholder={copy.placeholder}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? "capture-error" : undefined}

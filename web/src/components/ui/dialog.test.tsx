@@ -1,82 +1,80 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
-import { Button } from "./button";
+import { stubMatchMedia } from "@/test/media";
+
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "./dialog";
 
-const Sample = () => (
+const Sheet = ({ variant }: { readonly variant?: "sheet" | "alert" }) => (
   <Dialog>
-    <DialogTrigger asChild>
-      <Button>Borrar experimento</Button>
-    </DialogTrigger>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>¿Borrar el experimento?</DialogTitle>
-        <DialogDescription>Esto no se puede deshacer.</DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="ghost">Cancelar</Button>
-        </DialogClose>
-        <Button variant="danger">Borrar</Button>
-      </DialogFooter>
+    <DialogTrigger>Tabla completa</DialogTrigger>
+    <DialogContent variant={variant}>
+      <DialogTitle>Ensayos</DialogTitle>
+      <DialogDescription>3 ensayos guardados</DialogDescription>
     </DialogContent>
   </Dialog>
 );
 
-describe("Dialog", () => {
-  it("opens by keyboard, traps focus, and returns it to the trigger on Esc", async () => {
+const desktop = () =>
+  stubMatchMedia((query) => query === "(min-width: 1024px)");
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("Sheets on the phone (spec 0010, AC-3)", () => {
+  it("opens full screen with one history entry, and the back gesture closes it", async () => {
     const user = userEvent.setup();
-    render(<Sample />);
+    const push = vi.spyOn(window.history, "pushState");
+    const { baseElement } = render(<Sheet />);
+    await user.click(screen.getByRole("button", { name: "Tabla completa" }));
+    const sheet = screen.getByRole("dialog", { name: "Ensayos" });
+    expect(sheet).toHaveAttribute("data-variant", "sheet");
+    expect(sheet).toHaveClass("inset-0", "h-dvh");
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(await axe(baseElement)).toHaveNoViolations();
 
-    await user.tab();
-    const trigger = screen.getByRole("button", { name: "Borrar experimento" });
-    expect(trigger).toHaveFocus();
-    await user.keyboard("{Enter}");
-
-    const dialog = await screen.findByRole("dialog");
-    expect(dialog).toContainElement(document.activeElement as HTMLElement);
-
-    // Tab around more times than there are buttons: focus never leaves.
-    for (let i = 0; i < 5; i += 1) {
-      await user.tab();
-      expect(dialog).toContainElement(document.activeElement as HTMLElement);
-    }
-
-    await user.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(trigger).toHaveFocus();
-  });
-
-  it("returns focus to the trigger after Cancelar", async () => {
-    const user = userEvent.setup();
-    render(<Sample />);
-    const trigger = screen.getByRole("button", { name: "Borrar experimento" });
-    await user.click(trigger);
-    await user.click(await screen.findByRole("button", { name: "Cancelar" }));
-    expect(trigger).toHaveFocus();
-  });
-
-  it("has a Spanish close label and no axe violations when open", async () => {
-    const user = userEvent.setup();
-    render(<Sample />);
-    await user.click(
-      screen.getByRole("button", { name: "Borrar experimento" }),
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Tabla completa" }),
+      ).toHaveFocus(),
     );
-    expect(
-      await screen.findByRole("button", { name: "Cerrar" }),
-    ).toBeInTheDocument();
-    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it("pops its own entry when closed with the close button", async () => {
+    const user = userEvent.setup();
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    render(<Sheet />);
+    await user.click(screen.getByRole("button", { name: "Tabla completa" }));
+    await user.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves history alone on desktop and for an alert", async () => {
+    const user = userEvent.setup();
+    const push = vi.spyOn(window.history, "pushState");
+    desktop();
+    const { unmount } = render(<Sheet />);
+    await user.click(screen.getByRole("button", { name: "Tabla completa" }));
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-variant", "sheet");
+    unmount();
+    stubMatchMedia(() => false);
+    render(<Sheet variant="alert" />);
+    await user.click(screen.getByRole("button", { name: "Tabla completa" }));
+    expect(screen.getByRole("dialog")).toHaveClass("top-1/2");
+    expect(push).not.toHaveBeenCalled();
   });
 });
