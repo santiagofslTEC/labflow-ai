@@ -19,6 +19,7 @@ from app.services.results import (
     ExperimentNotFound,
     InvalidRange,
     LastVariable,
+    NameInUse,
     UnitLocked,
     VariableDetail,
     VariableNotFound,
@@ -27,10 +28,20 @@ from app.services.results import (
 )
 
 type AddError = (
-    ExperimentNotFound | ExperimentClosed | VariablesFull | DuplicateVariableName | InvalidRange
+    ExperimentNotFound
+    | ExperimentClosed
+    | VariablesFull
+    | DuplicateVariableName
+    | NameInUse
+    | InvalidRange
 )
 type UpdateError = (
-    VariableNotFound | ExperimentClosed | UnitLocked | DuplicateVariableName | InvalidRange
+    VariableNotFound
+    | ExperimentClosed
+    | UnitLocked
+    | DuplicateVariableName
+    | NameInUse
+    | InvalidRange
 )
 type DeleteError = ExperimentNotFound | ExperimentClosed | VariableNotFound | LastVariable
 
@@ -105,7 +116,7 @@ def add_variable(
     if len(existing) >= VARIABLES_MAX:
         session.rollback()
         return VariablesFull()
-    if (problem := check_variable(body, (v.name for v in existing))) is not None:
+    if (problem := check_variable(body, ((v.name, v.aliases) for v in existing))) is not None:
         session.rollback()
         return problem
     variable = Variable(
@@ -121,7 +132,12 @@ def update_variable(
     session: Session, variable_id: int, body: VariableIn
 ) -> VariableDetail | UpdateError:
     """A full replacement (AC-3). The unit cannot change once a value is saved, because saved
-    values are stored in it."""
+    values are stored in it. The notebook row is locked like an add, so two edits cannot both
+    pass the name check (AC-10)."""
+    found = session.get(Variable, variable_id)
+    if found is None or _lock_experiment(session, found.experiment_id) is None:
+        session.rollback()
+        return VariableNotFound()
     variable = session.exec(
         select(Variable)
         .where(Variable.id == variable_id)
@@ -135,7 +151,11 @@ def update_variable(
     if experiment is None or experiment.status == ExperimentStatus.CLOSED:
         session.rollback()
         return ExperimentClosed()
-    others = (v.name for v in _variables_of(session, variable.experiment_id) if v.id != variable_id)
+    others = (
+        (v.name, v.aliases)
+        for v in _variables_of(session, variable.experiment_id)
+        if v.id != variable_id
+    )
     if (problem := check_variable(body, others)) is not None:
         session.rollback()
         return problem

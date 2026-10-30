@@ -1870,7 +1870,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
-            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            /** @description invalid_request, duplicate_variable_name, name_in_use, or invalid_range */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1932,7 +1932,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
-            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            /** @description invalid_request, duplicate_variable_name, name_in_use, or invalid_range */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1994,7 +1994,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
-            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            /** @description invalid_request, duplicate_variable_name, name_in_use, or invalid_range */
             422: {
                 headers: {
                     [name: string]: unknown;

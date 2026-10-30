@@ -227,6 +227,15 @@ class DuplicateVariableName(_Result):
     name: str | None
 
 
+class NameInUse(_Result):
+    """A name or other name another variable already answers to (spec 0008, AC-10). `owner` is
+    that variable's name when `word` is one of its other names, None when it is its name."""
+
+    code: Literal["name_in_use"] = "name_in_use"
+    word: str
+    owner: str | None
+
+
 class InvalidRange(_Result):
     """A variable's minimum is above its maximum."""
 

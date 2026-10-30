@@ -17,6 +17,7 @@ from app.services.results import (
     ExperimentNotFound,
     InvalidRange,
     LastVariable,
+    NameInUse,
     UnitLocked,
     VariableDetail,
     VariableNotFound,
@@ -55,6 +56,7 @@ type VariableError = (
     | UnitLocked
     | LastVariable
     | DuplicateVariableName
+    | NameInUse
     | InvalidRange
 )
 
@@ -64,7 +66,7 @@ def _errors(*codes: int) -> dict[int | str, dict[str, object]]:
         401: "No valid access session",
         404: "experiment_not_found or variable_not_found",
         409: "experiment_closed, variables_full, unit_locked, or last_variable",
-        422: "invalid_request, duplicate_variable_name, or invalid_range",
+        422: "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
     }
     return {code: {"model": ApiErrorBody, "description": described[code]} for code in codes}
 
@@ -74,6 +76,10 @@ def _fail(result: VariableError) -> ApiError:
     match result:
         case DuplicateVariableName():
             return ApiError(422, result.code, "Hay otra variable con este nombre.")
+        case NameInUse(word=word, owner=None):
+            return ApiError(422, result.code, f"«{word}» ya es el nombre de otra variable.")
+        case NameInUse(word=word, owner=owner):
+            return ApiError(422, result.code, f"«{word}» ya es otro nombre de {owner}.")
         case InvalidRange(name=name):
             return ApiError(
                 422, result.code, f"En «{name}», el mínimo no puede ser mayor que el máximo."

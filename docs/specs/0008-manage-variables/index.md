@@ -7,6 +7,8 @@
 
 "Revisar variables" in the side panel's Acciones rápidas only scrolls to the read only Variables list, and once a notebook exists there is no way to fix a variable: a wrong name, a missing range, a variable you no longer measure. This feature makes "Revisar variables" open a dialog, like "Tabla completa" (spec 0007, AC-8), where you can add a variable, edit one, or select several and delete them. Code keeps the saved data honest: a variable's unit is locked once it has saved values, because those numbers are stored in that unit, and deleting a variable deletes its saved values too, after a confirmation that says how many. It adds three API routes on spec 0002's tables, and no migration.
 
+Fixed on 2026-10-30 (error pass on the variables API): an other name could repeat another variable's name ("pH" as an other name of a second variable), so the capture prompt listed two variables answering to "pH"; and narrowing a range that left saved values outside it gave no sign. AC-10 and AC-11.
+
 ## Requirements
 
 **User stories**:
@@ -24,6 +26,8 @@
 - **AC-6**: Eliminar asks first, inside the dialog: "Se borrarán {names} y {k} valores guardados. Esto no se puede deshacer." (with no saved values: "Se borrarán {names}."), with Cancelar and a destructive Eliminar (the danger button: an outline button whose icon is red). Confirming sends `POST /api/experiments/{id}/variables/delete` with the ids. In one transaction the API deletes those variables' saved values, any trial left with no values, and the variables; a pending card loses its values for them (the existing cascade). It returns the counts it deleted, and the dialog shows "Eliminé {n} variables y {k} valores." in a polite status line.
 - **AC-7**: After any add, edit, or delete, the notebook, the panel's Variables list, the trials table and CSV (spec 0007), the trial count, and the capture prompt all use the new variables with no reload: the web invalidates `experimentKeys.all`, and the API reads variables fresh on every turn. A failed request keeps the form or the selection as it was and shows the API's message.
 - **AC-8**: The three routes are behind the access session (401 without it) and answer 404 `experiment_not_found` or `variable_not_found` for an unknown id. On a closed notebook they answer 409 `experiment_closed` ("Este cuaderno está cerrado; no se pueden cambiar sus variables.") and the dialog shows the list without Agregar, Editar, or the checkboxes.
+- **AC-10** (error pass, 2026-10-30): Names and other names are one set per notebook, compared after trimming and ignoring case: an other name cannot be another variable's name or other name, and a name cannot be another variable's other name. A clash is 422 `name_in_use`, from add and edit alike, with a message that names who has it: "«pH» ya es el nombre de otra variable." (the other variable's name) or "«temp» ya es otro nombre de Temperatura." (its other name). The form checks the same thing before sending and shows the message under Otros nombres or Nombre (a name equal to another name keeps AC-4's "Hay otra variable con este nombre"). An other name equal to the variable's own name is dropped, like a repeated one. Edit locks the notebook row as add does, so two saves cannot both pass the check. Notebooks that already hold a clash keep it until someone edits one of the two variables.
+- **AC-11** (error pass, 2026-10-30): Editing the range of a variable with saved values shows a quiet note under Mín and Máx when the drafted range leaves some of them outside and differs from the saved range: "2 valores guardados quedan fuera de este rango (ensayos 1 y 2). No se cambian." ("1 valor guardado queda fuera…", "(ensayo 1)"). It is worked out in the browser from the trials query (spec 0007), updates as you type, is tied to Mín and Máx with `aria-describedby`, never blocks Guardar, and the API does not check it. Values already outside the saved range show no note while the range is unchanged.
 - **AC-9**: vitest-axe reports no violations with the dialog open on the list, a form with errors, a selection, and the delete confirmation.
 
 ## Decision
@@ -38,6 +42,8 @@
 - **Edit is a full replacement (`PUT`)**, so "clear the range" and "leave it" never get confused; the form always sends every field.
 - **Delete is `POST …/variables/delete` with a body**, because a `DELETE` with a body is not reliably supported by proxies and clients, and several ids do not fit a path.
 - **Saved value counts come from the trials query** (spec 0007) the panel already has, so the dialog needs no new read; the API checks the real count again on every write.
+- **Names and other names share one set** (AC-10), because capture reads both the same way: two variables answering to one word make the model guess. Runner up: let the prompt sort it out, which is the guess we want to avoid.
+- **A narrowed range warns and saves** (AC-11): the student may be fixing a range that was wrong, and saved values are what was measured, so nothing is refused or changed. Runner up: block the save, which stops a legitimate fix.
 - **A trial left empty by a delete is deleted too**, the same rule spec 0006's undo uses, so the table never shows a row of dashes.
 
 **Implementation skills**: `fastapi` · `sqlmodel` · `supabase-postgres-best-practices` · `vercel-react-best-practices`

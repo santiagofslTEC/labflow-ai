@@ -8,7 +8,8 @@ import {
   draftOf,
   emptyDraft,
   parseAliases,
-  savedValueCounts,
+  rangeNote,
+  savedValues,
   toVariableIn,
   validateVariable,
 } from "./variable-form";
@@ -24,7 +25,9 @@ describe("validateVariable (spec 0008, AC-4)", () => {
       name: "Escribe un nombre",
     });
     expect(
-      validateVariable(draft({ name: "temperatura" }), ["Temperatura"]),
+      validateVariable(draft({ name: "temperatura" }), [
+        { name: "Temperatura", aliases: [] },
+      ]),
     ).toEqual({
       name: "Hay otra variable con este nombre",
     });
@@ -49,6 +52,64 @@ describe("validateVariable (spec 0008, AC-4)", () => {
     expect(
       validateVariable(draft({ name: "pH", aliases: "x".repeat(41) }), []),
     ).toEqual({ aliases: "Cada otro nombre tiene máximo 40 caracteres" });
+  });
+});
+
+describe("names and other names are one set (AC-10)", () => {
+  const others = [
+    { name: "Temperatura", aliases: ["temp"] },
+    { name: "Rendimiento", aliases: [] },
+  ];
+
+  it("refuses an other name another variable answers to", () => {
+    expect(
+      validateVariable(
+        draft({ name: "Presión", aliases: "p, rendimiento" }),
+        others,
+      ),
+    ).toEqual({ aliases: "«rendimiento» ya es el nombre de otra variable." });
+    expect(
+      validateVariable(draft({ name: "Presión", aliases: "TEMP" }), others),
+    ).toEqual({ aliases: "«TEMP» ya es otro nombre de Temperatura." });
+  });
+
+  it("refuses a name that is another variable's other name", () => {
+    expect(validateVariable(draft({ name: "Temp" }), others)).toEqual({
+      name: "«Temp» ya es otro nombre de Temperatura.",
+    });
+  });
+
+  it("drops the variable's own name from its other names", () => {
+    expect(parseAliases("pH, PH, acidez", "pH")).toEqual(["acidez"]);
+    expect(toVariableIn(draft({ name: "pH", aliases: "ph" })).aliases).toEqual(
+      [],
+    );
+  });
+});
+
+describe("the range note (AC-11)", () => {
+  const saved = [
+    { trial: 2, value: 8 },
+    { trial: 1, value: 7 },
+    { trial: 3, value: 10 },
+  ];
+  const initial = draft({ name: "pH", min: "0", max: "14" });
+
+  it("names the trials a narrower range leaves outside", () => {
+    expect(rangeNote(saved, initial, { ...initial, min: "9" })).toBe(
+      "2 valores guardados quedan fuera de este rango (ensayos 1 y 2). No se cambian.",
+    );
+    expect(rangeNote(saved, initial, { ...initial, min: "7,5" })).toBe(
+      "1 valor guardado queda fuera de este rango (ensayo 1). No se cambia.",
+    );
+  });
+
+  it("stays quiet while nothing is left out, the range is unchanged, or a bound is not a number", () => {
+    expect(rangeNote(saved, initial, { ...initial, max: "12" })).toBeNull();
+    const narrow = { ...initial, min: "9" };
+    expect(rangeNote(saved, narrow, narrow)).toBeNull();
+    expect(rangeNote(saved, initial, { ...initial, min: "abc" })).toBeNull();
+    expect(rangeNote([], initial, { ...initial, min: "9" })).toBeNull();
   });
 });
 
@@ -87,20 +148,26 @@ describe("the body and the draft", () => {
 });
 
 describe("counts and texts (AC-1, AC-6)", () => {
-  it("counts saved values per variable", () => {
-    const cell = (variable_id: number) => ({
+  it("lists saved values per variable with their trial", () => {
+    const cell = (variable_id: number, value: number) => ({
       variable_id,
-      value: 1,
+      value,
       said_text: null,
       saved_at: "2026-10-29T12:00:00Z",
     });
-    const counts = savedValueCounts([
-      { id: 1, number: 1, cells: [cell(1), cell(2)] },
-      { id: 2, number: 2, cells: [cell(1)] },
+    const saved = savedValues([
+      { id: 1, number: 1, cells: [cell(1, 40), cell(2, 7)] },
+      { id: 2, number: 2, cells: [cell(1, 45)] },
     ]);
-    expect([...counts]).toEqual([
-      [1, 2],
-      [2, 1],
+    expect([...saved]).toEqual([
+      [
+        1,
+        [
+          { trial: 1, value: 40 },
+          { trial: 2, value: 45 },
+        ],
+      ],
+      [2, [{ trial: 1, value: 7 }]],
     ]);
   });
 

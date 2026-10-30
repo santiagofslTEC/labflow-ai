@@ -44,7 +44,7 @@ import {
   type TrialTableRow,
 } from "@/lib/trials";
 import { cn } from "@/lib/utils";
-import { savedValueCounts } from "@/lib/variable-form";
+import { savedValues } from "@/lib/variable-form";
 
 import { VariablesDialog } from "./variables-dialog";
 
@@ -268,10 +268,8 @@ function NotebookInspector({
           <li>
             <VariablesDialog
               experiment={experiment}
-              counts={
-                trials.kind === "ready"
-                  ? savedValueCounts(trials.view.trials)
-                  : null
+              saved={
+                trials.kind === "ready" ? savedValues(trials.view.trials) : null
               }
               triggerClassName={quickActionClass}
             >
