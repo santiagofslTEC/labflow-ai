@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartColumnIcon,
   ChevronRightIcon,
   DownloadIcon,
   HistoryIcon,
@@ -10,6 +11,7 @@ import {
   VariableIcon,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import type * as React from "react";
 
 import type { ExperimentDetail, TrialsView } from "@/api/experiments";
@@ -46,6 +48,7 @@ import {
 import { cn } from "@/lib/utils";
 import { savedValues } from "@/lib/variable-form";
 
+import { PHONE_VIEW, PHONE_VIEW_BLOCK } from "./notebook-tabs";
 import { VariablesDialog } from "./variables-dialog";
 
 // The notebook as a CSV: one column per variable, one row per saved trial, the
@@ -81,7 +84,9 @@ type NotebookInspectorProps = {
 
 // "Inspector activo" (from the Stitch reference): a summary of the open
 // notebook, its latest measurements, the trials table, its variables, and
-// shortcuts. Every number comes from the API; nothing is estimated.
+// shortcuts. Every number comes from the API; nothing is estimated. On the
+// phone its parts split between the Ensayos and Variables views (spec 0010,
+// AC-2); each still mounts once.
 function NotebookInspector({
   experiment,
   trialCount,
@@ -99,9 +104,9 @@ function NotebookInspector({
     <aside
       id="inspector"
       aria-labelledby="inspector-title"
-      className="flex min-w-0 scroll-mt-20 flex-col gap-8 lg:border-l lg:border-line lg:pl-8"
+      className="flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:border-l lg:border-line lg:pl-8"
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 max-lg:hidden">
         <h2
           id="inspector-title"
           className="flex items-center gap-2 text-sm font-semibold text-ink"
@@ -114,7 +119,10 @@ function NotebookInspector({
         </span>
       </div>
 
-      <section aria-labelledby="resumen" className="flex flex-col">
+      <section
+        aria-labelledby="resumen"
+        className={cn("flex flex-col", PHONE_VIEW.ensayos)}
+      >
         <h3 id="resumen" className="pb-1 text-sm font-medium text-ink">
           Resumen
         </h3>
@@ -139,7 +147,10 @@ function NotebookInspector({
         </dl>
       </section>
 
-      <section aria-labelledby="recientes" className="flex flex-col gap-2">
+      <section
+        aria-labelledby="recientes"
+        className={cn("flex flex-col gap-2", PHONE_VIEW.ensayos)}
+      >
         <PanelHeading
           id="recientes"
           icon={HistoryIcon}
@@ -176,7 +187,7 @@ function NotebookInspector({
       <section
         id="tabla"
         aria-labelledby="ensayos"
-        className="flex scroll-mt-20 flex-col gap-2"
+        className={cn("flex scroll-mt-20 flex-col gap-2", PHONE_VIEW.ensayos)}
       >
         <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
         <TrialsTable variables={variables} rows={rows} trials={trials} />
@@ -185,7 +196,7 @@ function NotebookInspector({
       <section
         id="lista-variables"
         aria-labelledby="variables"
-        className="flex scroll-mt-20 flex-col gap-2"
+        className={cn("flex scroll-mt-20 flex-col gap-2", PHONE_VIEW.variables)}
       >
         <PanelHeading
           id="variables"
@@ -224,11 +235,14 @@ function NotebookInspector({
       </section>
 
       <section aria-labelledby="acciones" className="flex flex-col gap-2">
-        <h3 id="acciones" className="text-sm font-medium text-ink">
+        <h3
+          id="acciones"
+          className="text-sm font-medium text-ink max-lg:sr-only"
+        >
           Acciones rápidas
         </h3>
         <ul className="flex flex-col gap-1.5">
-          <li>
+          <li className={PHONE_VIEW_BLOCK.ensayos}>
             <Dialog>
               <DialogTrigger className={quickActionClass}>
                 <QuickActionContent icon={TableIcon} label="Tabla completa" />
@@ -265,7 +279,7 @@ function NotebookInspector({
               </DialogContent>
             </Dialog>
           </li>
-          <li>
+          <li className={PHONE_VIEW_BLOCK.variables}>
             <VariablesDialog
               experiment={experiment}
               saved={
@@ -279,12 +293,21 @@ function NotebookInspector({
               />
             </VariablesDialog>
           </li>
-          <li>
+          <li className={PHONE_VIEW_BLOCK.ensayos}>
             <QuickAction
               icon={DownloadIcon}
               label={exportLabel(trials)}
               disabled={trials.kind !== "ready"}
               onClick={() => downloadNotebookCsv(experiment, rows)}
+            />
+          </li>
+          {/* The header's Ver resultados is in the phone's Más sheet; the
+              Ensayos view repeats it next to the data. */}
+          <li className={cn("lg:hidden", PHONE_VIEW_BLOCK.ensayos)}>
+            <QuickAction
+              icon={ChartColumnIcon}
+              label="Ver resultados"
+              href={`/cuadernos/${experiment.id}/resultados`}
             />
           </li>
         </ul>
@@ -439,9 +462,9 @@ function QuickAction({
 }) {
   const content = <QuickActionContent icon={Icon} label={label} />;
   return href ? (
-    <a href={href} className={quickActionClass}>
+    <Link href={href} className={quickActionClass}>
       {content}
-    </a>
+    </Link>
   ) : (
     <button
       type="button"

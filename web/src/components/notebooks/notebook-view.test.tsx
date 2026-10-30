@@ -15,6 +15,17 @@ vi.mock("@/api/experiments", async (importOriginal) => ({
   getTrials: vi.fn(),
 }));
 
+const navigation = vi.hoisted(() => ({
+  search: "",
+  replace: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/cuadernos/7",
+  useRouter: () => ({ replace: navigation.replace }),
+  useSearchParams: () => new URLSearchParams(navigation.search),
+}));
+
 vi.mock("@/api/capture", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/capture")>()),
   getProposal: vi.fn().mockResolvedValue({ ok: true, data: null }),
@@ -24,6 +35,8 @@ const getMock = vi.mocked(getExperiment);
 const trialsMock = vi.mocked(getTrials);
 
 beforeEach(() => {
+  navigation.search = "";
+  navigation.replace.mockReset();
   getMock.mockReset();
   trialsMock.mockReset();
   trialsMock.mockResolvedValue({ ok: true, data: { trials: [], recent: [] } });
@@ -58,10 +71,10 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
     expect(screen.getByText(/Creado por ana/)).toHaveTextContent(
       "Creado por ana · 28 oct",
     );
-    expect(screen.getByText("Abierto")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Ver resultados" }),
-    ).toHaveAttribute("href", "/cuadernos/7/resultados");
+    // The header's and the phone Ensayos view's (CSS shows one per width).
+    expect(screen.getAllByText("Abierto")).toHaveLength(2);
+    for (const link of screen.getAllByRole("link", { name: "Ver resultados" }))
+      expect(link).toHaveAttribute("href", "/cuadernos/7/resultados");
     expect(screen.getByRole("link", { name: "Mis cuadernos" })).toHaveAttribute(
       "href",
       "/cuadernos",
@@ -219,5 +232,68 @@ describe("NotebookView instructions (spec 0005, AC-31)", () => {
     await screen.findByRole("heading", { level: 1, name: sampleDetail.title });
     expect(screen.queryByRole("region", { name: "Contexto" })).toBeNull();
     expect(screen.queryByText(/Instrucciones:/)).toBeNull();
+  });
+});
+
+describe("NotebookView on the phone (spec 0010, AC-2)", () => {
+  it("switches views through ?vista and marks the open one", async () => {
+    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    const user = userEvent.setup();
+    const { container } = renderWithQuery(<NotebookView rawId="7" />);
+    const views = await screen.findByRole("group", {
+      name: "Vistas del cuaderno",
+    });
+    const capturar = within(views).getByRole("button", { name: "Capturar" });
+    expect(capturar).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector("[data-vista]")).toHaveAttribute(
+      "data-vista",
+      "capturar",
+    );
+
+    await user.click(within(views).getByRole("button", { name: "Ensayos" }));
+    expect(navigation.replace).toHaveBeenCalledWith(
+      "/cuadernos/7?vista=ensayos",
+      { scroll: false },
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("reads the view from the URL, and the bare URL is Capturar", async () => {
+    navigation.search = "vista=variables";
+    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    const user = userEvent.setup();
+    const { container } = renderWithQuery(<NotebookView rawId="7" />);
+    const views = await screen.findByRole("group", {
+      name: "Vistas del cuaderno",
+    });
+    expect(
+      within(views).getByRole("button", { name: "Variables" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector("[data-vista]")).toHaveAttribute(
+      "data-vista",
+      "variables",
+    );
+    await user.click(within(views).getByRole("button", { name: "Capturar" }));
+    expect(navigation.replace).toHaveBeenCalledWith("/cuadernos/7", {
+      scroll: false,
+    });
+  });
+
+  it("opens Más as a sheet with the goal and both header actions", async () => {
+    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    const user = userEvent.setup();
+    const { baseElement } = renderWithQuery(<NotebookView rawId="7" />);
+    await user.click(await screen.findByRole("button", { name: "Más" }));
+    const sheet = screen.getByRole("dialog", { name: sampleDetail.title });
+    expect(
+      within(sheet).getByText(sampleDetail.goal ?? ""),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("button", { name: "Exportar datos" }),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("link", { name: "Ver resultados" }),
+    ).toHaveAttribute("href", "/cuadernos/7/resultados");
+    expect(await axe(baseElement)).toHaveNoViolations();
   });
 });

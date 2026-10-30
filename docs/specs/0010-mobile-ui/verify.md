@@ -4,7 +4,7 @@ _Steps derived from spec 0010 acceptance criteria. `/check verify` runs these; `
 ## UI / manual (an iPhone and an Android phone, on the Vercel preview)
 - [ ] The tab bar shows Inicio, Cuadernos, Nuevo, Ajustes; each opens its page and is marked; the mic dock sits above it; nothing hides under it or the home indicator → AC-1, AC-11
 - [ ] Open a notebook → the compact header and the Capturar, Ensayos, Variables tabs; switch to Ensayos, reload → still Ensayos; dictate a trial on Capturar while Ensayos was open → the dot on Capturar → AC-2
-- [ ] Más → Exportar datos, Ver resultados, Ver objetivo y contexto each work → AC-2
+- [ ] Más → a sheet with the goal and context, and Exportar datos and Ver resultados work → AC-2
 - [ ] Ensayos → Tabla completa opens full screen; swipe back (or the back button) → it closes and the notebook stays → AC-3
 - [ ] Variables → Revisar variables → each variable is a row; edit one, then delete one, with the sheet's bottom buttons → AC-4
 - [ ] The trials table scrolls sideways inside its box with Ensayo fixed; the page does not move sideways → AC-5

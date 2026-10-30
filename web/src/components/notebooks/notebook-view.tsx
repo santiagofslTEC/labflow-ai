@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   CloudOffIcon,
   DownloadIcon,
+  EllipsisIcon,
   FileQuestionIcon,
   MessagesSquareIcon,
   RotateCwIcon,
@@ -18,6 +19,15 @@ import { VoiceConversation } from "@/components/voice/voice-conversation";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,7 +35,9 @@ import {
   useExperiments,
   useTrials,
 } from "@/hooks/use-experiments";
+import { usePendingProposal } from "@/hooks/use-capture";
 import { tableRows } from "@/lib/trials";
+import { cn } from "@/lib/utils";
 import { useNow } from "@/hooks/use-now";
 import { protocolLabel } from "@/lib/instructions";
 import { formatShortDate } from "@/lib/relative-time";
@@ -35,6 +47,7 @@ import {
   NotebookInspector,
   type TrialsPanel,
 } from "./notebook-inspector";
+import { NotebookTabs, PHONE_VIEW, useVista } from "./notebook-tabs";
 
 // A route segment that can name a notebook; anything else is "no existe"
 // without asking the API (AC-11).
@@ -106,91 +119,143 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
       ? { kind: "error", onRetry: () => void trialsQuery.refetch() }
       : { kind: "loading" };
   const ready = trials.kind === "ready";
+  const exportCsv = () => {
+    if (trialsQuery.data)
+      downloadNotebookCsv(
+        experiment,
+        tableRows(experiment.variables, trialsQuery.data.trials),
+      );
+  };
+  const [vista, setVista] = useVista();
+  const pending = Boolean(usePendingProposal(experiment.id).data);
+  const resultsHref = `/cuadernos/${experiment.id}/resultados`;
+  // The goal, the context, and who made it: under the title on desktop, in
+  // the Más sheet on the phone (two copies, so each takes its heading id).
+  const details = (headingId: string) => (
+    <div className="flex flex-col gap-3">
+      {experiment.goal ? (
+        <p className="text-base whitespace-pre-line text-ink">
+          {experiment.goal}
+        </p>
+      ) : null}
+      {experiment.context ? (
+        <section
+          aria-labelledby={headingId}
+          className="flex flex-col gap-1 border-l-2 border-line pl-3"
+        >
+          <h2 id={headingId} className="text-xs text-ink-muted">
+            Contexto
+          </h2>
+          <p className="text-sm whitespace-pre-line text-ink">
+            {experiment.context}
+          </p>
+        </section>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={closed ? "neutral" : "saved"}>
+          {closed ? "Cerrado" : "Abierto"}
+        </Badge>
+        <p>
+          Creado por {experiment.created_by} ·{" "}
+          <time dateTime={experiment.created_at}>
+            {formatShortDate(created, now)}
+          </time>
+          {experiment.protocol
+            ? ` · ${protocolLabel(experiment.protocol)}`
+            : null}
+        </p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex flex-1 flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
-      <div className="flex min-w-0 flex-col gap-8 lg:pr-10">
-        <div className="flex flex-col gap-2 border-b border-line pb-6">
+    <div
+      data-vista={vista}
+      className="group/nb flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0"
+    >
+      <div className="flex min-w-0 flex-col gap-6 lg:gap-8 lg:pr-10">
+        <div className="flex flex-col gap-2 border-b border-line pb-4 lg:pb-6">
           <BackLink />
           <PageHeader
             title={experiment.title}
+            titleClassName="max-lg:line-clamp-2"
+            descriptionClassName="max-lg:hidden"
+            actionsClassName="max-lg:hidden"
             actions={
               <>
                 <Button
                   variant="secondary"
                   aria-disabled={!ready || undefined}
-                  onClick={() => {
-                    if (trialsQuery.data)
-                      downloadNotebookCsv(
-                        experiment,
-                        tableRows(
-                          experiment.variables,
-                          trialsQuery.data.trials,
-                        ),
-                      );
-                  }}
+                  onClick={exportCsv}
                 >
                   <DownloadIcon aria-hidden />
                   Exportar datos
                 </Button>
                 <Button asChild>
-                  <Link href={`/cuadernos/${experiment.id}/resultados`}>
+                  <Link href={resultsHref}>
                     <ChartColumnIcon aria-hidden />
                     Ver resultados
                   </Link>
                 </Button>
               </>
             }
-            description={
-              <div className="flex flex-col gap-3">
-                {experiment.goal ? (
-                  <p className="text-base whitespace-pre-line text-ink">
-                    {experiment.goal}
-                  </p>
-                ) : null}
-                {experiment.context ? (
-                  <section
-                    aria-labelledby="contexto-titulo"
-                    className="flex flex-col gap-1 border-l-2 border-line pl-3"
-                  >
-                    <h2 id="contexto-titulo" className="text-xs text-ink-muted">
-                      Contexto
-                    </h2>
-                    <p className="text-sm whitespace-pre-line text-ink">
-                      {experiment.context}
-                    </p>
-                  </section>
-                ) : null}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={closed ? "neutral" : "saved"}>
-                    {closed ? "Cerrado" : "Abierto"}
-                  </Badge>
-                  <p>
-                    Creado por {experiment.created_by} ·{" "}
-                    <time dateTime={experiment.created_at}>
-                      {formatShortDate(created, now)}
-                    </time>
-                    {experiment.protocol
-                      ? ` · ${protocolLabel(experiment.protocol)}`
-                      : null}
-                  </p>
-                </div>
-              </div>
-            }
+            description={details("contexto-titulo")}
           />
+          {/* The phone's compact header (spec 0010, AC-2): the badge, and Más
+              for the goal, the context, and the two header actions. */}
+          <div className="flex items-center justify-between gap-2 lg:hidden">
+            <Badge variant={closed ? "neutral" : "saved"}>
+              {closed ? "Cerrado" : "Abierto"}
+            </Badge>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon-lg" aria-label="Más">
+                  <EllipsisIcon aria-hidden />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto]">
+                <DialogHeader>
+                  <DialogTitle>{experiment.title}</DialogTitle>
+                  <DialogDescription>Objetivo y contexto</DialogDescription>
+                </DialogHeader>
+                <div className="min-h-0 overflow-y-auto text-sm text-ink-muted">
+                  {details("contexto-titulo-mas")}
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    aria-disabled={!ready || undefined}
+                    onClick={exportCsv}
+                  >
+                    <DownloadIcon aria-hidden />
+                    Exportar datos
+                  </Button>
+                  <Button asChild size="lg">
+                    <Link href={resultsHref}>
+                      <ChartColumnIcon aria-hidden />
+                      Ver resultados
+                    </Link>
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        <NotebookTabs vista={vista} onChange={setVista} pending={pending} />
 
         {closed ? (
           <EmptyState
             icon={MessagesSquareIcon}
             title="Este cuaderno está cerrado"
             description="Ya no recibe mediciones nuevas."
-            className="flex-1 justify-center"
+            className={cn("flex-1 justify-center", PHONE_VIEW.capturar)}
           />
         ) : (
           <section
             aria-label="Registrar una medición"
-            className="flex flex-col gap-3"
+            className={cn("flex flex-col gap-3", PHONE_VIEW.capturar)}
           >
             <p className="text-sm text-ink-muted">
               Dicta o escribe un ensayo. Si LabFlow lo entendió sin dudas, lo
