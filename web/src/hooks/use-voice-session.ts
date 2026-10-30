@@ -69,6 +69,7 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
       if (mode === "listening") refresh();
     },
     onDisconnect: (details) => {
+      console.warn("[voz] sesión terminada", details);
       release();
       setPhase(
         details.reason === "error"
@@ -76,9 +77,16 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
           : { kind: "idle" },
       );
     },
-    onError: () => {
-      release();
-      setPhase({ kind: "error", message: voiceCopy.dropped });
+    // An error during a live call (one failed turn) does not end it: the agent
+    // keeps listening and onDisconnect reports a real drop. Only a session
+    // that never connected turns into the error state (AC-11).
+    onError: (message, context) => {
+      console.warn("[voz] error", message, context);
+      setPhase((current) =>
+        current.kind === "starting"
+          ? { kind: "error", message: voiceCopy.dropped }
+          : current,
+      );
     },
   });
 

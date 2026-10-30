@@ -12,6 +12,7 @@ import { VoiceConversation } from "./voice-conversation";
 type Options = {
   readonly onMessage?: (m: { role: string; message: string }) => void;
   readonly onDisconnect?: (d: { reason: string }) => void;
+  readonly onError?: (message: string, context?: unknown) => void;
 };
 
 const conversation = {
@@ -171,6 +172,20 @@ describe("VoiceConversation", () => {
       value: "visible",
       configurable: true,
     });
+  });
+
+  it("keeps the call going after one failed turn", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    renderVoice();
+    await userEvent.click(screen.getByRole("button", { name: /hablar/i }));
+    await screen.findByRole("button", { name: /terminar/i });
+    act(() => options.onError?.("Server error: custom llm"));
+    expect(endMock).not.toHaveBeenCalled();
+    expect(conversation.endSession).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /terminar/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("has no axe violations when idle", async () => {
