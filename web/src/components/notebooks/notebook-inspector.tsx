@@ -74,6 +74,9 @@ type NotebookInspectorProps = {
   // From the notebooks list cache; undefined until it loads.
   readonly trialCount: number | undefined;
   readonly trials: TrialsPanel;
+  // The "Tabla completa" dialog, also opened by the page's "Ver resultados".
+  readonly tableOpen?: boolean;
+  readonly onTableOpenChange?: (open: boolean) => void;
 };
 
 // "Inspector activo" (from the Stitch reference): a summary of the open
@@ -83,6 +86,8 @@ function NotebookInspector({
   experiment,
   trialCount,
   trials,
+  tableOpen,
+  onTableOpenChange,
 }: NotebookInspectorProps) {
   const now = useNow();
   const variables = experiment.variables;
@@ -182,7 +187,8 @@ function NotebookInspector({
       <section
         id="lista-variables"
         aria-labelledby="variables"
-        className="flex scroll-mt-20 flex-col gap-2"
+        tabIndex={-1}
+        className="flex scroll-mt-20 flex-col gap-2 rounded-control outline-none focus:ring-2 focus:ring-brand focus:ring-offset-4 focus:ring-offset-surface"
       >
         <PanelHeading
           id="variables"
@@ -226,7 +232,7 @@ function NotebookInspector({
         </h3>
         <ul className="flex flex-col gap-1.5">
           <li>
-            <Dialog>
+            <Dialog open={tableOpen} onOpenChange={onTableOpenChange}>
               <DialogTrigger className={quickActionClass}>
                 <QuickActionContent icon={TableIcon} label="Tabla completa" />
               </DialogTrigger>
@@ -264,9 +270,9 @@ function NotebookInspector({
           </li>
           <li>
             <QuickAction
-              href="#lista-variables"
               icon={ListChecksIcon}
               label="Revisar variables"
+              onClick={showVariables}
             />
           </li>
           <li>
@@ -394,6 +400,14 @@ export const exportLabel = (trials: TrialsPanel): string =>
     : trials.kind === "error"
       ? "Exportar CSV (no disponible)"
       : "Exportar CSV";
+
+// "Revisar variables": bring the list into view and focus it, so the jump shows
+// even when the list is already on screen.
+const showVariables = () => {
+  const list = document.getElementById("lista-variables");
+  list?.scrollIntoView({ behavior: "smooth", block: "start" });
+  list?.focus({ preventScroll: true });
+};
 
 const quickActionClass =
   "flex h-11 w-full items-center gap-3 rounded-control border border-line bg-surface px-3 text-left text-sm text-ink shadow-control focus-ring transition-colors hover:bg-sunken";

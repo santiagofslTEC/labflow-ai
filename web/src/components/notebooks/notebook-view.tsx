@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
 
 import { experimentKeys, type ExperimentDetail } from "@/api/experiments";
 import { CaptureStage } from "@/components/capture-stage/capture-stage";
@@ -97,6 +98,9 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
     (notebook) => notebook.id === experiment.id,
   )?.trial_count;
   const trialsQuery = useTrials(experiment.id);
+  // "Ver resultados" opens the full trials table, the same dialog as the
+  // panel's "Tabla completa".
+  const [tableOpen, setTableOpen] = useState(false);
   const trials: TrialsPanel = trialsQuery.data
     ? { kind: "ready", view: trialsQuery.data }
     : trialsQuery.isError
@@ -130,11 +134,9 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                   <DownloadIcon aria-hidden />
                   Exportar datos
                 </Button>
-                <Button asChild>
-                  <a href="#inspector">
-                    <ChartColumnIcon aria-hidden />
-                    Ver resultados
-                  </a>
+                <Button onClick={() => setTableOpen(true)}>
+                  <ChartColumnIcon aria-hidden />
+                  Ver resultados
                 </Button>
               </>
             }
@@ -219,6 +221,8 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
         experiment={experiment}
         trialCount={trialCount}
         trials={trials}
+        tableOpen={tableOpen}
+        onTableOpenChange={setTableOpen}
       />
     </div>
   );
