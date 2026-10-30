@@ -16,6 +16,7 @@ import type * as React from "react";
 
 import type { ExperimentDetail, TrialsView } from "@/api/experiments";
 import { PanelHeading } from "@/components/app-shell/panel-heading";
+import { FolderPicker } from "@/components/folders/folder-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useMoveNotebook } from "@/hooks/use-experiments";
 import { useNow } from "@/hooks/use-now";
 import { csvFileName, trialsCsv } from "@/lib/csv";
 import { formatNumber, formatQuantity, formatRange } from "@/lib/format";
@@ -104,7 +106,7 @@ function NotebookInspector({
     <aside
       id="inspector"
       aria-labelledby="inspector-title"
-      className="flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:border-l lg:border-line lg:pl-8"
+      className="flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-line lg:pl-8"
     >
       <div className="flex items-center justify-between gap-2 max-lg:hidden">
         <h2
@@ -138,6 +140,9 @@ function NotebookInspector({
                 · {formatNumber(required)} requeridas
               </span>
             ) : null}
+          </SummaryRow>
+          <SummaryRow label="Carpeta">
+            <NotebookFolder experiment={experiment} />
           </SummaryRow>
           <SummaryRow label="Creado">
             <time dateTime={experiment.created_at} className="font-sans">
@@ -427,6 +432,33 @@ function SummaryRow({
       <dt className="text-ink-muted">{label}</dt>
       <dd className="font-mono text-ink tabular-nums">{children}</dd>
     </div>
+  );
+}
+
+// Move the notebook to another class folder, or out of one (2026-10-30).
+function NotebookFolder({
+  experiment,
+}: {
+  readonly experiment: ExperimentDetail;
+}) {
+  const move = useMoveNotebook(experiment.id);
+  return (
+    <span className="flex flex-col items-end gap-1 font-sans">
+      <FolderPicker
+        label="Carpeta"
+        value={move.isPending ? (move.variables ?? null) : experiment.folder_id}
+        onChange={(folderId) => {
+          if (folderId !== experiment.folder_id) move.mutate(folderId);
+        }}
+        disabled={move.isPending}
+        className="h-8 max-w-48"
+      />
+      {move.isError ? (
+        <span role="alert" className="text-xs text-danger">
+          No pudimos moverlo. Intenta de nuevo.
+        </span>
+      ) : null}
+    </span>
   );
 }
 

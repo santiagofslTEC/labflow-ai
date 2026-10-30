@@ -23,14 +23,25 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/api/experiments", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/experiments")>()),
   createExperiment: vi.fn(),
+  listFolders: vi.fn().mockResolvedValue({
+    ok: true,
+    data: [
+      {
+        id: 3,
+        name: "Química orgánica",
+        notebook_count: 0,
+        created_at: "2026-10-30T12:00:00Z",
+      },
+    ],
+  }),
 }));
 
 const createMock = vi.mocked(createExperiment);
 
 // The page opens on the instructions panel (AC-19); these tests fill by hand.
-const setup = () => {
+const setup = (folderId: number | null = null) => {
   const user = userEvent.setup();
-  const view = renderWithQuery(<NotebookForm />);
+  const view = renderWithQuery(<NotebookForm defaultFolderId={folderId} />);
   fireEvent.click(screen.getByRole("button", { name: "Llenar a mano" }));
   return { user, ...view };
 };
@@ -174,9 +185,25 @@ describe("create (AC-7, AC-8)", () => {
           required: true,
         },
       ],
+      folder_id: null,
     });
     await waitFor(() => expect(push).toHaveBeenCalledWith("/cuadernos/7"));
     expect(client.getQueryData(experimentKeys.detail(7))).toEqual(sampleDetail);
+  });
+
+  it("creates inside the folder it was opened from", async () => {
+    createMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    const { user } = setup(3);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: "Carpeta" }),
+      ).toHaveTextContent("Química orgánica"),
+    );
+    await fillValid(user);
+    await user.click(crear());
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({ folder_id: 3 }),
+    );
   });
 
   it("is aria-disabled with a spinner while sending, and sends once", async () => {

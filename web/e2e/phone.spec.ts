@@ -14,6 +14,7 @@ const PAGES = [
   "/cuadernos/7?vista=ensayos",
   "/cuadernos/7?vista=variables",
   "/cuadernos/7/resultados",
+  "/carpetas/1",
   "/cuadernos/nuevo",
   "/configuracion",
 ];

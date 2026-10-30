@@ -10,7 +10,8 @@ import { BrandMark } from "./brand-mark";
 type Back = { readonly href: string; readonly label: string };
 
 // Where the phone's back arrow goes (spec 0010, AC-1): a notebook's results go
-// back to it, a notebook goes back to Cuadernos. Nuevo is a tab of its own.
+// back to it, a notebook goes back to Cuadernos, a class folder to Inicio.
+// Nuevo is a tab of its own.
 export const backFor = (pathname: string): Back | null => {
   const results = /^\/cuadernos\/([^/]+)\/resultados\/?$/.exec(pathname);
   if (results)
@@ -20,6 +21,8 @@ export const backFor = (pathname: string): Back | null => {
     !pathname.startsWith("/cuadernos/nuevo")
   )
     return { href: "/cuadernos", label: "Volver a Cuadernos" };
+  if (/^\/carpetas\/[^/]+\/?$/.test(pathname))
+    return { href: "/", label: "Volver al inicio" };
   return null;
 };
 
