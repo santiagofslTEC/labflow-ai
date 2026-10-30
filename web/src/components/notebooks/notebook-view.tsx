@@ -174,7 +174,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
       data-vista={vista}
       className="group/nb flex flex-1 flex-col gap-6 lg:grid lg:h-[calc(100svh-5rem-2px)] lg:min-h-0 lg:flex-none lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0"
     >
-      <div className="flex min-w-0 flex-col gap-6 lg:min-h-0 lg:gap-0 lg:pr-10">
+      <div className="flex min-w-0 flex-col gap-6 lg:min-h-0 lg:gap-0 lg:pr-6">
         <div className="flex shrink-0 flex-col gap-2 border-b border-line pb-4">
           <BackLink />
           <PageHeader
@@ -263,7 +263,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
           >
             {/* The mic centered on top (2026-10-30 restructure), kept in view
                 while the thread scrolls under it. */}
-            <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur-md lg:static lg:mx-0 lg:shrink-0 lg:px-0 lg:py-5">
+            <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur-md lg:static lg:mx-0 lg:mt-4 lg:shrink-0 lg:rounded-[20px] lg:border lg:border-tint-green-line/60 lg:bg-tint-green-soft lg:px-4 lg:py-5">
               <VoiceConversation
                 experimentId={experiment.id}
                 variant="stage"
