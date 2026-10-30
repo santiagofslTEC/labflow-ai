@@ -9,6 +9,7 @@ export const sampleDetail: ExperimentDetail = {
   status: "open",
   created_by: "ana",
   created_at: "2026-10-28T15:00:00Z",
+  folder_id: null,
   protocol: null,
   variables: [
     {
@@ -53,5 +54,6 @@ export const summary = (
   status: "open",
   trial_count: 0,
   last_activity_at: new Date().toISOString(),
+  folder_id: null,
   ...overrides,
 });

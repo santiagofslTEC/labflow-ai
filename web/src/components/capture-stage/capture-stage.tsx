@@ -53,10 +53,19 @@ export type CaptureStageProps = {
   // Features 7 and 20 refresh the table and "Último" here.
   readonly onSaved?: (saved: SavedTrial) => void;
   readonly onUndone?: () => void;
+  // "chat" puts the text field last, under the card, and leaves LabFlow's
+  // plain replies to the conversation thread above it.
+  readonly layout?: "stacked" | "chat";
 };
 
 // The typed capture loop (spec 0006, AC-18): a text field above the confirm card.
-function CaptureStage({ experimentId, onSaved, onUndone }: CaptureStageProps) {
+function CaptureStage({
+  experimentId,
+  onSaved,
+  onUndone,
+  layout = "stacked",
+}: CaptureStageProps) {
+  const chat = layout === "chat";
   const pending = usePendingProposal(experimentId);
   const send = useSendUtterance(experimentId);
   const edit = useEditValue(experimentId);
@@ -173,44 +182,51 @@ function CaptureStage({ experimentId, onSaved, onUndone }: CaptureStageProps) {
     return cardState(target, reply);
   };
 
+  const form = (
+    <form onSubmit={onSubmit} noValidate>
+      <Field data-invalid={error ? true : undefined} className="gap-1.5">
+        <FieldLabel
+          htmlFor="capture-text"
+          className={chat ? "sr-only" : undefined}
+        >
+          {copy.label}
+        </FieldLabel>
+        <div className="flex items-center gap-2">
+          <Input
+            ref={inputRef}
+            id="capture-text"
+            value={draft}
+            maxLength={TEXT_MAX}
+            autoComplete="off"
+            enterKeyHint="send"
+            placeholder={copy.placeholder}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "capture-error" : undefined}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setError(null);
+            }}
+            className="h-12"
+          />
+          <Button
+            type="submit"
+            size="lg"
+            aria-disabled={busy || undefined}
+            aria-label={send.isPending ? copy.sending : copy.send}
+          >
+            {send.isPending ? <Spinner /> : <SendHorizontalIcon aria-hidden />}
+          </Button>
+        </div>
+        {error ? <FieldError id="capture-error">{error}</FieldError> : null}
+      </Field>
+    </form>
+  );
+
+  // In the chat layout the root is `contents`, so the text field sticks to the
+  // bottom of the whole conversation column, not just this block.
   return (
-    <div className="flex flex-col gap-4">
-      <form onSubmit={onSubmit} noValidate>
-        <Field data-invalid={error ? true : undefined} className="gap-1.5">
-          <FieldLabel htmlFor="capture-text">{copy.label}</FieldLabel>
-          <div className="flex items-center gap-2">
-            <Input
-              ref={inputRef}
-              id="capture-text"
-              value={draft}
-              maxLength={TEXT_MAX}
-              autoComplete="off"
-              enterKeyHint="send"
-              placeholder={copy.placeholder}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "capture-error" : undefined}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                setError(null);
-              }}
-              className="h-12"
-            />
-            <Button
-              type="submit"
-              size="lg"
-              aria-disabled={busy || undefined}
-              aria-label={send.isPending ? copy.sending : copy.send}
-            >
-              {send.isPending ? (
-                <Spinner />
-              ) : (
-                <SendHorizontalIcon aria-hidden />
-              )}
-            </Button>
-          </div>
-          {error ? <FieldError id="capture-error">{error}</FieldError> : null}
-        </Field>
-      </form>
+    <div className={chat ? "contents" : "flex flex-col gap-4"}>
+      {chat ? null : form}
 
       {pending.isError ? (
         <p role="alert" className="text-sm text-danger">
@@ -303,13 +319,18 @@ function CaptureStage({ experimentId, onSaved, onUndone }: CaptureStageProps) {
               }
               onSettled={noop}
             />
-          ) : !notice && reply ? (
+          ) : !chat && !notice && reply ? (
             <p role="status" className="text-sm text-ink-muted">
               {reply.text}
             </p>
           ) : null}
         </>
       )}
+      {chat ? (
+        <div className="sticky bottom-[var(--tabbar-height)] z-10 -mx-4 mt-auto border-t border-line bg-surface/95 px-4 pt-3 pb-3 backdrop-blur-md lg:bottom-0 lg:mx-0 lg:border-t-0 lg:px-0 lg:pb-4">
+          {form}
+        </div>
+      ) : null}
     </div>
   );
 }

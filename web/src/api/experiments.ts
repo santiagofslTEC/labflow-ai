@@ -12,6 +12,8 @@ import type { components } from "./schema";
 export type ExperimentSummary = components["schemas"]["ExperimentSummary"];
 export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
 export type TrialsView = components["schemas"]["TrialsView"];
+export type TurnLine = components["schemas"]["TurnLine"];
+export type FolderSummary = components["schemas"]["FolderSummary"];
 export type ResultsView = components["schemas"]["ResultsView"];
 export type VariableIn = components["schemas"]["VariableIn"];
 export type VariablesDeleted = components["schemas"]["VariablesDeleted"];
@@ -27,6 +29,14 @@ export const experimentKeys = {
   // Under `all`, so the save invalidation refreshes it (spec 0007, AC-4).
   trials: (id: number) => ["experiments", id, "trials"] as const,
   results: (id: number) => ["experiments", id, "results"] as const,
+  // The conversation thread; under `all`, so voice turns refresh it too.
+  turns: (id: number) => ["experiments", id, "turns"] as const,
+};
+
+// Class folders (2026-10-30). Their counts change with every move, so a move
+// refreshes both this key and the notebook list.
+export const folderKeys = {
+  all: ["folders"] as const,
 };
 
 // What went wrong, in the terms the screens care about. `invalid` carries the
@@ -105,6 +115,56 @@ export const getTrials = (id: number): Promise<ApiResult<TrialsView>> =>
   settle(() =>
     api.GET("/api/experiments/{experiment_id}/trials", {
       params: { path: { experiment_id: id } },
+    }),
+  );
+
+// The notebook's conversation, oldest first: spoken and typed lines and
+// LabFlow's replies.
+export const getTurns = (id: number): Promise<ApiResult<readonly TurnLine[]>> =>
+  settle(() =>
+    api.GET("/api/experiments/{experiment_id}/turns", {
+      params: { path: { experiment_id: id } },
+    }),
+  );
+
+// Class folders on the lab dashboard (2026-10-30).
+export const listFolders = (): Promise<ApiResult<readonly FolderSummary[]>> =>
+  settle(() => api.GET("/api/folders"));
+
+export const createFolder = (name: string): Promise<ApiResult<FolderSummary>> =>
+  settle(() => api.POST("/api/folders", { body: { name } }));
+
+export const renameFolder = (
+  id: number,
+  name: string,
+): Promise<ApiResult<FolderSummary>> =>
+  settle(() =>
+    api.PATCH("/api/folders/{folder_id}", {
+      params: { path: { folder_id: id } },
+      body: { name },
+    }),
+  );
+
+// A 204 has no body, so success is read from the status.
+export const deleteFolder = async (id: number): Promise<ApiResult<null>> => {
+  const result = await settle(async () => {
+    const answer = await api.DELETE("/api/folders/{folder_id}", {
+      params: { path: { folder_id: id } },
+    });
+    return answer.response.ok ? { ...answer, data: null } : answer;
+  });
+  return result;
+};
+
+// `folderId` null takes the notebook out of its folder.
+export const moveNotebook = (
+  experimentId: number,
+  folderId: number | null,
+): Promise<ApiResult<ExperimentDetail>> =>
+  settle(() =>
+    api.PUT("/api/experiments/{experiment_id}/folder", {
+      params: { path: { experiment_id: experimentId } },
+      body: { folder_id: folderId },
     }),
   );
 

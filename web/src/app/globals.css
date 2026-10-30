@@ -28,6 +28,20 @@
   --color-chart-2: #b56614;
   --color-chart-3: #5b5bd6;
   --color-chart-4: #c2410c;
+  /* Dashboard tints (2026-10-30, the hilos reference): a card fill, a soft
+     panel fill, and a border per hue. Text on them is always ink. */
+  --color-tint-green: #cfe8d8;
+  --color-tint-green-soft: #f0f7f2;
+  --color-tint-green-line: #a9d4b9;
+  --color-tint-amber: #f6e29b;
+  --color-tint-amber-soft: #fdf8e8;
+  --color-tint-amber-line: #e6c862;
+  --color-tint-blue: #c4dcf3;
+  --color-tint-blue-soft: #eff5fb;
+  --color-tint-blue-line: #9cc3e8;
+  --color-tint-rose: #f7c7b5;
+  --color-tint-rose-soft: #fdf1ec;
+  --color-tint-rose-line: #eba88f;
 
   --radius-card: 14px;
   --radius-control: 10px;
@@ -85,6 +99,18 @@
   --color-chart-2: #e0a84a;
   --color-chart-3: #9b9bf0;
   --color-chart-4: #f4875a;
+  --color-tint-green: #1f3a2c;
+  --color-tint-green-soft: #18241e;
+  --color-tint-green-line: #2e5240;
+  --color-tint-amber: #3d3418;
+  --color-tint-amber-soft: #24211a;
+  --color-tint-amber-line: #5c4d22;
+  --color-tint-blue: #1d2f44;
+  --color-tint-blue-soft: #19212b;
+  --color-tint-blue-line: #2c4664;
+  --color-tint-rose: #432a22;
+  --color-tint-rose-soft: #261d1a;
+  --color-tint-rose-line: #63392c;
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
   --shadow-dock: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.5);
@@ -177,6 +203,54 @@
 
 @utility animate-mic-pulse {
   animation: mic-pulse 1.1s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* The mic's halo breathing while a voice session is live (2026-10-30). */
+@keyframes halo {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.55;
+  }
+}
+
+@utility animate-halo {
+  animation: halo 1.6s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* The typing caret after your live words. */
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@utility animate-caret {
+  animation: caret 1s steps(1) infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+/* A row or tile that just arrived glows green, then settles. */
+@keyframes arrive {
+  from {
+    background-color: var(--color-brand-soft);
+  }
+}
+
+@utility animate-arrive {
+  animation: arrive 1.8s ease-out;
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }

@@ -26,6 +26,9 @@ export type VoiceSession = {
   readonly state: VoiceState;
   readonly heard: string | null; // the last thing you said, as the agent heard it
   readonly answer: string | null; // the last thing LabFlow said
+  // 0 to 1: your voice while you talk, LabFlow's while it speaks. Read on each
+  // animation frame by the level meter, never during render.
+  readonly level: () => number;
   readonly start: () => void;
   readonly stop: () => void;
 };
@@ -200,5 +203,15 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
     }
   })();
 
-  return { state, heard, answer, start: () => void start(), stop };
+  const level = () => {
+    try {
+      return conversation.isSpeaking
+        ? conversation.getOutputVolume()
+        : conversation.getInputVolume();
+    } catch {
+      return 0; // no session yet
+    }
+  };
+
+  return { state, heard, answer, level, start: () => void start(), stop };
 }

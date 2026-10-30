@@ -72,6 +72,11 @@ const TOKENS = [
   "chart-2",
   "chart-3",
   "chart-4",
+  ...["green", "amber", "blue", "rose"].flatMap((hue) => [
+    `tint-${hue}`,
+    `tint-${hue}-soft`,
+    `tint-${hue}-line`,
+  ]),
 ] as const;
 
 type Pair = readonly [foreground: string, background: string];
@@ -98,6 +103,11 @@ const TEXT_PAIRS: readonly Pair[] = [
   ["brand", "brand-soft"],
   ["ink", "brand-soft"],
   ["ink", "sunken"],
+  ...["green", "amber", "blue", "rose"].flatMap((hue): Pair[] => [
+    ["ink", `tint-${hue}`],
+    ["ink", `tint-${hue}-soft`],
+    ["ink-muted", `tint-${hue}-soft`],
+  ]),
 ];
 
 const BOUNDARY_PAIRS: readonly Pair[] = [
