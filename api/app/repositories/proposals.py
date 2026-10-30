@@ -315,6 +315,31 @@ def undo_auto_save(session: Session, proposal_id: int) -> Proposal | UndoError:
     return proposal
 
 
+def take_back(session: Session, proposal_id: int) -> Proposal | None:
+    """Voice's "deshacer" (spec 0007, AC-7, built on spec 0006's undo): undo the auto save,
+    then drop the card it reopened, so the trial is gone and nothing is pending. None when
+    the save cannot be undone."""
+    undone = undo_auto_save(session, proposal_id)
+    if not isinstance(undone, Proposal):
+        return None
+    dropped = discard(session, proposal_id)
+    return dropped if isinstance(dropped, Proposal) else None
+
+
+def take_back_last(session: Session, experiment_id: int) -> Proposal | None:
+    """`take_back` on the notebook's most recent save, never an older one."""
+    last = session.exec(
+        select(Proposal)
+        .where(Proposal.experiment_id == experiment_id)
+        .where(Proposal.status == ProposalStatus.CONFIRMED)
+        .order_by(col(Proposal.resolved_at).desc())
+        .limit(1)
+    ).first()
+    if last is None or last.id is None:
+        return None
+    return take_back(session, last.id)
+
+
 def discard(session: Session, proposal_id: int) -> Proposal | PendingError:
     """Drop the card. Nothing is saved (AC-10)."""
     proposal = check_pending(_lock_proposal(session, proposal_id))

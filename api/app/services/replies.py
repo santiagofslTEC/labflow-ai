@@ -4,7 +4,7 @@ code. The model's text never reaches the user. Pure."""
 from collections.abc import Sequence
 from enum import StrEnum
 
-from app.services.text import join_names
+from app.services.text import format_number, join_names
 
 
 class Reason(StrEnum):
@@ -25,6 +25,8 @@ class Reason(StrEnum):
     NOT_SUPPORTED_YET = "not_supported_yet"
     OFF_TOPIC = "off_topic"
     SESSION_LIMIT = "session_limit"  # spoken only: a voice session ran its 60 turns (spec 0007)
+    UNDONE = "undone"  # "deshacer" took back the last auto save (spec 0007, AC-7)
+    NOTHING_TO_UNDO = "nothing_to_undo"
 
 
 # Reasons that depend on one sentence: they show only in that turn's response (AC-17).
@@ -91,3 +93,14 @@ def reply_text(
             return "Solo registro mediciones de este experimento."
         case Reason.SESSION_LIMIT:
             return "Llegaste al límite de esta sesión. Empieza otra."
+        case Reason.UNDONE:
+            return f"Deshecho: ensayo {n}."
+        case Reason.NOTHING_TO_UNDO:
+            return "No hay nada que deshacer."
+
+
+def auto_saved_aloud(n: int, values: Sequence[tuple[float, str | None]]) -> str:
+    """What voice says after an auto save (spec 0007, AC-5): the values read back, so you
+    hear what was saved. `values` are (number, unit) pairs in position order."""
+    said = [f"{format_number(v)} {unit}" if unit else format_number(v) for v, unit in values]
+    return f"Guardado ensayo {n}: {join_names(said)}. Di deshacer para quitarlo."

@@ -1980,7 +1980,9 @@
           "no_pending",
           "not_supported_yet",
           "off_topic",
-          "session_limit"
+          "session_limit",
+          "undone",
+          "nothing_to_undo"
         ],
         "title": "Reason"
       },

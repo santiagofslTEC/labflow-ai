@@ -30,3 +30,13 @@ export const startVoiceSession = async (
     return { ok: false, message: FALLBACK };
   }
 };
+
+// Ends the session on our side so its token stops working (AC-1, AC-13). Best
+// effort: a failure here only means the token expires on its own.
+export const endVoiceSession = async (sid: string): Promise<void> => {
+  try {
+    await api.DELETE("/api/voice/session/{sid}", { params: { path: { sid } } });
+  } catch {
+    // Nothing to show: the session is already over for the user.
+  }
+};

@@ -575,7 +575,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "two_values" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "auto_saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic" | "session_limit";
+        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "two_values" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "auto_saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic" | "session_limit" | "undone" | "nothing_to_undo";
         /** Reply */
         Reply: {
             reason: components["schemas"]["Reason"];

@@ -19,6 +19,7 @@ from typing import cast
 
 import httpx
 from fastapi import APIRouter, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,8 +31,9 @@ from app.core.gate import HolderDep
 from app.core.settings import get_settings
 from app.models import Experiment
 from app.models.enums import Source
+from app.repositories import proposals
 from app.routers.capture import TEXT_MAX
-from app.services.replies import Reason, reply_text
+from app.services.replies import Reason, auto_saved_aloud, reply_text
 from app.services.results import ExperimentNotFound, NotPending, TrialNotInExperiment
 from app.services.turns import LLMUnavailable, Superseded, TurnResponse, handle_utterance
 from app.voice import elevenlabs, sse
@@ -159,9 +161,18 @@ async def _run_turn(
     claims: VoiceClaims,
     sentence: str,
     flags: RunFlags,
+    older: TurnRun | None = None,
 ) -> Spoken:
     """One voice turn through the same pipeline as typing (AC-3). Any failure speaks the AC-12
-    message and is not cached, so saying it again runs a new turn."""
+    message and is not cached, so saying it again runs a new turn. `older` is the run this one
+    superseded after it wrote: its auto save is taken back first (AC-14)."""
+    if older is not None:
+        await asyncio.wait({older.task})
+        before = older.task
+        ok = not before.cancelled() and before.exception() is None
+        if ok and (proposal_id := before.result().auto_saved) is not None:
+            with open_session() as db:
+                await run_in_threadpool(proposals.take_back, db, proposal_id)
     with open_session() as db:
         result = await handle_utterance(
             db,
@@ -173,6 +184,10 @@ async def _run_turn(
             flags.may_write,
         )
     match result:
+        case TurnResponse(saved=saved) if saved is not None and saved.auto:
+            values = [(v.value, v.unit) for v in saved.values]
+            aloud = auto_saved_aloud(saved.trial_number, values)
+            return Spoken(aloud, auto_saved=saved.proposal_id)
         case TurnResponse(reply=reply):
             return Spoken(reply.text if reply else "")
         case Superseded():
@@ -189,9 +204,10 @@ def _start_run(
     open_session: SessionFactory,
     provider: LLMProvider | None,
     sentence: str,
+    older: TurnRun | None = None,
 ) -> asyncio.Task[Spoken]:
     flags = RunFlags()
-    task = asyncio.create_task(_run_turn(open_session, provider, claims, sentence, flags))
+    task = asyncio.create_task(_run_turn(open_session, provider, claims, sentence, flags, older))
     run = TurnRun(digest, task, flags)
     active.turns[key] = run  # strong reference: the task lives as long as its cache entry
 
@@ -225,15 +241,12 @@ def _answer(
         case Action.JOIN:
             return action.value, active.turns[key].task
         case Action.SUPERSEDE | Action.START:
+            older: TurnRun | None = None
             if action is Action.SUPERSEDE:
-                older = active.turns[key].flags
-                older.superseded = True
-                if older.wrote:
-                    # Undoing the older turn's save is build task 3 (AC-7); until then it stays.
-                    log.warning(
-                        "voice turn superseded after it wrote sid=%s key=%d", claims.sid, key
-                    )
-            task = _start_run(active, claims, key, digest, open_session, provider, sentence)
+                run = active.turns[key]
+                run.flags.superseded = True
+                older = run if run.flags.wrote else None  # its save is taken back first
+            task = _start_run(active, claims, key, digest, open_session, provider, sentence, older)
             return action.value, task
 
 

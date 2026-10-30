@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session
 
 from app.ai.provider import Decision, LLMProvider, ProviderFailure
-from app.models import Turn
+from app.models import Proposal, Turn
 from app.models.enums import Role, Source
 from app.repositories import capture, proposals, turns
 from app.services.card_state import VariableInfo
@@ -45,6 +45,7 @@ from app.services.turn_plan import (
     TurnPlan,
     plan_turn,
 )
+from app.services.undo_rules import match_undo
 
 logger = logging.getLogger(__name__)
 
@@ -232,6 +233,29 @@ def _apply(
     return TurnResponse(turn_id=turn_id, reply=reply, proposal=view, saved=executed.saved)
 
 
+def _undo_turn(
+    session: Session, experiment_id: int, text: str, source: Source
+) -> TurnResponse | ExperimentNotFound:
+    """A spoken "deshacer" (spec 0007, AC-7): discard a pending card, else take back the last
+    auto save. Runs before the user turn is stored, because spec 0006's undo ends with the
+    next sentence."""
+    pending = proposals.get_pending(session, experiment_id)
+    taken = None
+    if pending is not None and pending.id is not None:
+        dropped = proposals.discard(session, pending.id)
+        reason = Reason.DISCARDED if isinstance(dropped, Proposal) else Reason.NOTHING_TO_UNDO
+    else:
+        taken = proposals.take_back_last(session, experiment_id)
+        reason = Reason.UNDONE if taken is not None else Reason.NOTHING_TO_UNDO
+    user = turns.add_turn(session, experiment_id, Role.USER, text, source)
+    if isinstance(user, ExperimentNotFound):
+        return user
+    reply = reply_for(reason, (), (), taken.trial_number if taken else None)
+    turns.add_turn(session, experiment_id, Role.ASSISTANT, reply.text, None, tool_name=reason)
+    view = capture.view_of(session, experiment_id)
+    return TurnResponse(turn_id=user.id, reply=reply, proposal=view, saved=None)
+
+
 async def handle_utterance(
     session: Session,
     provider: LLMProvider | None,
@@ -243,6 +267,10 @@ async def handle_utterance(
 ) -> TurnResponse | TurnError | Superseded:
     """`may_write` is asked once, after the model and right before the plan is applied; a
     voice turn passes its run's gate so a superseded request writes nothing."""
+    if source == Source.VOICE and match_undo(text):
+        if not may_write():
+            return Superseded()
+        return await run_in_threadpool(_undo_turn, session, experiment_id, text, source)
     started = time.perf_counter()
     stored = await run_in_threadpool(_store_user_turn, session, experiment_id, text, source)
     if isinstance(stored, ExperimentNotFound):
