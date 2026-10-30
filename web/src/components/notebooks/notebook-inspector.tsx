@@ -233,7 +233,7 @@ function NotebookInspector({
               <DialogTrigger className={quickActionClass}>
                 <QuickActionContent icon={TableIcon} label="Tabla completa" />
               </DialogTrigger>
-              <DialogContent className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-5xl">
+              <DialogContent className="grid-rows-[auto_minmax(0,1fr)_auto] lg:max-h-[85vh] lg:max-w-5xl">
                 <DialogHeader>
                   <DialogTitle>Ensayos · {experiment.title}</DialogTitle>
                   <DialogDescription>

@@ -161,7 +161,7 @@ function VariablesDialog({
   return (
     <Dialog onOpenChange={(open) => (open ? undefined : reset())}>
       <DialogTrigger className={triggerClassName}>{children}</DialogTrigger>
-      <DialogContent className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)] sm:max-w-4xl">
+      <DialogContent className="grid-rows-[auto_minmax(0,1fr)] lg:max-h-[85vh] lg:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Variables · {experiment.title}</DialogTitle>
           <DialogDescription>

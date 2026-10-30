@@ -574,7 +574,7 @@ function NotebookForm() {
         open={pendingReplace !== null}
         onOpenChange={(open) => (open ? undefined : setPendingReplace(null))}
       >
-        <DialogContent showCloseButton={false}>
+        <DialogContent variant="alert" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>
               ¿Reemplazar lo que escribiste con lo que leímos?
@@ -605,7 +605,7 @@ function NotebookForm() {
         open={leaveTo !== null}
         onOpenChange={(open) => (open ? undefined : setLeaveTo(null))}
       >
-        <DialogContent showCloseButton={false}>
+        <DialogContent variant="alert" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>¿Salir sin crear el cuaderno?</DialogTitle>
             <DialogDescription>Se perderá lo que escribiste.</DialogDescription>
