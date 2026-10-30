@@ -1,9 +1,10 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
 import { sampleDetail } from "@/test/experiments";
+import { renderWithQuery as render } from "@/test/query";
 
 import { NotebookInspector, type TrialsPanel } from "./notebook-inspector";
 
@@ -110,8 +111,8 @@ describe("NotebookInspector", () => {
     );
 
     expect(
-      screen.getByRole("link", { name: "Revisar variables" }),
-    ).toHaveAttribute("href", "#lista-variables");
+      screen.getByRole("button", { name: "Revisar variables" }),
+    ).toHaveAttribute("aria-haspopup", "dialog");
 
     await userEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
     expect(createUrl).toHaveBeenCalledOnce();

@@ -1,0 +1,599 @@
+"use client";
+
+import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import type * as React from "react";
+
+import type {
+  ApiFailure,
+  ExperimentDetail,
+  VariableDetail,
+  VariableIn,
+} from "@/api/experiments";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  useAddVariable,
+  useDeleteVariables,
+  useUpdateVariable,
+} from "@/hooks/use-experiments";
+import { LIMITS, MESSAGES, UNIT_SUGGESTIONS } from "@/lib/experiment-form";
+import { formatRange } from "@/lib/format";
+import {
+  deleteConfirmText,
+  deletedText,
+  deleteLabel,
+  draftOf,
+  emptyDraft,
+  toVariableIn,
+  validateVariable,
+  VARIABLE_MESSAGES,
+  valueCount,
+  variableCount,
+  type DraftErrors,
+  type DraftField,
+  type VariableDraft,
+} from "@/lib/variable-form";
+
+import { errorId, FieldMessage } from "./field-error";
+
+type Mode =
+  | { readonly kind: "list" }
+  | { readonly kind: "add" }
+  | { readonly kind: "edit"; readonly id: number }
+  | { readonly kind: "confirm" };
+
+type VariablesDialogProps = {
+  readonly experiment: ExperimentDetail;
+  // Saved values per variable from the trials query (spec 0007); null while it
+  // loads, so the unit is not locked from a guess (the API checks anyway).
+  readonly counts: ReadonlyMap<number, number> | null;
+  readonly triggerClassName: string;
+  readonly children: React.ReactNode;
+};
+
+const failureText = (failure: ApiFailure): string => {
+  switch (failure.kind) {
+    case "invalid":
+      return failure.message || "No se pudo guardar. Revisa los datos.";
+    case "not_found":
+      return "Esa variable ya no existe en este cuaderno.";
+    case "unauthorized":
+      return "Tu acceso venció. Escribe tu código de acceso para continuar.";
+    case "unavailable":
+      return "No pudimos conectar con LabFlow. Intenta de nuevo.";
+  }
+};
+
+// "Revisar variables" (spec 0008): the notebook's variables in a dialog, with
+// add, edit one at a time, and select several to delete after a confirmation.
+function VariablesDialog({
+  experiment,
+  counts,
+  triggerClassName,
+  children,
+}: VariablesDialogProps) {
+  const add = useAddVariable(experiment.id);
+  const update = useUpdateVariable();
+  const remove = useDeleteVariables(experiment.id);
+  const [mode, setMode] = useState<Mode>({ kind: "list" });
+  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  const [status, setStatus] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+
+  const variables = experiment.variables;
+  const editable = experiment.status !== "closed";
+  const full = variables.length >= LIMITS.variables;
+  const chosen = variables.filter((v) => selected.has(v.id));
+  const allChosen = chosen.length === variables.length;
+  const busy = add.isPending || update.isPending || remove.isPending;
+
+  const reset = () => {
+    setMode({ kind: "list" });
+    setSelected(new Set());
+    setStatus(null);
+    setFailure(null);
+  };
+
+  const toggle = (id: number, on: boolean) => {
+    setStatus(null);
+    setSelected((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const save = (body: VariableIn) => {
+    setFailure(null);
+    const done = {
+      onSuccess: () => setMode({ kind: "list" }),
+      onError: (error: ApiFailure) => setFailure(failureText(error)),
+    };
+    if (mode.kind === "edit") update.mutate({ id: mode.id, body }, done);
+    else add.mutate(body, done);
+  };
+
+  const confirmDelete = () => {
+    setFailure(null);
+    remove.mutate(
+      chosen.map((v) => v.id),
+      {
+        onSuccess: (result) => {
+          setSelected(new Set());
+          setMode({ kind: "list" });
+          setStatus(deletedText(result));
+        },
+        onError: (error) => setFailure(failureText(error)),
+      },
+    );
+  };
+
+  const chosenValues = chosen.reduce(
+    (sum, v) => sum + (counts?.get(v.id) ?? 0),
+    0,
+  );
+
+  return (
+    <Dialog onOpenChange={(open) => (open ? undefined : reset())}>
+      <DialogTrigger className={triggerClassName}>{children}</DialogTrigger>
+      <DialogContent className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)] sm:max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Variables · {experiment.title}</DialogTitle>
+          <DialogDescription>
+            {variableCount(variables.length)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          {editable ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {chosen.length > 0 && mode.kind !== "confirm" ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    variant="danger"
+                    aria-disabled={allChosen || busy || undefined}
+                    aria-describedby={allChosen ? "keep-one" : undefined}
+                    onClick={() => {
+                      if (!allChosen && !busy) setMode({ kind: "confirm" });
+                    }}
+                  >
+                    <Trash2Icon aria-hidden />
+                    {deleteLabel(chosen.length)}
+                  </Button>
+                  {allChosen ? (
+                    <p id="keep-one" className="text-sm text-ink-muted">
+                      {VARIABLE_MESSAGES.keepOne}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-3">
+                {full ? (
+                  <p id="variables-full" className="text-sm text-ink-muted">
+                    {MESSAGES.tooManyVariables}
+                  </p>
+                ) : null}
+                <Button
+                  ref={addRef}
+                  variant="secondary"
+                  disabled={full || mode.kind === "add"}
+                  aria-describedby={full ? "variables-full" : undefined}
+                  onClick={() => {
+                    setStatus(null);
+                    setFailure(null);
+                    setMode({ kind: "add" });
+                  }}
+                >
+                  <PlusIcon aria-hidden />
+                  Agregar variable
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {mode.kind === "confirm" ? (
+            <DeleteConfirm
+              text={deleteConfirmText(
+                chosen.map((v) => v.name),
+                chosenValues,
+              )}
+              busy={remove.isPending}
+              onCancel={() => setMode({ kind: "list" })}
+              onConfirm={confirmDelete}
+            />
+          ) : null}
+
+          <p role="status" className="text-sm text-ink empty:hidden">
+            {status}
+          </p>
+          {failure ? (
+            <p role="alert" className="text-sm text-ink">
+              {failure}
+            </p>
+          ) : null}
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {editable ? (
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar todas"
+                        checked={allChosen}
+                        onChange={(event) =>
+                          setSelected(
+                            event.target.checked
+                              ? new Set(variables.map((v) => v.id))
+                              : new Set(),
+                          )
+                        }
+                        className="size-5 cursor-pointer rounded accent-ink focus-ring"
+                      />
+                    </TableHead>
+                  ) : null}
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Rango</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Valores</TableHead>
+                  {editable ? (
+                    <TableHead>
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
+                  ) : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {variables.map((variable) =>
+                  mode.kind === "edit" && mode.id === variable.id ? (
+                    <FormRow
+                      key={variable.id}
+                      columns={editable ? 7 : 5}
+                      title={`Editar ${variable.name}`}
+                      initial={draftOf(variable)}
+                      otherNames={variables
+                        .filter((v) => v.id !== variable.id)
+                        .map((v) => v.name)}
+                      lockedUnit={
+                        (counts?.get(variable.id) ?? 0) > 0
+                          ? { unit: variable.unit }
+                          : null
+                      }
+                      saving={update.isPending}
+                      onSave={save}
+                      onCancel={() => setMode({ kind: "list" })}
+                    />
+                  ) : (
+                    <VariableRow
+                      key={variable.id}
+                      variable={variable}
+                      values={counts ? (counts.get(variable.id) ?? 0) : null}
+                      editable={editable}
+                      checked={selected.has(variable.id)}
+                      onCheck={(on) => toggle(variable.id, on)}
+                      onEdit={() => {
+                        setStatus(null);
+                        setFailure(null);
+                        setMode({ kind: "edit", id: variable.id });
+                      }}
+                    />
+                  ),
+                )}
+                {mode.kind === "add" ? (
+                  <FormRow
+                    columns={7}
+                    title="Nueva variable"
+                    initial={emptyDraft}
+                    otherNames={variables.map((v) => v.name)}
+                    lockedUnit={null}
+                    saving={add.isPending}
+                    onSave={save}
+                    onCancel={() => {
+                      setMode({ kind: "list" });
+                      addRef.current?.focus();
+                    }}
+                  />
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VariableRow({
+  variable,
+  values,
+  editable,
+  checked,
+  onCheck,
+  onEdit,
+}: {
+  readonly variable: VariableDetail;
+  readonly values: number | null;
+  readonly editable: boolean;
+  readonly checked: boolean;
+  readonly onCheck: (on: boolean) => void;
+  readonly onEdit: () => void;
+}) {
+  return (
+    <TableRow data-state={checked ? "selected" : undefined}>
+      {editable ? (
+        <TableCell>
+          <input
+            type="checkbox"
+            aria-label={`Seleccionar ${variable.name}`}
+            checked={checked}
+            onChange={(event) => onCheck(event.target.checked)}
+            className="size-5 cursor-pointer rounded accent-ink focus-ring"
+          />
+        </TableCell>
+      ) : null}
+      <TableCell className="font-medium text-ink">{variable.name}</TableCell>
+      <TableCell className="font-mono">{variable.unit ?? "—"}</TableCell>
+      <TableCell className="font-mono tabular-nums">
+        {formatRange(variable.min_value, variable.max_value)}
+      </TableCell>
+      <TableCell className="text-ink-muted">
+        {variable.required ? "Requerida" : "Opcional"}
+      </TableCell>
+      <TableCell className="text-right font-mono text-ink tabular-nums">
+        {values === null ? "—" : valueCount(values)}
+      </TableCell>
+      {editable ? (
+        <TableCell className="text-right">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Editar ${variable.name}`}
+            onClick={onEdit}
+          >
+            <PencilIcon aria-hidden />
+          </Button>
+        </TableCell>
+      ) : null}
+    </TableRow>
+  );
+}
+
+// One variable's form in place of its row (AC-2, AC-3, AC-4).
+function FormRow({
+  columns,
+  title,
+  initial,
+  otherNames,
+  lockedUnit,
+  saving,
+  onSave,
+  onCancel,
+}: {
+  readonly columns: number;
+  readonly title: string;
+  readonly initial: VariableDraft;
+  readonly otherNames: readonly string[];
+  // Set while the variable has saved values (AC-3).
+  readonly lockedUnit: { readonly unit: string | null } | null;
+  readonly saving: boolean;
+  readonly onSave: (body: VariableIn) => void;
+  readonly onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const [errors, setErrors] = useState<DraftErrors>({});
+  const formRef = useRef<HTMLFormElement>(null);
+  const base = useId();
+  const id = (field: DraftField | "required") => `${base}-${field}`;
+
+  const set = (field: DraftField, value: string) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    if (errors[field])
+      setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
+    const found = validateVariable(draft, otherNames);
+    setErrors(found);
+    const first = (["name", "unit", "min", "max", "aliases"] as const).find(
+      (field) => found[field],
+    );
+    if (first) {
+      formRef.current
+        ?.querySelector<HTMLInputElement>(`#${CSS.escape(id(first))}`)
+        ?.focus();
+      return;
+    }
+    onSave(toVariableIn(draft));
+  };
+
+  const field = (
+    name: DraftField,
+    label: string,
+    props: Omit<React.ComponentProps<"input">, "value" | "id"> = {},
+    hint?: string,
+  ) => {
+    const error = errors[name];
+    const hintId = hint ? `${id(name)}-hint` : null;
+    const described =
+      [error ? errorId(id(name)) : null, hintId].filter(Boolean).join(" ") ||
+      undefined;
+    return (
+      <div className="flex min-w-0 flex-col gap-1">
+        <label htmlFor={id(name)} className="text-xs text-ink-muted">
+          {label}
+        </label>
+        <Input
+          id={id(name)}
+          value={draft[name]}
+          onChange={(event) => set(name, event.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={described}
+          {...props}
+        />
+        {hint ? (
+          <p id={hintId ?? undefined} className="text-xs text-ink-muted">
+            {hint}
+          </p>
+        ) : null}
+        <FieldMessage id={errorId(id(name))} message={error} />
+      </div>
+    );
+  };
+
+  return (
+    <TableRow className="hover:bg-transparent">
+      <TableCell colSpan={columns} className="whitespace-normal">
+        <form
+          ref={formRef}
+          noValidate
+          aria-label={title}
+          onSubmit={submit}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              onCancel();
+            }
+          }}
+          className="flex flex-col gap-3 rounded-control bg-sunken p-3"
+        >
+          <p className="text-sm font-medium text-ink">{title}</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {field("name", "Nombre", {
+              maxLength: LIMITS.name,
+              autoComplete: "off",
+              autoFocus: true,
+            })}
+            {field(
+              "unit",
+              "Unidad",
+              {
+                maxLength: LIMITS.unit,
+                list: `${base}-units`,
+                autoComplete: "off",
+                className: "font-mono",
+                disabled: lockedUnit !== null,
+              },
+              lockedUnit
+                ? VARIABLE_MESSAGES.unitLocked(lockedUnit.unit)
+                : undefined,
+            )}
+            {field("min", "Mín", {
+              inputMode: "decimal",
+              autoComplete: "off",
+              className: "font-mono tabular-nums",
+            })}
+            {field("max", "Máx", {
+              inputMode: "decimal",
+              autoComplete: "off",
+              className: "font-mono tabular-nums",
+            })}
+          </div>
+          <datalist id={`${base}-units`}>
+            {UNIT_SUGGESTIONS.map((unit) => (
+              <option key={unit} value={unit} />
+            ))}
+          </datalist>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            {field(
+              "aliases",
+              "Otros nombres",
+              { autoComplete: "off", placeholder: "temp, T" },
+              "Sepáralos con comas. LabFlow los reconoce al capturar.",
+            )}
+            <label className="flex h-10 items-center gap-2 text-sm text-ink">
+              <input
+                id={id("required")}
+                type="checkbox"
+                checked={draft.required}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    required: event.target.checked,
+                  }))
+                }
+                className="size-5 cursor-pointer rounded accent-ink focus-ring"
+              />
+              Requerida
+            </label>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button type="submit" aria-disabled={saving || undefined}>
+              {saving ? <Spinner /> : null}
+              {saving ? "Guardando…" : "Guardar"}
+            </Button>
+          </div>
+        </form>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function DeleteConfirm({
+  text,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  readonly text: string;
+  readonly busy: boolean;
+  readonly onCancel: () => void;
+  readonly onConfirm: () => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-labelledby="delete-confirm-text"
+      className="flex flex-col gap-3 rounded-control border border-line bg-sunken p-3"
+    >
+      <p id="delete-confirm-text" className="text-sm text-ink">
+        {text}
+      </p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="ghost" autoFocus onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button
+          variant="danger"
+          aria-disabled={busy || undefined}
+          onClick={() => {
+            if (!busy) onConfirm();
+          }}
+        >
+          {busy ? <Spinner /> : <Trash2Icon aria-hidden />}
+          {busy ? "Eliminando…" : "Eliminar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export { VariablesDialog };

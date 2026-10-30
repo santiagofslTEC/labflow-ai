@@ -12,7 +12,7 @@ from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
 from app.core.instruction_reads import InstructionReads
 from app.core.settings import get_settings
-from app.routers import access, capture, experiments, health
+from app.routers import access, capture, experiments, health, variables
 
 
 @asynccontextmanager
@@ -63,3 +63,4 @@ app.include_router(health.router)
 app.include_router(access.router)
 app.include_router(experiments.router)
 app.include_router(capture.router)
+app.include_router(variables.router)

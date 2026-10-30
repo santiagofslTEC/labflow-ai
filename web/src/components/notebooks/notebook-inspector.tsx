@@ -44,6 +44,9 @@ import {
   type TrialTableRow,
 } from "@/lib/trials";
 import { cn } from "@/lib/utils";
+import { savedValueCounts } from "@/lib/variable-form";
+
+import { VariablesDialog } from "./variables-dialog";
 
 // The notebook as a CSV: one column per variable, one row per saved trial, the
 // same rows the table shows (spec 0007, AC-6).
@@ -263,11 +266,20 @@ function NotebookInspector({
             </Dialog>
           </li>
           <li>
-            <QuickAction
-              href="#lista-variables"
-              icon={ListChecksIcon}
-              label="Revisar variables"
-            />
+            <VariablesDialog
+              experiment={experiment}
+              counts={
+                trials.kind === "ready"
+                  ? savedValueCounts(trials.view.trials)
+                  : null
+              }
+              triggerClassName={quickActionClass}
+            >
+              <QuickActionContent
+                icon={ListChecksIcon}
+                label="Revisar variables"
+              />
+            </VariablesDialog>
           </li>
           <li>
             <QuickAction
