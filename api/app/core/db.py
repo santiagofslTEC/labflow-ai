@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager
 from functools import lru_cache
 from typing import Annotated
 
@@ -27,3 +28,14 @@ def get_session() -> Iterator[Session]:
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
+
+SessionFactory = Callable[[], AbstractContextManager[Session]]
+
+
+def get_session_factory() -> SessionFactory:
+    """For work that outlives its request (a voice turn keeps running and is cached even if
+    ElevenLabs drops the call, spec 0007 AC-14): it opens and closes its own session."""
+    return lambda: Session(get_engine())
+
+
+SessionFactoryDep = Annotated[SessionFactory, Depends(get_session_factory)]

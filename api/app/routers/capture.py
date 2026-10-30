@@ -34,7 +34,13 @@ from app.services.results import (
     UndoExpired,
     VariableNotInExperiment,
 )
-from app.services.turns import LLMUnavailable, TurnResponse, handle_utterance, saved_trial
+from app.services.turns import (
+    LLMUnavailable,
+    Superseded,
+    TurnResponse,
+    handle_utterance,
+    saved_trial,
+)
 
 router = APIRouter(tags=["capture"])
 
@@ -177,6 +183,8 @@ async def post_utterance(
             return result
         case LLMUnavailable() | ExperimentNotFound() | NotPending() | TrialNotInExperiment():
             raise _fail(result.code)
+        case Superseded():
+            raise AssertionError("a typed turn has no write gate")
 
 
 @router.get("/api/experiments/{experiment_id}/proposal", responses=_errors(401, 404))

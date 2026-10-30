@@ -14,6 +14,7 @@ import Link from "next/link";
 
 import { experimentKeys, type ExperimentDetail } from "@/api/experiments";
 import { CaptureStage } from "@/components/capture-stage/capture-stage";
+import { VoiceConversation } from "@/components/voice/voice-conversation";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -189,9 +190,14 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
             className="flex flex-col gap-3"
           >
             <p className="text-sm text-ink-muted">
-              Escribe un ensayo. Si LabFlow lo entendió sin dudas, lo guarda y
-              puedes deshacerlo; si algo no cuadra, te pregunta.
+              Dicta o escribe un ensayo. Si LabFlow lo entendió sin dudas, lo
+              guarda y puedes deshacerlo; si algo no cuadra, te pregunta.
             </p>
+            <VoiceConversation
+              experimentId={experiment.id}
+              variant="inline"
+              fallbackInputId="capture-text"
+            />
             <CaptureStage
               experimentId={experiment.id}
               onSaved={() =>

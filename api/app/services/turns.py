@@ -3,12 +3,13 @@ model, check the card did not change meanwhile, apply the plan through the repos
 store the assistant turn, and answer with the card read back from the database.
 
 The model call is the only await; database work runs in the threadpool because the
-repositories use sync sessions. `source` is a parameter so feature 8 can pass `voice`.
+repositories use sync sessions. `source` is a parameter so voice (spec 0007) can pass `voice`.
 """
 
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from fastapi.concurrency import run_in_threadpool
@@ -16,7 +17,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session
 
 from app.ai.provider import Decision, LLMProvider, ProviderFailure
-from app.models import Turn
+from app.models import Proposal, Turn
 from app.models.enums import Role, Source
 from app.repositories import capture, proposals, turns
 from app.services.card_state import VariableInfo
@@ -44,6 +45,7 @@ from app.services.turn_plan import (
     TurnPlan,
     plan_turn,
 )
+from app.services.undo_rules import match_undo
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,17 @@ class LLMUnavailable:
     """Both providers failed, or the deadline passed (AC-14)."""
 
     code: str = "llm_unavailable"
+
+
+@dataclass(frozen=True, slots=True)
+class Superseded:
+    """A newer request took this voice turn before it wrote anything (spec 0007, AC-14)."""
+
+    code: str = "superseded"
+
+
+def _always() -> bool:
+    return True
 
 
 type TurnError = ExperimentNotFound | LLMUnavailable | NotPending | TrialNotInExperiment
@@ -220,6 +233,29 @@ def _apply(
     return TurnResponse(turn_id=turn_id, reply=reply, proposal=view, saved=executed.saved)
 
 
+def _undo_turn(
+    session: Session, experiment_id: int, text: str, source: Source
+) -> TurnResponse | ExperimentNotFound:
+    """A spoken "deshacer" (spec 0007, AC-7): discard a pending card, else take back the last
+    auto save. Runs before the user turn is stored, because spec 0006's undo ends with the
+    next sentence."""
+    pending = proposals.get_pending(session, experiment_id)
+    taken = None
+    if pending is not None and pending.id is not None:
+        dropped = proposals.discard(session, pending.id)
+        reason = Reason.DISCARDED if isinstance(dropped, Proposal) else Reason.NOTHING_TO_UNDO
+    else:
+        taken = proposals.take_back_last(session, experiment_id)
+        reason = Reason.UNDONE if taken is not None else Reason.NOTHING_TO_UNDO
+    user = turns.add_turn(session, experiment_id, Role.USER, text, source)
+    if isinstance(user, ExperimentNotFound):
+        return user
+    reply = reply_for(reason, (), (), taken.trial_number if taken else None)
+    turns.add_turn(session, experiment_id, Role.ASSISTANT, reply.text, None, tool_name=reason)
+    view = capture.view_of(session, experiment_id)
+    return TurnResponse(turn_id=user.id, reply=reply, proposal=view, saved=None)
+
+
 async def handle_utterance(
     session: Session,
     provider: LLMProvider | None,
@@ -227,7 +263,14 @@ async def handle_utterance(
     text: str,
     source: Source,
     holder: str,
-) -> TurnResponse | TurnError:
+    may_write: Callable[[], bool] = _always,
+) -> TurnResponse | TurnError | Superseded:
+    """`may_write` is asked once, after the model and right before the plan is applied; a
+    voice turn passes its run's gate so a superseded request writes nothing."""
+    if source == Source.VOICE and match_undo(text):
+        if not may_write():
+            return Superseded()
+        return await run_in_threadpool(_undo_turn, session, experiment_id, text, source)
     started = time.perf_counter()
     stored = await run_in_threadpool(_store_user_turn, session, experiment_id, text, source)
     if isinstance(stored, ExperimentNotFound):
@@ -244,9 +287,11 @@ async def handle_utterance(
     )
     llm_ms = (time.perf_counter() - llm_started) * 1000
 
-    result: TurnResponse | TurnError
+    result: TurnResponse | TurnError | Superseded
     if isinstance(outcome, ProviderFailure):
         result = LLMUnavailable()  # the user turn stays; no assistant turn
+    elif not may_write():
+        result = Superseded()  # the user turn stays as a record; nothing else is written
     else:
         db_started = time.perf_counter()
         result = await run_in_threadpool(_apply, session, context, outcome, text, turn.id, holder)

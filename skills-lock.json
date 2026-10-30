@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "agents": {
+      "source": "elevenlabs/skills",
+      "sourceType": "github",
+      "skillPath": "agents/SKILL.md",
+      "computedHash": "db3c76b5389670073b4a7c3d44ab5d99e7620805599e646dff79b8dad9e14b55"
+    },
     "fastapi": {
       "source": "fastapi/fastapi",
       "sourceType": "github",
