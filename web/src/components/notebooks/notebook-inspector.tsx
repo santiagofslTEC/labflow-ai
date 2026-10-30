@@ -106,7 +106,7 @@ function NotebookInspector({
     <aside
       id="inspector"
       aria-labelledby="inspector-title"
-      className="flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:min-h-0 lg:gap-4 lg:overflow-y-auto lg:rounded-[20px] lg:border lg:border-tint-blue-line/60 lg:bg-tint-blue-soft lg:p-4"
+      className="relative flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:min-h-0 lg:gap-4 lg:overflow-y-auto lg:rounded-[20px] lg:border lg:border-tint-blue-line/60 lg:bg-tint-blue-soft lg:p-4"
     >
       <div className="flex items-center justify-between gap-2 max-lg:hidden">
         <h2
@@ -272,7 +272,7 @@ function NotebookInspector({
                       : "Cargando ensayos…"}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="flex min-h-0 flex-col gap-2 overflow-y-auto">
+                <div className="relative flex min-h-0 flex-col gap-2 overflow-y-auto">
                   <TrialsTable
                     variables={variables}
                     rows={rows}
