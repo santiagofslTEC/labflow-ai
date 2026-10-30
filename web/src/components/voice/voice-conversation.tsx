@@ -60,6 +60,9 @@ function Conversation({
   }, [state.kind, fallbackInputId]);
 
   const hero = variant !== "inline";
+  // The notebook's mic is smaller than the home page's, so the chat under it
+  // gets the room (2026-10-30).
+  const micSize = variant === "stage" ? "size-16" : "size-24";
   // On the notebook the thread holds what was said; the stage shows it live only.
   const showWords =
     variant === "stage" ? live : live || voice.heard || voice.answer;
@@ -77,7 +80,12 @@ function Conversation({
       <div ref={liveRef} aria-live="polite" className="sr-only" />
 
       {hero ? (
-        <div className="flex flex-col items-center gap-3">
+        <div
+          className={cn(
+            "flex flex-col items-center",
+            variant === "stage" ? "gap-2" : "gap-3",
+          )}
+        >
           <StatusPill state={state} />
           <div className="flex items-center gap-4">
             <LevelMeter
@@ -86,7 +94,12 @@ function Conversation({
               tone={state.kind === "thinking" ? "muted" : "brand"}
               className="flex-row-reverse"
             />
-            <span className="relative flex size-24 items-center justify-center">
+            <span
+              className={cn(
+                "relative flex items-center justify-center",
+                micSize,
+              )}
+            >
               {/* The halo: a soft ring at rest, breathing while live. */}
               <span
                 aria-hidden
@@ -107,7 +120,8 @@ function Conversation({
                   else voice.start();
                 }}
                 className={cn(
-                  "relative flex size-24 cursor-pointer items-center justify-center rounded-full shadow-dock focus-ring transition-[background-color,transform] active:scale-95",
+                  "relative flex cursor-pointer items-center justify-center rounded-full shadow-dock focus-ring transition-[background-color,transform] active:scale-95",
+                  micSize,
                   disabled
                     ? "cursor-not-allowed bg-sunken text-ink-muted"
                     : "bg-brand text-on-brand hover:brightness-110",

@@ -1,7 +1,7 @@
 "use client";
 
 import { SendHorizontalIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as React from "react";
 
 import type { CaptureFailure } from "@/api/capture";
@@ -86,6 +86,7 @@ function CaptureStage({
   // saved or discarded. Browser only; nothing about it is stored.
   const waiting = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cardEnd = useRef<HTMLDivElement>(null);
 
   const busy =
     send.isPending ||
@@ -96,6 +97,14 @@ function CaptureStage({
     discard.isPending ||
     undo.isPending;
   const card = pending.data ?? null;
+
+  // In the chat a card under review, a saved card, or the saved notice comes
+  // into view inside the chat box, just above the text field.
+  const shown = savedCard?.id ?? notice?.proposalId ?? card?.id ?? null;
+  useEffect(() => {
+    if (chat && shown !== null)
+      cardEnd.current?.scrollIntoView?.({ block: "nearest" });
+  }, [chat, shown]);
 
   const handleTurn = (
     turn: Turn,
@@ -222,8 +231,8 @@ function CaptureStage({
     </form>
   );
 
-  // In the chat layout the root is `contents`, so the text field sticks to the
-  // bottom of the whole conversation column, not just this block.
+  // In the chat layout the root is `contents`: the card and the text field sit
+  // in the chat's scroll box, and the field sticks to its bottom.
   return (
     <div className={chat ? "contents" : "flex flex-col gap-4"}>
       {chat ? null : form}
@@ -326,6 +335,7 @@ function CaptureStage({
           ) : null}
         </>
       )}
+      {chat ? <div ref={cardEnd} aria-hidden className="scroll-mb-28" /> : null}
       {chat ? (
         <div className="sticky bottom-[var(--tabbar-height)] z-10 -mx-4 mt-auto border-t border-line bg-surface/95 px-4 pt-3 pb-3 backdrop-blur-md lg:bottom-0 lg:mx-0 lg:border-t-0 lg:px-0 lg:pb-4">
           {form}
