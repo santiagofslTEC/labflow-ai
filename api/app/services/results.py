@@ -112,6 +112,7 @@ class VariableDetail(_Result):
     max_value: float | None
     required: bool
     position: int
+    aliases: tuple[str, ...] = ()  # other names the capture prompt lists (spec 0008)
 
 
 class ProtocolSummary(_Result):
@@ -154,6 +155,57 @@ class TrialsView(_Result):
     recent: tuple[RecentMeasurement, ...]
 
 
+class VariableNotFound(_Result):
+    code: Literal["variable_not_found"] = "variable_not_found"
+
+
+class ExperimentClosed(_Result):
+    """A closed notebook's variables cannot change (spec 0008, AC-8)."""
+
+    code: Literal["experiment_closed"] = "experiment_closed"
+
+
+class VariablesFull(_Result):
+    code: Literal["variables_full"] = "variables_full"
+
+
+class UnitLocked(_Result):
+    """The variable has saved values, which are stored in its unit (spec 0008, AC-3)."""
+
+    code: Literal["unit_locked"] = "unit_locked"
+
+
+class LastVariable(_Result):
+    """A notebook keeps at least one variable (spec 0008, AC-5)."""
+
+    code: Literal["last_variable"] = "last_variable"
+
+
+class VariablesDeleted(_Result):
+    """What a delete removed (spec 0008, AC-6)."""
+
+    variables: int
+    measurements: int
+    trials: int
+
+
+class VariableSummary(_Result):
+    """One variable's saved values, worked out with SQL (spec 0009, AC-7). The trial lists
+    name every trial holding the extreme, ascending; empty when there are no values."""
+
+    variable_id: int
+    count: int
+    min: float | None
+    max: float | None
+    mean: float | None
+    min_trials: tuple[int, ...]
+    max_trials: tuple[int, ...]
+
+
+class ResultsView(_Result):
+    variables: tuple[VariableSummary, ...]  # position order
+
+
 class ExperimentDetail(_Result):
     """A notebook with its variables in `position` order (spec 0005, AC-16 and AC-31)."""
 
@@ -173,6 +225,15 @@ class DuplicateVariableName(_Result):
 
     code: Literal["duplicate_variable_name"] = "duplicate_variable_name"
     name: str | None
+
+
+class NameInUse(_Result):
+    """A name or other name another variable already answers to (spec 0008, AC-10). `owner` is
+    that variable's name when `word` is one of its other names, None when it is its name."""
+
+    code: Literal["name_in_use"] = "name_in_use"
+    word: str
+    owner: str | None
 
 
 class InvalidRange(_Result):

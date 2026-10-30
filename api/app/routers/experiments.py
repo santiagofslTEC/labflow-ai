@@ -19,7 +19,7 @@ from app.core.db import SessionDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
 from app.core.instruction_reads import InstructionReads, InstructionReadsDep
-from app.repositories import experiments, trials
+from app.repositories import experiments, results, trials
 from app.services.experiment_rules import NewExperiment, check_new_experiment
 from app.services.instructions import (
     MAX_PAGES,
@@ -52,6 +52,7 @@ from app.services.results import (
     PdfUnreadable,
     ReadingFailed,
     ReadingInProgress,
+    ResultsView,
     TextTooLong,
     TooManyPages,
     TrialsView,
@@ -157,6 +158,26 @@ def read_trials(experiment_id: int, session: SessionDep) -> TrialsView:
     """The saved trials by number and the 5 newest measurements (spec 0007, AC-1)."""
     result = (
         trials.list_trials(session, experiment_id)
+        if 1 <= experiment_id <= _ID_MAX
+        else ExperimentNotFound()
+    )
+    if isinstance(result, ExperimentNotFound):
+        raise ApiError(404, result.code, "Este cuaderno no existe.")
+    return result
+
+
+@router.get(
+    "/{experiment_id}/results",
+    responses={
+        401: _UNAUTHORIZED,
+        404: {"model": ApiErrorBody, "description": "No notebook with this id"},
+        422: {"model": ApiErrorBody, "description": "The id is not an integer"},
+    },
+)
+def read_results(experiment_id: int, session: SessionDep) -> ResultsView:
+    """Count, min, max, and mean per variable, with the trials at each extreme (spec 0009)."""
+    result = (
+        results.summarize(session, experiment_id)
         if 1 <= experiment_id <= _ID_MAX
         else ExperimentNotFound()
     )

@@ -59,6 +59,9 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
       "Creado por ana · 28 oct",
     );
     expect(screen.getByText("Abierto")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Ver resultados" }),
+    ).toHaveAttribute("href", "/cuadernos/7/resultados");
     expect(screen.getByRole("link", { name: "Mis cuadernos" })).toHaveAttribute(
       "href",
       "/cuadernos",
@@ -112,17 +115,6 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
       expect(within(trials).getAllByRole("row")).toHaveLength(2),
     );
     expect(within(trials).getAllByRole("row")[1]).toHaveTextContent("665");
-  });
-
-  it("opens the full trials table from Ver resultados", async () => {
-    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
-    renderWithQuery(<NotebookView rawId="7" />);
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Ver resultados" }),
-    );
-    expect(
-      await screen.findByRole("dialog", { name: /Ensayos · / }),
-    ).toBeInTheDocument();
   });
 
   it("shows a skeleton title and three variable rows while loading", () => {

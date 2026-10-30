@@ -1,9 +1,10 @@
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
 import { sampleDetail } from "@/test/experiments";
+import { renderWithQuery as render } from "@/test/query";
 
 import { NotebookInspector, type TrialsPanel } from "./notebook-inspector";
 
@@ -109,15 +110,9 @@ describe("NotebookInspector", () => {
       />,
     );
 
-    // "Revisar variables" brings the list into view and focuses it, so the
-    // jump shows even when the list is already on screen.
-    const scroll = vi.fn();
-    Element.prototype.scrollIntoView = scroll;
-    await userEvent.click(
+    expect(
       screen.getByRole("button", { name: "Revisar variables" }),
-    );
-    expect(scroll).toHaveBeenCalledOnce();
-    expect(screen.getByRole("region", { name: "Variables" })).toHaveFocus();
+    ).toHaveAttribute("aria-haspopup", "dialog");
 
     await userEvent.click(screen.getByRole("button", { name: "Exportar CSV" }));
     expect(createUrl).toHaveBeenCalledOnce();
@@ -128,23 +123,6 @@ describe("NotebookInspector", () => {
       "\uFEFFEnsayo,Temperatura (°C),Duración (min),pH\r\n1,65.5,20,\r\n3,70,,7.25\r\n",
     );
     vi.unstubAllGlobals();
-  });
-});
-
-describe("NotebookInspector full table dialog", () => {
-  it("opens when the page asks (Ver resultados)", () => {
-    render(
-      <NotebookInspector
-        experiment={sampleDetail}
-        trialCount={2}
-        trials={READY}
-        tableOpen
-        onTableOpenChange={() => undefined}
-      />,
-    );
-    expect(
-      screen.getByRole("dialog", { name: /Ensayos · / }),
-    ).toBeInTheDocument();
   });
 });
 

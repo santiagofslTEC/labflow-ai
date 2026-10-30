@@ -21,7 +21,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 6 | Text capture and confirm card | Release 1 | in-progress |
 | 7 | Trials table | Release 1 | in-progress |
 | 8 | Voice capture | Release 2 | in-progress |
-| 9 | Chart: X against Y | Release 3 | planned |
+| 9 | Chart: X against Y | Release 3 | in-progress |
 | 10 | Questions about the data | Release 3 | planned |
 | 11 | Range and unit warnings | Release 4 | planned |
 | 12 | Extraction evaluation set | Release 4 | planned |
@@ -148,9 +148,10 @@ spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md) · code
 
 ## Release 3: Understand your data
 
-### 9. Chart: X against Y · needs a decision
+### 9. Chart: X against Y · in-progress · from spec 0009 (selector half; the spoken request stays with feature 10)
 Plot any variable against another, picked with axis selectors or asked for in words ("muéstrame rendimiento contra temperatura"). Points come from code, never from the AI. RF-10.
 **Done when:** the chart points match the table, and both the selector and the spoken request work (PA-05).
+spec [0009](../specs/0009-results-page/index.md) · code in `api/app/repositories/results.py`, `web/src/components/results/`, `web/src/lib/results.ts`
 - [ ] Design it (spec): `/architect chart x against y`
 
 ### 10. Questions about the data · needs a decision · Beta
