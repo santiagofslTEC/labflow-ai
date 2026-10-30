@@ -112,3 +112,50 @@ test.describe("in landscape (AC-11)", () => {
       expect(await layoutProblems(page)).toEqual([]);
     });
 });
+
+// A touch swipe to the bottom stays there, with the last content clear of the
+// tab bar (AC-11).
+for (const path of [
+  "/cuadernos",
+  "/cuadernos/7?vista=ensayos",
+  "/cuadernos/7?vista=variables",
+  "/cuadernos/7/resultados",
+  "/cuadernos/nuevo",
+])
+  test(`${path} scrolls to the bottom and stays`, async ({
+    page,
+    browserName,
+  }) => {
+    test.skip(browserName !== "chromium", "touch gestures need CDP");
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    const cdp = await page.context().newCDPSession(page);
+    for (let i = 0; i < 8; i += 1)
+      await cdp.send("Input.synthesizeScrollGesture", {
+        x: 180,
+        y: 400,
+        yDistance: -700,
+        speed: 2000,
+        gestureSourceType: "touch",
+      });
+    await page.waitForTimeout(500);
+    const end = await page.evaluate(() => {
+      const bar = document
+        .querySelector('nav[aria-label="Principal"].fixed')
+        ?.getBoundingClientRect();
+      const main = document.querySelector("main");
+      const last = main?.lastElementChild?.getBoundingClientRect();
+      return {
+        atBottom:
+          Math.abs(
+            window.scrollY +
+              window.innerHeight -
+              document.documentElement.scrollHeight,
+          ) <= 1,
+        lastBottom: last?.bottom ?? 0,
+        barTop: bar?.top ?? window.innerHeight,
+      };
+    });
+    expect(end.atBottom).toBe(true);
+    expect(end.lastBottom).toBeLessThanOrEqual(end.barTop);
+  });

@@ -13,6 +13,7 @@ _Steps derived from spec 0010 acceptance criteria. `/check verify` runs these; `
 - [ ] Tap any text field on the iPhone → no zoom; the capture field's keyboard says Enviar → AC-8
 - [ ] Start a voice conversation and wait 2 minutes without touching the phone → the screen stays on; end it → the screen sleeps as usual → AC-9
 - [ ] Add to Home Screen (iOS) and Install app (Android) → the LabFlow icon; it opens with no browser bar and the top bar clears the notch → AC-10
+- [ ] On each long page (Cuadernos, Ensayos, Resultados), swipe to the bottom on the phone → it stays at the bottom with the last item above the tab bar, no bounce back → AC-11
 - [ ] At 1280px the desktop layout looks as it did before this spec → AC-11
 
 ## Commands

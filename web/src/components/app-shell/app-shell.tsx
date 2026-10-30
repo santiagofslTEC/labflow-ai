@@ -12,10 +12,12 @@ type AppShellProps = {
 // Sidebar on the canvas, content on a surface sheet inset from the window
 // (Linear, Plane). Below 1024px a slim top bar and a bottom tab bar take the
 // sidebar's place (spec 0010, AC-1). DockSlot sets --dock-height while a dock
-// is mounted; the content pads by it and by --tabbar-height.
+// is mounted; the content pads by it and by --tabbar-height. The minimum
+// height is svh, not dvh: dvh grows as the phone's browser bar hides mid
+// scroll, which resized the page under the finger (spec 0010, AC-11).
 function AppShell({ children, showDevLinks }: AppShellProps) {
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-svh">
       <a
         href="#contenido"
         className="sr-only z-50 rounded-control bg-ink px-4 py-2 text-on-ink focus-ring focus:not-sr-only focus:fixed focus:top-3 focus:left-3"

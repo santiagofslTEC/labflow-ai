@@ -67,7 +67,9 @@ export const layoutProblems = (page: Page) =>
     const problems: string[] = [];
     const overflow = document.documentElement.scrollWidth - window.innerWidth;
     if (overflow > 0) problems.push(`sideways scroll of ${overflow}px`);
-    const bar = document.querySelector('nav[aria-label="Principal"]');
+    // The tab bar, not the (hidden) sidebar nav that shares its label.
+    const bar = document.querySelector('nav[aria-label="Principal"].fixed');
+    if (!bar) problems.push("no tab bar");
     const main = document.querySelector("main");
     if (bar && main) {
       const reserved = parseFloat(getComputedStyle(main).paddingBottom);

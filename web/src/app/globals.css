@@ -186,6 +186,12 @@
   * {
     @apply border-border;
   }
+  /* No elastic bounce at the ends of the page: LabFlow scrolls like an app on
+     the phone, and the bounce read as the page pushing back (spec 0010, AC-11). */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
   body {
     @apply bg-background font-sans text-foreground;
   }
