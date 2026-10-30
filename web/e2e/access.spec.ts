@@ -38,6 +38,9 @@ test("the sign in page offers Google, email, and a code", async ({ page }) => {
 });
 
 test("a page with no session goes to the sign in page", async ({ page }) => {
+  await page.route("**/api/access/options", (route) =>
+    route.fulfill({ json: { codes: true, accounts: true } }),
+  );
   await page.goto("/cuadernos/7");
   await expect(page).toHaveURL("/access?next=%2Fcuadernos%2F7");
 });
