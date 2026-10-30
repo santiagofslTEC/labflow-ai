@@ -97,7 +97,7 @@ export const announcement = (
     case "pending_other_trial":
       return state.question;
     case "correction":
-      return `El ensayo ${n} ya existe. ¿Lo reemplazo?`;
+      return state.question ?? `El ensayo ${n} ya existe. ¿Lo reemplazo?`;
     case "save_error":
       return "";
   }

@@ -102,24 +102,37 @@ export const cardState = (
   if (reply && SENTENCE_REASONS.has(reply.reason))
     return { kind: "needs_clarification", question: reply.text };
   switch (card.question.reason) {
-    case "choose_trial":
+    case "choose_trial": // cards from before spec 0011 only
       return { kind: "choose_trial", question: card.question.text };
     case "missing_trial":
     case "missing_values":
       return { kind: "needs_clarification", question: card.question.text };
+    case "confirm_change": // a value would replace a saved one (spec 0011, AC-4)
+      return { kind: "correction", question: card.question.text };
     default:
-      return card.targetTrialId !== null
-        ? { kind: "correction" }
-        : { kind: "proposed" };
+      return { kind: "proposed" };
   }
 };
+
+// The question one sentence left, shown beside an empty selection (AC-6).
+export const sentenceQuestion = (reply: Turn["reply"]): string | null =>
+  reply && SENTENCE_REASONS.has(reply.reason) ? reply.text : null;
+
+// An empty selection (spec 0011, AC-8): a trial number and no values yet. The
+// stage shows it as a quiet line, not a card with a save button.
+export const isSelection = (card: CardView): boolean =>
+  card.question.reason === "trial_selected";
 
 // The waiting sentence of AC-8 survives these responses and is sent after saved
 // or discarded; anything else drops it.
 export const keepsWaiting = (turn: Turn, fromCheck: boolean): boolean =>
   fromCheck ||
   turn.reply?.reason === "check_values" ||
+  turn.reply?.reason === "confirm_change" ||
   turn.reply?.reason === "pending_other_trial";
 
+// Only once no card is pending: a split turn saves and still leaves a card
+// waiting, so it does not resend (spec 0011, AC-16).
 export const releasesWaiting = (turn: Turn): boolean =>
-  turn.saved !== null || turn.reply?.reason === "discarded";
+  (turn.saved !== null || turn.reply?.reason === "discarded") &&
+  turn.card === null;

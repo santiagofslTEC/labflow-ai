@@ -228,7 +228,8 @@ export interface paths {
         put?: never;
         /**
          * Post Trial
-         * @description Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial.
+         * @description Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial. Kept
+         *     for cards from before spec 0011; the planner no longer asks it (spec 0011, AC-3).
          */
         post: operations["post_trial_api_proposals__proposal_id__trial_post"];
         delete?: never;
@@ -289,8 +290,10 @@ export interface paths {
         put?: never;
         /**
          * Post Undo
-         * @description Take back a save LabFlow made with no tap (AC-29): the same card comes back pending,
-         *     and a "Deshecho" turn records it. Only until the next sentence.
+         * @description Take back a save LabFlow made with no tap (spec 0011, AC-10): its values come back
+         *     as a pending card, or join the card waiting for the same trial; with another trial's
+         *     card waiting they are dropped and that card stays. A "Deshecho" turn records it. Only
+         *     until the next sentence.
          */
         post: operations["post_undo_api_proposals__proposal_id__undo_post"];
         delete?: never;
@@ -680,7 +683,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "two_values" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "auto_saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic" | "session_limit" | "undone" | "nothing_to_undo";
+        Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "trial_selected" | "confirm_change" | "pending_other_trial" | "ambiguous_variable" | "two_values" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "auto_saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic" | "session_limit" | "undone" | "nothing_to_undo";
         /** RecentMeasurement */
         RecentMeasurement: {
             /** Trial Number */

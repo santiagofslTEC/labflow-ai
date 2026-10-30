@@ -26,8 +26,10 @@ import {
 } from "@/hooks/use-capture";
 import {
   cardState,
+  isSelection,
   keepsWaiting,
   releasesWaiting,
+  sentenceQuestion,
   type CardView,
   type SavedTrial,
   type Turn,
@@ -231,67 +233,82 @@ function CaptureStage({ experimentId, onSaved, onUndone }: CaptureStageProps) {
           onRetry={noop}
           onSettled={() => setSavedCard(null)}
         />
-      ) : card ? (
-        <ProposalCard
-          key={card.id}
-          trialNumber={card.trialNumber}
-          values={card.values}
-          phrase={card.phrase}
-          source={card.source}
-          state={stateFor(card)}
-          canConfirm={card.canConfirm}
-          onConfirm={() => doConfirm(card)}
-          onRetry={() => doConfirm(card)}
-          onEdit={(variableId) => setOverlay({ kind: "editing", variableId })}
-          onCancelEdit={() => setOverlay(null)}
-          onCommitEdit={(variableId, value) =>
-            edit.mutate(
-              { proposalId: card.id, variableId, value },
-              {
-                onSuccess: (turn) => handleTurn(turn, "button", card),
-                onError: onButtonError,
-              },
-            )
-          }
-          onCheck={(variableId) => {
-            setOverlay({ kind: "checking", variableId });
-            check.mutate(
-              { proposalId: card.id, variableId },
-              {
-                onSuccess: (turn) => handleTurn(turn, "check", card),
-                onError: onButtonError,
-              },
-            );
-          }}
-          onChooseTrial={(kind: TrialChoice) =>
-            choose.mutate(
-              { proposalId: card.id, kind },
-              {
-                onSuccess: (turn) => handleTurn(turn, "button", card),
-                onError: onButtonError,
-              },
-            )
-          }
-          onDiscard={() =>
-            discard.mutate(card.id, {
-              onSuccess: (turn) => handleTurn(turn, "button", card),
-              onError: onButtonError,
-            })
-          }
-          onSettled={noop}
-        />
-      ) : notice ? (
-        <SavedNotice
-          key={`notice-${notice.proposalId}`}
-          saved={notice}
-          undoing={undo.isPending}
-          onUndo={() => doUndo(notice)}
-        />
-      ) : reply ? (
-        <p role="status" className="text-sm text-ink-muted">
-          {reply.text}
-        </p>
-      ) : null}
+      ) : (
+        <>
+          {/* A split turn shows what it saved and the card that waits (spec 0011, AC-5). */}
+          {notice ? (
+            <SavedNotice
+              key={`notice-${notice.proposalId}`}
+              saved={notice}
+              undoing={undo.isPending}
+              onUndo={() => doUndo(notice)}
+            />
+          ) : null}
+          {card && isSelection(card) ? (
+            <div className="flex flex-col gap-1 text-sm text-ink-muted">
+              <p role="status">{copy.selection(card.trialNumber)}</p>
+              {sentenceQuestion(reply) ? (
+                <p className="text-ink">{sentenceQuestion(reply)}</p>
+              ) : null}
+            </div>
+          ) : card ? (
+            <ProposalCard
+              key={card.id}
+              trialNumber={card.trialNumber}
+              values={card.values}
+              phrase={card.phrase}
+              source={card.source}
+              state={stateFor(card)}
+              canConfirm={card.canConfirm}
+              onConfirm={() => doConfirm(card)}
+              onRetry={() => doConfirm(card)}
+              onEdit={(variableId) =>
+                setOverlay({ kind: "editing", variableId })
+              }
+              onCancelEdit={() => setOverlay(null)}
+              onCommitEdit={(variableId, value) =>
+                edit.mutate(
+                  { proposalId: card.id, variableId, value },
+                  {
+                    onSuccess: (turn) => handleTurn(turn, "button", card),
+                    onError: onButtonError,
+                  },
+                )
+              }
+              onCheck={(variableId) => {
+                setOverlay({ kind: "checking", variableId });
+                check.mutate(
+                  { proposalId: card.id, variableId },
+                  {
+                    onSuccess: (turn) => handleTurn(turn, "check", card),
+                    onError: onButtonError,
+                  },
+                );
+              }}
+              onChooseTrial={(kind: TrialChoice) =>
+                choose.mutate(
+                  { proposalId: card.id, kind },
+                  {
+                    onSuccess: (turn) => handleTurn(turn, "button", card),
+                    onError: onButtonError,
+                  },
+                )
+              }
+              onDiscard={() =>
+                discard.mutate(card.id, {
+                  onSuccess: (turn) => handleTurn(turn, "button", card),
+                  onError: onButtonError,
+                })
+              }
+              onSettled={noop}
+            />
+          ) : !notice && reply ? (
+            <p role="status" className="text-sm text-ink-muted">
+              {reply.text}
+            </p>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

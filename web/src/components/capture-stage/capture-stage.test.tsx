@@ -426,3 +426,115 @@ describe("CaptureStage save without the card (spec 0006, AC-27 to AC-29)", () =>
     ).toBeInTheDocument();
   });
 });
+
+describe("CaptureStage partial readings (spec 0011)", () => {
+  const change = "¿Cambio Temperatura de 65 a 68 °C?";
+  const split = (): TurnResponse =>
+    turn({
+      reply: {
+        reason: "confirm_change",
+        text: `Guardado ensayo 3: 2 bar. ${change}`,
+      },
+      proposal: card({
+        id: 12,
+        trial_number: 3,
+        target_trial_id: 33,
+        values: [
+          value(1, "Temperatura", "°C", 68, { previous: 65 }),
+          value(2, "Duración", "min", null),
+          value(3, "Rendimiento", "%", null),
+        ],
+        question: {
+          reason: "confirm_change",
+          text: "¿Cambio Temperatura del ensayo 3 de 65 a 68 °C?",
+        },
+      }),
+      saved: {
+        ...confirmed,
+        trial_number: 3,
+        proposal_id: 11,
+        auto: true,
+        created: false,
+        values: [{ variable_id: 2, name: "Duración", value: 20, unit: "min" }],
+      },
+    });
+
+  it("shows the saved notice and the waiting card together (AC-5)", async () => {
+    const user = userEvent.setup();
+    sendMock.mockResolvedValue(ok(split()));
+    renderWithQuery(<CaptureStage experimentId={1} />);
+    await user.type(field(), "ensayo 3, duración 20, temperatura 68{Enter}");
+    expect(
+      await screen.findByText("Guardado ensayo 3 · 20 min"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("¿Cambio Temperatura del ensayo 3 de 65 a 68 °C?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reemplazar 65 °C por 68 °C" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Deshacer" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an empty selection as a quiet line, not a card (AC-8)", async () => {
+    const user = userEvent.setup();
+    sendMock.mockResolvedValue(
+      ok(
+        turn({
+          reply: {
+            reason: "trial_selected",
+            text: "Ensayo 4. Dime los valores.",
+          },
+          proposal: card({
+            id: 13,
+            trial_number: 4,
+            values: [
+              value(1, "Temperatura", "°C", null),
+              value(2, "Duración", "min", null),
+              value(3, "Rendimiento", "%", null),
+            ],
+            question: {
+              reason: "trial_selected",
+              text: "Ensayo 4. Dime los valores.",
+            },
+            can_confirm: false,
+          }),
+        }),
+      ),
+    );
+    renderWithQuery(<CaptureStage experimentId={1} />);
+    await user.type(field(), "ensayo 4{Enter}");
+    expect(
+      await screen.findByText("Ensayo 4 · esperando valores"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Guardar/ })).toBeNull();
+  });
+
+  it("a split response does not resend the waiting sentence (AC-16)", async () => {
+    const user = userEvent.setup();
+    getMock.mockResolvedValue(ok(card()));
+    sendMock
+      .mockResolvedValueOnce(
+        ok(
+          turn({
+            reply: {
+              reason: "pending_other_trial",
+              text: "Tienes el ensayo 6 sin guardar. ¿Lo guardo o lo descarto?",
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(ok(split()));
+    renderWithQuery(<CaptureStage experimentId={1} />);
+    await screen.findByRole("button", { name: "Guardar ensayo 6 · 3 valores" });
+    await user.type(field(), "Ensayo 7, 600 grados{Enter}");
+    await screen.findByText(
+      "Tienes el ensayo 6 sin guardar. ¿Lo guardo o lo descarto?",
+    );
+    await user.type(field(), "ensayo 3, duración 20, temperatura 68{Enter}");
+    await screen.findByText("Guardado ensayo 3 · 20 min");
+    expect(sendMock).toHaveBeenCalledTimes(2);
+  });
+});

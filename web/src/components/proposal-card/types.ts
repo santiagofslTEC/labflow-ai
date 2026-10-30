@@ -9,7 +9,7 @@ export type ProposalValue = {
   readonly name: string; // variable.name
   readonly unit: string | null; // proposal_value.unit (null for unitless)
   readonly value: number | null; // null = missing, shown as an empty slot
-  readonly previous?: number | null; // correction only: saved measurement.value
+  readonly previous?: number | null; // the value saved on the card's trial, if any
   readonly saidText?: string | null; // the user's own words; null = typed by hand
   readonly interpreted?: boolean; // highlight the understood side (words or a converted unit)
   readonly flags?: readonly ValueFlag[]; // reasons to look again (AC-23)
@@ -27,7 +27,8 @@ export type ProposalCardState =
   | { readonly kind: "needs_clarification"; readonly question: string }
   | { readonly kind: "choose_trial"; readonly question: string }
   | { readonly kind: "pending_other_trial"; readonly question: string }
-  | { readonly kind: "correction" }
+  // `question`: the API's "¿Cambio…?" (spec 0011, AC-4); omitted, a fixed prompt.
+  | { readonly kind: "correction"; readonly question?: string }
   | { readonly kind: "save_error"; readonly message: string };
 
 export type ProposalCardProps = {

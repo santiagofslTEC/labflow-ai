@@ -57,7 +57,7 @@ function VariableRows({
         <span>Unidad</span>
         <span>Mín</span>
         <span>Máx</span>
-        <span className="text-center">Requerida</span>
+        <span className="text-center">Esperada</span>
         <span />
       </div>
 
@@ -192,7 +192,7 @@ function VariableRowFields({
             htmlFor={requiredId}
             className="text-xs text-ink-muted sm:sr-only"
           >
-            Requerida<span className="sr-only">, variable {number}</span>
+            Esperada<span className="sr-only">, variable {number}</span>
           </label>
           <div className="flex h-10 items-center sm:justify-center">
             <input
