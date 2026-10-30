@@ -109,3 +109,14 @@ LangGraph does not fit capture: spec 0001 kept code in charge of state and the s
 **Root cause**: not a broken stream. The wait was too long and invisible: `turn_eagerness: patient` added 5 to 10 s before our turn even started, our turn added up to the 4.5 s deadline, the 4 character filler was buffered by text to speech, and the screen kept showing "Escuchando…".
 
 **Fix**: AC-21 to AC-26 (turn settings, a speakable filler, a shorter voice hedge, a thinking state, a probe for numbers, tentative words for spec 0012). Runner up considered: Claude first for every voice turn, steadier latency but a higher cost per turn; the engineer chose the shorter hedge.
+
+**Measured after the fix** (2026-10-30, prod, typed probe "Hola, ¿me escuchas?" on notebook 865, `scripts/voice_probe.py`):
+
+| | Before (three runs) | After (three runs) |
+|---|---|---|
+| First audio | 3.19 s, 3.24 s | 1.52 s, 1.68 s, 1.81 s (the "A ver." filler) |
+| Reply text | 3.28 s, 3.32 s | 3.15 s, 3.56 s, 4.44 s |
+
+The filler is now spoken first, about 1.5 s sooner than any audio before. The reply itself is not faster on a typed turn: the shorter hedge only helps when Ollama stalls, and a typed probe skips turn detection, which was the 5 to 10 s part of the wait in real calls. AC-25's 1.5 s first audio target is met at the edge (1.52 to 1.81 s); the real call median (end of speech to spoken audio, 3 s target) still needs a spoken call to measure.
+
+**Sync incident**: the first prod sync wrote the dev tunnel URL from `api/.env` onto the prod agent, because Railway has no `VOICE_LLM_URL` and `railway run` fell back to the local file. It was put back within a minute. `sync_agent.py --env prod` now refuses any URL whose host is not Railway's public domain (`prod_url_problem`).

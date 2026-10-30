@@ -17,7 +17,7 @@ from app.core.gate import HolderDep
 from app.models import Proposal, ProposalValue, Turn, Variable
 from app.models.enums import ProposalStatus, Role, Source
 from app.repositories import capture, proposals, turns
-from app.services.card_state import unchecked_ids
+from app.services.card_state import slots_of, unchecked_ids
 from app.services.proposal_view import ProposalView, reply_for
 from app.services.replies import Reason
 from app.services.results import (
@@ -32,6 +32,7 @@ from app.services.results import (
     TrialExists,
     TrialNotInExperiment,
     UndoExpired,
+    Undone,
     VariableNotInExperiment,
 )
 from app.services.turns import (
@@ -219,7 +220,8 @@ def put_value(
 
 @router.post("/api/proposals/{proposal_id}/trial", responses=_errors(401, 404, 409, 422))
 def post_trial(proposal_id: int, body: TrialChoiceIn, session: SessionDep) -> TurnResponse:
-    """Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial."""
+    """Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial. Kept
+    for cards from before spec 0011; the planner no longer asks it (spec 0011, AC-3)."""
     proposal = _pending(session, proposal_id)
     if body.kind == "correction":
         number = proposal.trial_number
@@ -259,8 +261,14 @@ def post_confirm(proposal_id: int, session: SessionDep, holder: HolderDep) -> Tu
     experiment_id = proposal.experiment_id
     if proposal.status == ProposalStatus.PENDING:
         card = capture.card_info(session, proposal)
-        if unchecked_ids(card, capture.variables_of(session, experiment_id)):
+        slots = slots_of(card, capture.saved_slots(session, experiment_id))
+        if unchecked_ids(card, capture.variables_of(session, experiment_id), slots):
             raise _fail("unchecked_values")
+        # A saved number always targets its trial, so confirm adds to it (spec 0011, AC-3).
+        number = card.trial_number
+        trial_id = capture.trial_numbers(session, experiment_id).get(number) if number else None
+        if trial_id is not None and card.target_trial_id is None:
+            _raise_for(proposals.set_trial(session, proposal_id, None, trial_id))
     result = proposals.confirm(session, proposal_id, holder)
     match result:
         case Confirmed(trial_id=trial_id, created_trial=created):
@@ -279,15 +287,17 @@ def post_confirm(proposal_id: int, session: SessionDep, holder: HolderDep) -> Tu
 
 @router.post("/api/proposals/{proposal_id}/undo", responses=_errors(401, 404, 409))
 def post_undo(proposal_id: int, session: SessionDep) -> TurnResponse:
-    """Take back a save LabFlow made with no tap (AC-29): the same card comes back pending,
-    and a "Deshecho" turn records it. Only until the next sentence."""
+    """Take back a save LabFlow made with no tap (spec 0011, AC-10): its values come back
+    as a pending card, or join the card waiting for the same trial; with another trial's
+    card waiting they are dropped and that card stays. A "Deshecho" turn records it. Only
+    until the next sentence."""
     if not 1 <= proposal_id <= _ID_MAX:
         raise _fail("proposal_not_found")
     result = proposals.undo_auto_save(session, proposal_id)
     match result:
         case ProposalNotFound() | NotAutoSaved() | UndoExpired():
             raise _fail(result.code)
-        case Proposal():
+        case Undone():
             pass
     turn = turns.add_turn(
         session,
@@ -297,6 +307,13 @@ def post_undo(proposal_id: int, session: SessionDep) -> TurnResponse:
         Source.TEXT,
     )
     assert isinstance(turn, Turn) and turn.id is not None
+    if result.outcome == "discarded":
+        return TurnResponse(
+            turn_id=turn.id,
+            reply=reply_for(Reason.UNDONE, (), (), result.trial_number),
+            proposal=capture.view_of(session, result.experiment_id),
+            saved=None,
+        )
     return _card_response(session, result.experiment_id, turn.id)
 
 

@@ -375,7 +375,7 @@ function VariableRow({
         {formatRange(variable.min_value, variable.max_value)}
       </TableCell>
       <TableCell className="text-ink-muted max-lg:hidden">
-        {variable.required ? "Requerida" : "Opcional"}
+        {variable.required ? "Esperada" : "Opcional"}
       </TableCell>
       <TableCell className="text-right font-mono text-ink tabular-nums max-lg:hidden">
         {values === null ? "—" : valueCount(values)}
@@ -397,7 +397,7 @@ function VariableRow({
   );
 }
 
-// "°C · 20 a 100 · Requerida · 6 valores": the row's other columns, in one line.
+// "°C · 20 a 100 · Esperada · 6 valores": the row's other columns, in one line.
 const phoneDetails = (
   variable: VariableDetail,
   values: number | null,
@@ -407,7 +407,7 @@ const phoneDetails = (
     variable.min_value === null && variable.max_value === null
       ? "Sin rango"
       : formatRange(variable.min_value, variable.max_value),
-    variable.required ? "Requerida" : "Opcional",
+    variable.required ? "Esperada" : "Opcional",
     ...(values === null ? [] : [valueCount(values)]),
   ].join(" · ");
 
@@ -569,21 +569,31 @@ function FormRow({
               { autoComplete: "off", placeholder: "temp, T" },
               "Sepáralos con comas. LabFlow los reconoce al capturar.",
             )}
-            <label className="flex h-10 items-center gap-2 text-sm text-ink">
-              <input
-                id={id("required")}
-                type="checkbox"
-                checked={draft.required}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    required: event.target.checked,
-                  }))
-                }
-                className="size-5 cursor-pointer rounded accent-ink focus-ring"
-              />
-              Requerida
-            </label>
+            <div className="flex flex-col gap-1">
+              <label className="flex h-10 items-center gap-2 text-sm text-ink">
+                <input
+                  id={id("required")}
+                  type="checkbox"
+                  checked={draft.required}
+                  aria-describedby={`${id("required")}-hint`}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      required: event.target.checked,
+                    }))
+                  }
+                  className="size-5 cursor-pointer rounded accent-ink focus-ring"
+                />
+                Esperada
+              </label>
+              {/* What "required" means since spec 0011 (AC-2). */}
+              <p
+                id={`${id("required")}-hint`}
+                className="text-xs text-ink-muted"
+              >
+                Se espera en cada ensayo. Nunca bloquea un guardado.
+              </p>
+            </div>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onCancel}>

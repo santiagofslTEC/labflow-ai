@@ -169,7 +169,7 @@ Skateboard (the project default): prove the voice loop end to end first with the
 6. **Prod agent and deploy**: `sync_agent.py --env prod`, Railway variables, a recorded demo run on the deployed app with the latency median, satisfies **AC-16**, **AC-17**
 7. **Phone and accessibility pass**, satisfies **AC-18**
 8. **Notebook page dock**. **Built 2026-10-30**: the same `VoiceConversation` above the notebook's text field. Planned: the dock with the same session, satisfies **AC-19**
-9. **Round 2: the silent reply** (do first in round 2): `agent.json` turn settings and the `tentative_user_transcript` client event, synced to dev and prod; `VOICE_FILLER_AFTER_S` and "A ver."; `VOICE_HEDGE_S` passed per call through `FallbackProvider`; the `thinking` state in `useVoiceSession` with "Pensando…" on the current mic; commit `scripts/voice_probe.py` and record before and after numbers in rationale.md, satisfies **AC-21** to **AC-26**
+9. **Round 2: the silent reply**. **Built 2026-10-30**, prod agent synced, numbers in rationale.md (a real call median still to measure). Planned: `agent.json` turn settings and the `tentative_user_transcript` client event, synced to dev and prod; `VOICE_FILLER_AFTER_S` and "A ver."; `VOICE_HEDGE_S` passed per call through `FallbackProvider`; the `thinking` state in `useVoiceSession` with "Pensando…" on the current mic; commit `scripts/voice_probe.py` and record before and after numbers in rationale.md, satisfies **AC-21** to **AC-26**
 
 ## Consequences
 

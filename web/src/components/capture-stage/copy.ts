@@ -11,6 +11,8 @@ export const copy = {
   loadError: "No pude cargar la tarjeta pendiente.",
   undo: "Deshacer",
   undoing: "Deshaciendo…",
+  // An empty selection (spec 0011, AC-8).
+  selection: (n: number | null) => `Ensayo ${n ?? "?"} · esperando valores`,
 } as const;
 
 const joined = (parts: readonly string[]): string =>

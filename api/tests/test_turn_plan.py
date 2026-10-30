@@ -1,5 +1,6 @@
 """The planner, flags, replies, and card view (spec 0006, AC-3 to AC-12, AC-17, AC-21 to
-AC-24). Pure, no database, no model: each test passes in the exact tool call it wants."""
+AC-24; spec 0011, partial readings). Pure, no database, no model: each test passes in the
+exact tool call it wants."""
 
 from dataclasses import replace
 
@@ -20,16 +21,29 @@ from app.models.enums import Grounding, Source
 from app.services.card_state import CardInfo, RememberedTrial, ValueInfo, VariableInfo
 from app.services.flags import FlagReason, flags, interpreted
 from app.services.proposal_view import proposal_view
-from app.services.replies import Reason, reply_text
+from app.services.replies import (
+    Change,
+    Reason,
+    change_question,
+    reply_text,
+    saved_line,
+    saved_still_pending,
+    split_saved,
+)
 from app.services.turn_plan import (
     Confirm,
     Discard,
     LastQuestion,
+    SaveNow,
     SetTarget,
     SetTrial,
     SetValue,
     StartProposal,
+    Supersede,
     TurnContext,
+    Unset,
+    bare_trial,
+    plan_before_model,
     plan_turn,
 )
 
@@ -40,10 +54,11 @@ VARIABLES = (
     VariableInfo(REND, "Rendimiento", "%", True, 2, 0.0, 100.0),
 )
 SAVED = {3: 33}  # trial 3 is saved, id 33
+SLOTS = {3: {TEMP: 50.0, REND: 74.0}}  # what trial 3 holds; Duración is empty
 
 
 def ctx(card: CardInfo | None = None) -> TurnContext:
-    return TurnContext(1, VARIABLES, card, SAVED)
+    return TurnContext(1, VARIABLES, card, SAVED, saved=SLOTS)
 
 
 def ev(
@@ -77,41 +92,43 @@ def test_full_sentence_starts_a_card_with_three_values() -> None:
     )
     plan = plan_turn(ctx(), call, sentence)
     assert plan.operations == (
-        StartProposal(6),
-        SetValue(TEMP, 65.0, "65 grados", Grounding.MODEL),
-        SetValue(DUR, 20.0, "20 minutos", Grounding.MODEL),
-        SetValue(REND, 74.0, "74 por ciento", Grounding.MODEL),
-        Confirm(auto=True),
+        SaveNow(
+            6,
+            (vi(TEMP, 65, "65 grados"), vi(DUR, 20, "20 minutos"), vi(REND, 74, "74 por ciento")),
+        ),
     )
-    assert plan.reason == Reason.AUTO_SAVED  # clean: saved with no tap (AC-27)
+    assert plan.reason == Reason.AUTO_SAVED  # clean: saved with no tap, no card (0011 AC-12)
 
 
 # --- AC-3, AC-4, AC-5: parts and corrections ---
 
 
 def test_missing_values_names_the_required_ones() -> None:
+    """Spec 0011, AC-1, AC-2: one value saves; required variables never ask."""
     plan = plan_turn(
         ctx(), ProponerMedicion(trial_number=6, values=[ev(TEMP, "65", 65)]), "Ensayo 6, 65 grados"
     )
-    assert plan.reason == Reason.MISSING_VALUES
-    assert plan.variable_ids == (DUR, REND)
-    assert reply_text(Reason.MISSING_VALUES, ["Duración", "Rendimiento"]) == (
-        "Me falta Duración y Rendimiento. ¿Cuánto fueron?"
-    )
+    assert plan.operations == (SaveNow(6, (vi(TEMP, 65, "65 grados"),)),)
+    assert plan.reason == Reason.AUTO_SAVED and plan.variable_ids == ()
 
 
 def test_a_part_adds_to_the_pending_card() -> None:
-    card = card6(model_value(TEMP, 65, "65 grados"))
+    """A clean value saves at once; the flagged one keeps waiting on its card (AC-6)."""
+    card = card6(model_value(TEMP, 500, "500"))
     plan = plan_turn(ctx(card), ProponerMedicion(values=[ev(REND, "74", 74)]), "rendimiento 74")
-    assert plan.operations == (SetValue(REND, 74.0, "74", Grounding.MODEL),)
-    assert plan.reason == Reason.MISSING_VALUES and plan.variable_ids == (DUR,)
+    assert plan.operations == (SaveNow(6, (vi(REND, 74, "74"),)),)
+    assert plan.reason == Reason.CHECK_VALUES and plan.variable_ids == (TEMP,)
 
 
 def test_a_spoken_correction_replaces_the_value() -> None:
-    card = card6(model_value(REND, 74, "74"))
+    card = card6(model_value(REND, 500, "500"))
     sentence = "No, el rendimiento es setenta y tres"
     plan = plan_turn(ctx(card), Corregir(values=[ev(REND, "setenta y tres", 73)]), sentence)
-    assert plan.operations == (SetValue(REND, 73.0, "setenta y tres", Grounding.MODEL),)
+    assert plan.operations == (
+        Unset((REND,)),
+        Supersede(),
+        SaveNow(6, (vi(REND, 73, "setenta y tres"),)),
+    )
 
 
 # --- AC-6, AC-7, AC-8: trial rules ---
@@ -126,24 +143,37 @@ def test_no_trial_number_asks_for_it() -> None:
 def test_a_numberless_card_takes_the_number() -> None:
     card = card6(model_value(TEMP, 50, "50"), number=None)
     plan = plan_turn(ctx(card), ProponerMedicion(trial_number=6), "ensayo 6")
-    assert plan.operations == (SetTrial(6),)
-    assert plan.reason == Reason.MISSING_VALUES
+    assert plan.operations == (SetTrial(6), Unset((TEMP,)), Supersede(), SaveNow(6, (card.values)))
+    assert plan.reason == Reason.AUTO_SAVED
 
 
 def test_a_saved_number_asks_correction_or_new() -> None:
-    plan = plan_turn(
+    """Spec 0011, AC-3, AC-4: an empty slot of a saved trial fills at once; a filled slot
+    asks "¿Cambio…?" on a card that targets the trial."""
+    add = plan_turn(
+        ctx(),
+        ProponerMedicion(trial_number=3, values=[ev(DUR, "20", 20)]),
+        "ensayo 3, duración 20",
+    )
+    assert add.operations == (SaveNow(3, (vi(DUR, 20, "20"),)),)
+    change = plan_turn(
         ctx(),
         ProponerMedicion(trial_number=3, values=[ev(REND, "73", 73)]),
         "ensayo 3, rendimiento 73",
     )
-    assert plan.reason == Reason.CHOOSE_TRIAL
+    assert change.operations == (
+        StartProposal(3),
+        SetTarget(33),
+        SetValue(REND, 73.0, "73", Grounding.MODEL),
+    )
+    assert change.reason == Reason.CONFIRM_CHANGE and change.variable_ids == (REND,)
 
 
 def test_choosing_correction_sets_the_target() -> None:
     card = card6(model_value(REND, 73, "73"), number=3)
     plan = plan_turn(ctx(card), ElegirEnsayo(kind="correccion"), "es corrección")
     assert plan.operations == (SetTarget(33),)
-    assert plan.reason == Reason.MISSING_VALUES  # a correction may update only some values
+    assert plan.reason == Reason.CONFIRM_CHANGE  # 73 would replace the saved 74
 
 
 def test_choosing_new_clears_the_number_or_sets_it() -> None:
@@ -153,18 +183,32 @@ def test_choosing_new_clears_the_number_or_sets_it() -> None:
     )
     assert plan_turn(
         ctx(card), ElegirEnsayo(kind="nuevo", trial_number=7), "es el ensayo 7"
-    ).operations == (SetTrial(7),)
+    ).operations == (SetTrial(7), Unset((REND,)), Supersede(), SaveNow(7, card.values))
 
 
 def test_another_trial_while_one_is_pending_asks_and_changes_nothing() -> None:
-    card = card6(model_value(TEMP, 65, "65"))
-    plan = plan_turn(
+    """Spec 0011, AC-9: a clean sentence for another trial saves on its own and the
+    waiting card stays; one that needs a question changes nothing."""
+    card = card6(model_value(TEMP, 500, "500"))
+    clean = plan_turn(
         ctx(card),
         ProponerMedicion(trial_number=7, values=[ev(TEMP, "60", 60)]),
         "Ensayo 7, 60 grados",
     )
-    assert plan.operations == ()
-    assert plan.reason == Reason.PENDING_OTHER_TRIAL
+    assert clean.operations == (SaveNow(7, (vi(TEMP, 60, "60 grados"),)),)
+    assert clean.reason == Reason.CHECK_VALUES  # the waiting card's question, added once
+    flagged = plan_turn(
+        ctx(card),
+        ProponerMedicion(trial_number=7, values=[ev(TEMP, "600", 600)]),
+        "Ensayo 7, 600 grados",
+    )
+    assert flagged.operations == () and flagged.reason == Reason.PENDING_OTHER_TRIAL
+    replacing = plan_turn(
+        ctx(card),
+        ProponerMedicion(trial_number=3, values=[ev(TEMP, "60", 60)]),
+        "Ensayo 3, 60 grados",
+    )
+    assert replacing.operations == () and replacing.reason == Reason.PENDING_OTHER_TRIAL
 
 
 def test_a_trial_number_not_in_the_sentence_is_ignored() -> None:
@@ -297,7 +341,8 @@ def test_a_bare_number_after_missing_trial_sets_the_trial(answer: str) -> None:
     card = card6(model_value(TEMP, 65, "65"), number=None)
     context = after(asked(Reason.MISSING_TRIAL, "temperatura 65"), card)
     plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), answer)
-    assert plan.operations == (SetTrial(5),) and plan.reason == Reason.MISSING_VALUES
+    assert plan.operations == (SetTrial(5), Unset((TEMP,)), Supersede(), SaveNow(5, card.values))
+    assert plan.reason == Reason.AUTO_SAVED
 
 
 @pytest.mark.parametrize("answer", ["rendimiento 5", "5 y 6", "cinco coma dos", "0"])
@@ -321,14 +366,14 @@ def test_a_bare_number_after_two_values_sets_that_variable() -> None:
 def test_si_accepts_the_one_suggested_variable_from_the_earlier_sentence(answer: str) -> None:
     context = after(asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 6, reflujo 71", TEMP), card6())
     plan = plan_turn(context, Confirmar(), answer)
-    assert plan.operations == (SetValue(TEMP, 71.0, "71", Grounding.MODEL, turn_id=40),)
+    assert plan.operations == (Supersede(), SaveNow(6, (vi(TEMP, 71, "71", turn_id=40),)))
 
 
 def test_si_skips_numbers_already_placed_from_that_sentence() -> None:
-    placed = ValueInfo(REND, 74, "74", Grounding.MODEL, turn_id=40)
-    context = after(asked(Reason.AMBIGUOUS_VARIABLE, "74 y reflujo 71", TEMP), card6(placed))
+    placed = ValueInfo(REND, 500, "500", Grounding.MODEL, turn_id=40)
+    context = after(asked(Reason.AMBIGUOUS_VARIABLE, "500 y reflujo 71", TEMP), card6(placed))
     plan = plan_turn(context, Confirmar(), "sí")
-    assert plan.operations == (SetValue(TEMP, 71.0, "71", Grounding.MODEL, turn_id=40),)
+    assert plan.operations == (SaveNow(6, (vi(TEMP, 71, "71", turn_id=40),)),)
 
 
 @pytest.mark.parametrize(
@@ -361,14 +406,15 @@ def test_the_which_variable_question_offers_its_choices_with_o() -> None:
 
 
 def test_a_range_for_one_variable_keeps_the_rest_of_the_sentence() -> None:
-    """What the prompt now asks the model for (AC-34): both values, plus the others."""
+    """What the prompt now asks the model for (AC-34): both values, plus the others. The
+    clean value saves; the trial stays selected for the answer (spec 0011, AC-6)."""
     sentence = "ensayo 20 temperatura 23 a 71 grados duración 30"
     call = ProponerMedicion(
         trial_number=20,
         values=[ev(TEMP, "23", 23), ev(TEMP, "71", 71, "grados"), ev(DUR, "30", 30)],
     )
     plan = plan_turn(ctx(), call, sentence)
-    assert plan.operations == (StartProposal(20), SetValue(DUR, 30.0, "30", Grounding.MODEL))
+    assert plan.operations == (StartProposal(20), SaveNow(20, (vi(DUR, 30, "30"),)))
     assert plan.reason == Reason.TWO_VALUES and plan.variable_ids == (TEMP,)
     assert plan.said == ("23", "71 grados")
 
@@ -383,18 +429,18 @@ def test_the_prompt_asks_for_both_values_of_a_range() -> None:
 def test_a_bare_number_answers_a_one_variable_question(answer: str) -> None:
     context = after(asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 6, reflujo 23 a 71", TEMP), card6())
     plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), answer)
-    assert plan.operations == (SetValue(TEMP, 71.0, answer.removeprefix("el "), Grounding.MODEL),)
+    said = answer.removeprefix("el ")
+    assert plan.operations == (Supersede(), SaveNow(6, (vi(TEMP, 71, said),)))
 
 
 def test_with_no_card_the_answer_starts_the_asked_trial() -> None:
     """Not the remembered trial (AC-31): the student was dictating ensayo 20."""
-    remembered = RememberedTrial(trial_id=33, number=3, filled=frozenset({TEMP}))
     context = replace(
         after(asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 20 temperatura 23 a 71", TEMP)),
-        remembered=remembered,
+        remembered=RememberedTrial(trial_id=33, number=3),
     )
     plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), "71")
-    assert plan.operations == (StartProposal(20), SetValue(TEMP, 71.0, "71", Grounding.MODEL))
+    assert plan.operations == (SaveNow(20, (vi(TEMP, 71, "71"),)),)
     yes = plan_turn(
         replace(
             context, last_question=asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 20, reflujo 71", TEMP)
@@ -402,10 +448,7 @@ def test_with_no_card_the_answer_starts_the_asked_trial() -> None:
         Confirmar(),
         "sí",
     )
-    assert yes.operations == (
-        StartProposal(20),
-        SetValue(TEMP, 71.0, "71", Grounding.MODEL, turn_id=40),
-    )
+    assert yes.operations == (SaveNow(20, (vi(TEMP, 71, "71", turn_id=40),)),)
 
 
 @pytest.mark.parametrize(
@@ -435,11 +478,8 @@ def test_a_lone_number_read_as_the_trial_opens_no_card(sentence: str) -> None:
 def test_a_trial_number_with_no_trial_word_is_kept_beside_a_value() -> None:
     call = ProponerMedicion(trial_number=6, values=[ev(TEMP, "65", 65, "grados")])
     plan = plan_turn(ctx(), call, "6: temperatura 65 grados")
-    assert plan.operations == (
-        StartProposal(6),
-        SetValue(TEMP, 65.0, "65 grados", Grounding.MODEL),
-    )
-    assert plan.reason == Reason.MISSING_VALUES  # nothing asks about the 6
+    assert plan.operations == (SaveNow(6, (vi(TEMP, 65, "65 grados"),)),)
+    assert plan.reason == Reason.AUTO_SAVED  # nothing asks about the 6
 
 
 def test_a_lone_number_read_as_the_trial_leaves_a_pending_card_alone() -> None:
@@ -450,7 +490,7 @@ def test_a_lone_number_read_as_the_trial_leaves_a_pending_card_alone() -> None:
 
 def test_a_trial_word_still_starts_an_empty_card() -> None:
     plan = plan_turn(ctx(), ProponerMedicion(trial_number=5), "ensayo 5")
-    assert plan.operations == (StartProposal(5),) and plan.reason == Reason.MISSING_VALUES
+    assert plan.operations == (StartProposal(5),) and plan.reason == Reason.TRIAL_SELECTED
 
 
 def test_one_number_for_two_variables_drops_both() -> None:
@@ -538,7 +578,7 @@ def test_view_of_a_flagged_card() -> None:
         model_value(DUR, 120, "2 horas"),
         model_value(REND, 73, "setenta y tres"),
     )
-    view = proposal_view(card, VARIABLES, SAVED, {}, "frase", Source.TEXT)
+    view = proposal_view(card, VARIABLES, {}, "frase", Source.TEXT)
     assert view.flagged and not view.can_confirm
     assert view.question.reason == Reason.CHECK_VALUES
     assert view.question.text == "Antes de guardar, revisa Duración."
@@ -552,22 +592,25 @@ def test_a_checked_flag_lets_it_confirm() -> None:
         model_value(DUR, 120, "2 horas", checked=True),
         model_value(REND, 73, "73"),
     )
-    view = proposal_view(card, VARIABLES, SAVED, {}, "frase", Source.TEXT)
+    view = proposal_view(card, VARIABLES, {}, "frase", Source.TEXT)
     assert view.flagged and view.can_confirm and view.question.reason == Reason.READY
 
 
 def test_a_correction_shows_previous_and_is_not_flagged() -> None:
     card = card6(model_value(REND, 500, "500"), number=3, target=33)
-    view = proposal_view(card, VARIABLES, SAVED, {REND: 74.0}, "frase", Source.TEXT)
-    assert not view.flagged
+    view = proposal_view(card, VARIABLES, {REND: 74.0}, "frase", Source.TEXT)
+    assert not view.flagged and view.can_confirm
     assert view.values[2].previous == 74.0 and view.values[0].previous is None
+    assert view.question.reason == Reason.CONFIRM_CHANGE
+    assert view.question.text == "¿Cambio Rendimiento del ensayo 3 de 74 a 500 %?"
 
 
 def test_view_choose_trial_blocks_confirm() -> None:
-    card = card6(model_value(REND, 73, "73"), number=3)
-    view = proposal_view(card, VARIABLES, SAVED, {}, "frase", Source.TEXT)
-    assert view.question.reason == Reason.CHOOSE_TRIAL and not view.can_confirm
-    assert view.question.text == "El ensayo 3 ya existe. ¿Es una corrección o un ensayo nuevo?"
+    """An empty selection (spec 0011, AC-8): a number and no values, nothing to save."""
+    view = proposal_view(card6(number=4), VARIABLES, {}, "ensayo 4", Source.TEXT)
+    assert view.question.reason == Reason.TRIAL_SELECTED and not view.can_confirm
+    assert view.question.text == "Ensayo 4. Dime los valores."
+    assert all(v.value is None for v in view.values)
 
 
 # --- AC-27, AC-31: clean readings save with no tap; the remembered trial ---
@@ -582,8 +625,14 @@ def full_call(rend_text: str = "74") -> ProponerMedicion:
 
 
 def test_a_code_side_match_is_not_clean() -> None:
+    """The flagged half waits; the rest saves now (spec 0011, AC-6)."""
     plan = plan_turn(ctx(), full_call(rend_text="setenta y cuatro"), FULL)
-    assert Confirm(auto=True) not in plan.operations and plan.reason == Reason.CHECK_VALUES
+    assert plan.operations == (
+        StartProposal(6),
+        SetValue(REND, 74.0, "74", Grounding.CODE),
+        SaveNow(6, (vi(TEMP, 65, "65"), vi(DUR, 20, "20"))),
+    )
+    assert plan.reason == Reason.CHECK_VALUES and plan.variable_ids == (REND,)
 
 
 def test_a_converted_unit_is_not_clean() -> None:
@@ -592,34 +641,129 @@ def test_a_converted_unit_is_not_clean() -> None:
         values=[ev(TEMP, "65", 65), ev(DUR, "2", 2, "horas"), ev(REND, "74", 74)],
     )
     plan = plan_turn(ctx(), call, "Ensayo 6: temperatura 65, duración 2 horas, rendimiento 74")
-    assert Confirm(auto=True) not in plan.operations
+    assert plan.operations[-1] == SaveNow(6, (vi(TEMP, 65, "65"), vi(REND, 74, "74")))
+    assert SetValue(DUR, 120.0, "2 horas", Grounding.MODEL) in plan.operations
 
 
 def test_a_saved_trial_number_is_not_clean() -> None:
+    """The split (spec 0011, AC-5): the empty slot saves, the filled ones ask."""
     call = ProponerMedicion(
-        trial_number=3, values=[ev(TEMP, "65", 65), ev(DUR, "20", 20), ev(REND, "74", 74)]
+        trial_number=3, values=[ev(TEMP, "65", 65), ev(DUR, "20", 20), ev(REND, "75", 75)]
     )
-    plan = plan_turn(ctx(), call, "Ensayo 3: temperatura 65, duración 20, rendimiento 74")
-    assert plan.reason == Reason.CHOOSE_TRIAL
-
-
-def remembering(*filled: int) -> TurnContext:
-    return replace(ctx(), remembered=RememberedTrial(33, 3, frozenset(filled)))
-
-
-def test_no_number_goes_to_the_remembered_trial_and_fills_an_empty_slot() -> None:
-    plan = plan_turn(remembering(TEMP, DUR), ProponerMedicion(values=[ev(REND, "74", 74)]), "74")
+    plan = plan_turn(ctx(), call, "Ensayo 3: temperatura 65, duración 20, rendimiento 75")
     assert plan.operations == (
         StartProposal(3),
         SetTarget(33),
-        SetValue(REND, 74.0, "74", Grounding.MODEL),
-        Confirm(auto=True),
+        SetValue(TEMP, 65.0, "65", Grounding.MODEL),
+        SetValue(REND, 75.0, "75", Grounding.MODEL),
+        SaveNow(3, (vi(DUR, 20, "20"),)),
     )
+    assert plan.reason == Reason.CONFIRM_CHANGE and plan.variable_ids == (TEMP, REND)
+
+
+def remembering() -> TurnContext:
+    return replace(ctx(), remembered=RememberedTrial(33, 3))
+
+
+def test_no_number_goes_to_the_remembered_trial_and_fills_an_empty_slot() -> None:
+    plan = plan_turn(remembering(), ProponerMedicion(values=[ev(DUR, "20", 20)]), "20")
+    assert plan.operations == (SaveNow(3, (vi(DUR, 20, "20"),)),)
+    assert plan.reason == Reason.AUTO_SAVED
 
 
 def test_replacing_a_value_of_the_remembered_trial_waits_for_the_card() -> None:
-    plan = plan_turn(
-        remembering(TEMP, DUR, REND), ProponerMedicion(values=[ev(REND, "75", 75)]), "75"
+    plan = plan_turn(remembering(), ProponerMedicion(values=[ev(REND, "75", 75)]), "75")
+    assert plan.operations == (
+        StartProposal(3),
+        SetTarget(33),
+        SetValue(REND, 75.0, "75", Grounding.MODEL),
     )
-    assert plan.operations[:2] == (StartProposal(3), SetTarget(33))
-    assert Confirm(auto=True) not in plan.operations
+    assert plan.reason == Reason.CONFIRM_CHANGE
+
+
+def vi(variable_id: int, value: float, said: str, turn_id: int | None = None) -> ValueInfo:
+    """A value as `SaveNow` carries it: read from this turn unless `turn_id` says otherwise."""
+    return ValueInfo(variable_id, value, said, Grounding.MODEL, turn_id=turn_id)
+
+
+def test_a_flagged_value_on_a_saved_trial_is_still_flagged() -> None:
+    """Flags apply to every value that fills an empty slot, also on a saved trial (AC-6)."""
+    plan = plan_turn(
+        ctx(), ProponerMedicion(trial_number=3, values=[ev(DUR, "900", 900)]), "ensayo 3, 900"
+    )
+    assert SaveNow not in {type(op) for op in plan.operations}
+    assert plan.reason == Reason.CHECK_VALUES
+
+
+def test_values_on_a_numberless_card_wait_for_the_number() -> None:
+    plan = plan_turn(ctx(), ProponerMedicion(values=[ev(TEMP, "50", 50)]), "temperatura 50 grados")
+    assert plan.operations == (
+        StartProposal(None),
+        SetValue(TEMP, 50.0, "50 grados", Grounding.MODEL),
+    )
+    assert plan.reason == Reason.MISSING_TRIAL
+
+
+@pytest.mark.parametrize("sentence", ["ensayo 4", "Ensayo 4.", "es el ensayo 4", "prueba 4"])
+def test_a_bare_trial_selects_it_with_no_model(sentence: str) -> None:
+    assert bare_trial(sentence) == 4
+    plan = plan_before_model(ctx(), sentence)
+    assert plan is not None and plan.operations == (StartProposal(4),)
+    assert plan.reason == Reason.TRIAL_SELECTED
+    assert reply_text(Reason.TRIAL_SELECTED, n=4) == "Ensayo 4. Dime los valores."
+
+
+@pytest.mark.parametrize("sentence", ["4", "el 4", "ensayo 4, temperatura 60", "ensayo cero"])
+def test_more_than_a_bare_trial_goes_to_the_model(sentence: str) -> None:
+    assert plan_before_model(ctx(), sentence) is None
+
+
+def test_a_bare_saved_trial_targets_it() -> None:
+    plan = plan_before_model(ctx(), "ensayo 3")
+    assert plan is not None and plan.operations == (StartProposal(3), SetTarget(33))
+
+
+def test_a_bare_trial_replaces_an_empty_selection_and_keeps_its_own() -> None:
+    selected = card6(number=4)
+    other = plan_before_model(ctx(selected), "ensayo 5")
+    assert other is not None and other.operations == (StartProposal(5),)
+    same = plan_before_model(ctx(selected), "ensayo 4")
+    assert same is not None and same.operations == () and same.reason == Reason.TRIAL_SELECTED
+
+
+def test_a_bare_trial_with_a_waiting_card() -> None:
+    waiting = card6(model_value(TEMP, 500, "500"))
+    other = plan_before_model(ctx(waiting), "ensayo 5")
+    assert other is not None and other.operations == ()
+    assert other.reason == Reason.PENDING_OTHER_TRIAL
+    same = plan_before_model(ctx(waiting), "ensayo 6")
+    assert same is not None and same.operations == () and same.reason == Reason.CHECK_VALUES
+
+
+def test_a_bare_trial_answering_the_trial_question_is_a_short_answer() -> None:
+    card = card6(model_value(TEMP, 65, "65"), number=None)
+    context = after(asked(Reason.MISSING_TRIAL, "temperatura 65"), card)
+    assert plan_before_model(context, "ensayo 5") is None  # planned by plan_turn instead
+
+
+def test_values_after_a_bare_trial_save_on_it() -> None:
+    plan = plan_turn(ctx(card6(number=4)), ProponerMedicion(values=[ev(TEMP, "66", 66)]), "66")
+    assert plan.operations == (Supersede(), SaveNow(4, (vi(TEMP, 66, "66"),)))
+    assert plan.reason == Reason.AUTO_SAVED
+
+
+def test_the_change_question_and_the_joined_replies() -> None:
+    one = [Change("temperatura", 65, 68, "°C")]
+    two = [*one, Change("presión", 2, 3, "bar")]
+    assert change_question(one, 3) == "¿Cambio temperatura del ensayo 3 de 65 a 68 °C?"
+    assert change_question(two, 3) == (
+        "¿Cambio temperatura de 65 a 68 °C y presión de 2 a 3 bar en el ensayo 3?"
+    )
+    assert change_question(one, None) == "¿Cambio temperatura de 65 a 68 °C?"
+    line = saved_line(3, [(2, "bar")])
+    assert split_saved(line, change_question(one, None)) == (
+        "Guardado ensayo 3: 2 bar. ¿Cambio temperatura de 65 a 68 °C?"
+    )
+    assert saved_still_pending(saved_line(4, [(66, "°C")]), change_question(one, 3)) == (
+        "Guardado ensayo 4: 66 °C. Sigue pendiente: ¿Cambio temperatura del ensayo 3 de 65 a 68 °C?"
+    )

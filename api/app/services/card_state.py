@@ -48,83 +48,79 @@ class CardInfo:
 
 @dataclass(frozen=True, slots=True)
 class RememberedTrial:
-    """The trial of the notebook's latest save: where a sentence with no trial number goes,
-    as a correction (spec 0006, AC-31)."""
+    """The trial of the notebook's latest save: where a sentence with no trial number goes
+    (spec 0006, AC-31; spec 0011, AC-7)."""
 
     trial_id: int
     number: int
-    filled: frozenset[int]  # variable ids the trial already holds a value for
+
+
+type Slots = Mapping[int, float]  # variable id → the value saved on a trial
 
 
 def by_id(variables: Sequence[VariableInfo]) -> Mapping[int, VariableInfo]:
     return {v.id: v for v in variables}
 
 
-def unchecked_ids(card: CardInfo, variables: Sequence[VariableInfo]) -> tuple[int, ...]:
-    return unchecked(card.values, by_id(variables), card.target_trial_id is not None)
+def slots_of(card: CardInfo, saved: Mapping[int, Slots]) -> Slots:
+    """The saved values of the card's trial; empty for a trial not saved yet."""
+    return saved.get(card.trial_number, {}) if card.trial_number is not None else {}
 
 
-def is_choose_trial(card: CardInfo, trial_numbers: Mapping[int, int]) -> bool:
-    """The number is already saved and the card does not say whether it is a correction."""
-    return (
-        card.trial_number is not None
-        and card.trial_number in trial_numbers
-        and card.target_trial_id is None
+def _flagged(value: ValueInfo, known: Mapping[int, VariableInfo]) -> bool:
+    return value.variable_id in known and bool(flags(value, known[value.variable_id]))
+
+
+def unchecked_ids(
+    card: CardInfo, variables: Sequence[VariableInfo], slots: Slots
+) -> tuple[int, ...]:
+    """Flagged values not checked yet. A value that replaces a saved one is never flagged:
+    its "¿Cambio…?" is already its extra step (spec 0011, AC-6)."""
+    return unchecked(card.values, by_id(variables), slots)
+
+
+def replacing_ids(
+    card: CardInfo, variables: Sequence[VariableInfo], slots: Slots
+) -> tuple[int, ...]:
+    """The card's values that would replace a saved value, in position order."""
+    return tuple(
+        v.id
+        for v in sorted(variables, key=lambda v: v.position)
+        if v.id in slots and card.value_of(v.id) is not None
     )
 
 
 def card_reason(
-    card: CardInfo, variables: Sequence[VariableInfo], trial_numbers: Mapping[int, int]
+    card: CardInfo, variables: Sequence[VariableInfo], slots: Slots
 ) -> tuple[Reason, tuple[int, ...]]:
-    """The card's question from saved state, and the variable ids it names (AC-17)."""
-    if is_choose_trial(card, trial_numbers):
-        return Reason.CHOOSE_TRIAL, ()
+    """The card's question from saved state, and the variable ids it names (spec 0011,
+    AC-15). Required variables play no part (AC-2)."""
     if card.trial_number is None:
         return Reason.MISSING_TRIAL, ()
-    ordered = sorted(variables, key=lambda v: v.position)
     if not card.values:
-        return Reason.MISSING_VALUES, tuple(v.id for v in ordered)
-    missing = tuple(v.id for v in ordered if v.required and card.value_of(v.id) is None)
-    if missing:
-        return Reason.MISSING_VALUES, missing
-    if pending_checks := unchecked_ids(card, variables):
+        return Reason.TRIAL_SELECTED, ()
+    if pending_checks := unchecked_ids(card, variables, slots):
         return Reason.CHECK_VALUES, pending_checks
+    if replacing := replacing_ids(card, variables, slots):
+        return Reason.CONFIRM_CHANGE, replacing
     return Reason.READY, ()
 
 
-def is_clean(
-    card: CardInfo,
-    variables: Sequence[VariableInfo],
-    trial_numbers: Mapping[int, int],
-    remembered: RememberedTrial | None,
-) -> bool:
-    """Whether code may save the card with no tap (spec 0006, AC-27): a new trial number,
-    or only empty slots of the remembered trial; every required variable filled; and no
-    value flagged. The model's confidence plays no part."""
-    if card.trial_number is None or not card.values:
-        return False
-    already: frozenset[int] = frozenset()
-    if card.target_trial_id is None:
-        if card.trial_number in trial_numbers:
-            return False
-    elif remembered is None or card.target_trial_id != remembered.trial_id:
-        return False
-    elif any(v.variable_id in remembered.filled for v in card.values):
-        return False  # it would replace a saved value: the correction card asks
-    else:
-        already = remembered.filled
+def split_values(
+    card: CardInfo, variables: Sequence[VariableInfo], slots: Slots
+) -> tuple[tuple[ValueInfo, ...], tuple[ValueInfo, ...]]:
+    """The clean rule (spec 0011, AC-12): a value saves with no tap when it fills an empty
+    slot of its trial and is not flagged. Returns (clean, waiting). The model's confidence
+    and required variables play no part; checking a flag by hand does not make it clean."""
     known = by_id(variables)
-    if any(v.required and v.id not in already and card.value_of(v.id) is None for v in variables):
-        return False
-    return not any(v.variable_id in known and flags(v, known[v.variable_id]) for v in card.values)
+    clean = tuple(v for v in card.values if v.variable_id not in slots and not _flagged(v, known))
+    waiting = tuple(v for v in card.values if v not in clean)
+    return clean, waiting
 
 
-def can_confirm(
-    card: CardInfo, variables: Sequence[VariableInfo], trial_numbers: Mapping[int, int]
-) -> bool:
+def can_confirm(card: CardInfo, variables: Sequence[VariableInfo], slots: Slots) -> bool:
     return (
         bool(card.values)
         and card.trial_number is not None
-        and not is_choose_trial(card, trial_numbers)
-        and not unchecked_ids(card, variables)
+        and not unchecked_ids(card, variables, slots)
     )

@@ -113,11 +113,11 @@ spec [0006](../specs/0006-text-capture-confirm-card/index.md), partial readings 
   - [x] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
   - [x] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
 - [x] Design partial readings (spec): `/architect voice capture round 2`
-- [ ] Build partial readings: `/develop partial readings` (spec 0011, after feature 8's silent reply fix)
-  - [ ] The clean rule and targets: context with every trial's saved values, AC-12 clean rule, state reasons, no more `choose_trial` (0011 AC-1 to AC-3, AC-12, AC-15)
-  - [ ] The split: `save_now`, one transaction, insert only writes, `confirm_change`, joined replies (0011 AC-4 to AC-6, AC-14)
-  - [ ] Trials without values and undo: bare trial, remembered trial, another trial while a card waits, undo branches, superseded voice turns (0011 AC-7 to AC-10, AC-13)
-  - [ ] Web: notice plus card, "esperando valores", resend rule, "Esperada", table "—" (0011 AC-2, AC-5, AC-8, AC-11, AC-16)
+- [ ] Build partial readings: `/develop partial readings` (spec 0011; built, only the live voice check with `voice_probe.py` is left, build plan step 7)
+  - [x] The clean rule and targets: context with every trial's saved values, AC-12 clean rule, state reasons, no more `choose_trial` (0011 AC-1 to AC-3, AC-12, AC-15)
+  - [x] The split: `save_now`, one transaction, insert only writes, `confirm_change`, joined replies (0011 AC-4 to AC-6, AC-14)
+  - [x] Trials without values and undo: bare trial, remembered trial, another trial while a card waits, undo branches, superseded voice turns (0011 AC-7 to AC-10, AC-13)
+  - [x] Web: notice plus card, "esperando valores", resend rule, "Esperada", table "—" (0011 AC-2, AC-5, AC-8, AC-11, AC-16)
 - [ ] Verify it: `/check verify text capture and confirm card`
 - [ ] Test it: `/test text capture and confirm card`
 
@@ -159,7 +159,7 @@ spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md), mic [0
   - [ ] Auto save and undo: the `undone` status, clean check, "deshacer", last save and undo routes (AC-5 to AC-7)
   - [ ] Voice on the main page: session start and stop, live words, refetches, saved notice, hold to talk, failure states (AC-1, AC-2, AC-8 to AC-11, AC-20)
   - [ ] Prod agent, phone and accessibility pass, notebook page dock (AC-16 to AC-19)
-  - [ ] Round 2, the silent reply (do first): turn settings, "A ver." filler, voice hedge, thinking state, `voice_probe.py`, tentative words event (spec 0007 task 9, AC-21 to AC-26)
+  - [x] Round 2, the silent reply (do first): turn settings, "A ver." filler, voice hedge, thinking state, `voice_probe.py`, tentative words event (spec 0007 task 9, AC-21 to AC-26)
 - [x] Design the mic at center stage (spec): `/architect voice capture round 2`
 - [ ] Build the mic at center stage: `/develop voice mic center stage` (spec 0012, after partial readings)
   - [ ] Stage, states, and the meter (0012 AC-1 to AC-4, AC-9, AC-10, AC-12)

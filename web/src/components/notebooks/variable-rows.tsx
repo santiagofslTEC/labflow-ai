@@ -22,7 +22,7 @@ const UNITS_LIST_ID = "unidades-sugeridas";
 const LIMIT_HINT_ID = "variables-limite";
 
 // From 640px: one row per variable under column headers. Below: each row is a
-// block, with Nombre and Unidad on one line and Mín, Máx, Requerida on the next.
+// block, with Nombre and Unidad on one line and Mín, Máx, Esperada on the next.
 const COLUMNS = "sm:grid-cols-[minmax(0,1fr)_7rem_5.5rem_5.5rem_5.5rem_2.5rem]";
 
 type VariableRowsProps = {
@@ -57,7 +57,7 @@ function VariableRows({
         <span>Unidad</span>
         <span>Mín</span>
         <span>Máx</span>
-        <span className="text-center">Requerida</span>
+        <span className="text-center">Esperada</span>
         <span />
       </div>
 
@@ -192,7 +192,7 @@ function VariableRowFields({
             htmlFor={requiredId}
             className="text-xs text-ink-muted sm:sr-only"
           >
-            Requerida<span className="sr-only">, variable {number}</span>
+            Esperada<span className="sr-only">, variable {number}</span>
           </label>
           <div className="flex h-10 items-center sm:justify-center">
             <input

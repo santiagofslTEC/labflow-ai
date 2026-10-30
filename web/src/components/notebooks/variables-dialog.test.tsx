@@ -69,8 +69,8 @@ describe("VariablesDialog (spec 0008)", () => {
     const rows = within(dialog).getAllByRole("row").slice(1);
     // Each name cell also holds the phone's one line summary (spec 0010, AC-4).
     expect(rows.map((row) => row.textContent)).toEqual([
-      "Temperatura°C · 20 a 100 · Requerida · 6 valores°C20 a 100Requerida6 valores",
-      "Duraciónmin · ≥ 0 · Requerida · 2 valoresmin≥ 0Requerida2 valores",
+      "Temperatura°C · 20 a 100 · Esperada · 6 valores°C20 a 100Esperada6 valores",
+      "Duraciónmin · ≥ 0 · Esperada · 2 valoresmin≥ 0Esperada2 valores",
       "pHSin unidad · Sin rango · Opcional · 0 valores——Opcional0 valores",
     ]);
     expect(await axe(baseElement)).toHaveNoViolations();
