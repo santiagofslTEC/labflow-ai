@@ -1118,6 +1118,62 @@
           }
         }
       }
+    },
+    "/api/voice/session/{sid}": {
+      "delete": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "End Session",
+        "description": "End a session (AC-1, AC-10); its token stops working at once (AC-13).",
+        "operationId": "end_session_api_voice_session__sid__delete",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "voice_session_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1923,7 +1979,8 @@
           "discarded",
           "no_pending",
           "not_supported_yet",
-          "off_topic"
+          "off_topic",
+          "session_limit"
         ],
         "title": "Reason"
       },

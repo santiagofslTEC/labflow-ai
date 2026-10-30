@@ -13,6 +13,7 @@ from app.core.gate import AttemptLog, require_access
 from app.core.instruction_reads import InstructionReads
 from app.core.settings import get_settings
 from app.routers import access, capture, experiments, health, voice
+from app.voice.sessions import VoiceSessions
 
 
 @asynccontextmanager
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.access_attempts = attempts
     app.state.llm_clients = make_clients(get_settings())
     app.state.instruction_reads = InstructionReads()
+    app.state.voice_sessions = VoiceSessions()
     yield
     get_engine().dispose()
 

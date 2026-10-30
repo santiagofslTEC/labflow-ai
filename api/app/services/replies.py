@@ -24,6 +24,7 @@ class Reason(StrEnum):
     NO_PENDING = "no_pending"
     NOT_SUPPORTED_YET = "not_supported_yet"
     OFF_TOPIC = "off_topic"
+    SESSION_LIMIT = "session_limit"  # spoken only: a voice session ran its 60 turns (spec 0007)
 
 
 # Reasons that depend on one sentence: they show only in that turn's response (AC-17).
@@ -88,3 +89,5 @@ def reply_text(
             )
         case Reason.OFF_TOPIC:
             return "Solo registro mediciones de este experimento."
+        case Reason.SESSION_LIMIT:
+            return "Llegaste al límite de esta sesión. Empieza otra."

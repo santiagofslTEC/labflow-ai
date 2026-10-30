@@ -1,6 +1,7 @@
 """Builds the provider chain for a request from `LLM_PROVIDER` and the keys present
 (spec 0006, `get_provider`). The SDK clients and the Claude cap live in `app.state`."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, cast
 
@@ -85,3 +86,14 @@ def get_provider(request: Request, holder: HolderDep) -> LLMProvider | None:
 
 
 ProviderDep = Annotated[LLMProvider | None, Depends(get_provider)]
+
+
+def get_provider_factory(request: Request) -> Callable[[str], LLMProvider | None]:
+    """For routes with no cookie (the voice Custom LLM, spec 0007): the holder comes from the
+    signed session token, so the chain is built once the token is read."""
+    clients = cast(LLMClients, request.app.state.llm_clients)
+    settings = get_settings()
+    return lambda holder: build_provider(settings, clients, holder)
+
+
+ProviderFactoryDep = Annotated[Callable[[str], LLMProvider | None], Depends(get_provider_factory)]

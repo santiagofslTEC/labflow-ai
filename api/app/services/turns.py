@@ -3,12 +3,13 @@ model, check the card did not change meanwhile, apply the plan through the repos
 store the assistant turn, and answer with the card read back from the database.
 
 The model call is the only await; database work runs in the threadpool because the
-repositories use sync sessions. `source` is a parameter so feature 8 can pass `voice`.
+repositories use sync sessions. `source` is a parameter so voice (spec 0007) can pass `voice`.
 """
 
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from fastapi.concurrency import run_in_threadpool
@@ -73,6 +74,17 @@ class LLMUnavailable:
     """Both providers failed, or the deadline passed (AC-14)."""
 
     code: str = "llm_unavailable"
+
+
+@dataclass(frozen=True, slots=True)
+class Superseded:
+    """A newer request took this voice turn before it wrote anything (spec 0007, AC-14)."""
+
+    code: str = "superseded"
+
+
+def _always() -> bool:
+    return True
 
 
 type TurnError = ExperimentNotFound | LLMUnavailable | NotPending | TrialNotInExperiment
@@ -227,7 +239,10 @@ async def handle_utterance(
     text: str,
     source: Source,
     holder: str,
-) -> TurnResponse | TurnError:
+    may_write: Callable[[], bool] = _always,
+) -> TurnResponse | TurnError | Superseded:
+    """`may_write` is asked once, after the model and right before the plan is applied; a
+    voice turn passes its run's gate so a superseded request writes nothing."""
     started = time.perf_counter()
     stored = await run_in_threadpool(_store_user_turn, session, experiment_id, text, source)
     if isinstance(stored, ExperimentNotFound):
@@ -244,9 +259,11 @@ async def handle_utterance(
     )
     llm_ms = (time.perf_counter() - llm_started) * 1000
 
-    result: TurnResponse | TurnError
+    result: TurnResponse | TurnError | Superseded
     if isinstance(outcome, ProviderFailure):
         result = LLMUnavailable()  # the user turn stays; no assistant turn
+    elif not may_write():
+        result = Superseded()  # the user turn stays as a record; nothing else is written
     else:
         db_started = time.perf_counter()
         result = await run_in_threadpool(_apply, session, context, outcome, text, turn.id, holder)

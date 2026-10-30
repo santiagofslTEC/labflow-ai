@@ -1,4 +1,5 @@
-"""OpenAI compatible chat completion chunks (spec 0007, AC-4). Pure string building."""
+"""OpenAI compatible chat completions (spec 0007, AC-3, AC-4): reading the request history and
+building the reply chunks. Pure."""
 
 import json
 
@@ -45,3 +46,14 @@ def last_user_text(messages: object) -> str | None:
             content: object = message.get("content")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
             return content.strip() if isinstance(content, str) else None
     return None
+
+
+def count_user_messages(messages: object) -> int:
+    """How many `role: user` messages the history holds: the turn key (AC-14)."""
+    if not isinstance(messages, list):
+        return 0
+    return sum(
+        1
+        for message in messages  # pyright: ignore[reportUnknownVariableType]
+        if isinstance(message, dict) and message.get("role") == "user"  # pyright: ignore[reportUnknownMemberType]
+    )

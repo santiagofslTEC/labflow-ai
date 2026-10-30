@@ -139,7 +139,7 @@ A mic button with a visible state; your dictation in Spanish (numbers in words, 
 spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md) · code in `api/app/voice/`, `api/app/routers/voice.py`, `api/voice/agent.json`, `api/scripts/sync_agent.py`, `web/src/hooks/use-voice-session.ts`, `web/src/components/push-to-talk/`
 - [x] Design it (spec): `/architect voice capture`
 - [ ] Build it: `/develop voice capture`
-  - [ ] Proof and brain: dev agent through a tunnel, the Custom LLM endpoint, session tokens, replays and caps (AC-3, AC-4, AC-12 to AC-15, AC-17)
+  - [x] Proof and brain: dev agent through a tunnel, the Custom LLM endpoint, session tokens, replays and caps (AC-3, AC-4, AC-12 to AC-15, AC-17)
   - [ ] Auto save and undo: the `undone` status, clean check, "deshacer", last save and undo routes (AC-5 to AC-7)
   - [ ] Voice on the main page: session start and stop, live words, refetches, saved notice, hold to talk, failure states (AC-1, AC-2, AC-8 to AC-11, AC-20)
   - [ ] Prod agent, phone and accessibility pass, notebook page dock (AC-16 to AC-19)

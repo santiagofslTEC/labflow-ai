@@ -2,14 +2,17 @@
 behind the access session; `/voice/llm/chat/completions` is the agent's Custom LLM, open to
 the internet and guarded by the shared bearer secret and our signed session token.
 
-Build task 1 (the proof): the Custom LLM route logs what ElevenLabs sends (dev only) and
-speaks back the sentence it heard, so a real Spanish call can confirm facts (a) to (e).
-Task 2 replaces that reply with `handle_utterance(source="voice")`."""
+The Custom LLM runs the same capture turn as typing (`handle_utterance`, source `voice`) and
+streams back our reply word for word. Each turn runs as its own task, so it finishes and is
+cached even when ElevenLabs drops the request; replays and partial turns follow AC-14."""
 
+import asyncio
 import hmac
+import json
 import logging
 import secrets
 import time
+import unicodedata
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -19,17 +22,38 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.db import SessionDep
+from app.ai.deps import ProviderFactoryDep
+from app.ai.provider import LLMProvider
+from app.core.db import SessionDep, SessionFactory, SessionFactoryDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
 from app.core.settings import get_settings
 from app.models import Experiment
+from app.models.enums import Source
+from app.routers.capture import TEXT_MAX
+from app.services.replies import Reason, reply_text
+from app.services.results import ExperimentNotFound, NotPending, TrialNotInExperiment
+from app.services.turns import LLMUnavailable, Superseded, TurnResponse, handle_utterance
 from app.voice import elevenlabs, sse
 from app.voice.session import SIGNED_URL_LIFE_S, VoiceClaims, read_voice_token, sign_voice_token
+from app.voice.sessions import (
+    Action,
+    ActiveSession,
+    RunFlags,
+    Spoken,
+    TurnRun,
+    VoiceSessionsDep,
+    digest_of,
+    forget_failed,
+    plan_request,
+)
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
 LLM_ROUTE = "/api/voice/llm/chat/completions"
+FILLER = "Mm, "
+FILLER_AFTER_S = 1.5
+BRAIN_FAILED = "No pude procesarlo. Repítelo o escríbelo."
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +89,7 @@ _UNAUTHORIZED = JSONResponse(
     },
 )
 async def start_session(
-    body: VoiceSessionRequest, holder: HolderDep, session: SessionDep
+    body: VoiceSessionRequest, holder: HolderDep, session: SessionDep, sessions: VoiceSessionsDep
 ) -> VoiceSession:
     """A signed URL for the private agent plus our token for this holder and notebook (AC-1)."""
     if session.get(Experiment, body.experiment_id) is None:
@@ -82,12 +106,27 @@ async def start_session(
     claims = VoiceClaims(
         sid=secrets.token_urlsafe(16), holder=holder, experiment_id=body.experiment_id
     )
+    sessions.open(claims, time.monotonic())
     return VoiceSession(
         sid=claims.sid,
         signed_url=signed_url,
         session_token=sign_voice_token(settings.session_secret, claims),
         expires_at=datetime.now(UTC) + timedelta(seconds=SIGNED_URL_LIFE_S),
     )
+
+
+@router.delete(
+    "/session/{sid}",
+    status_code=204,
+    responses={
+        401: {"model": ApiErrorBody, "description": "No valid access session"},
+        404: {"model": ApiErrorBody, "description": "voice_session_not_found"},
+    },
+)
+async def end_session(sid: str, holder: HolderDep, sessions: VoiceSessionsDep) -> None:
+    """End a session (AC-1, AC-10); its token stops working at once (AC-13)."""
+    if not sessions.end(sid, holder):
+        raise ApiError(404, "voice_session_not_found", "Esta sesión de voz ya terminó.")
 
 
 def _bearer_ok(request: Request, expected: str | None) -> bool:
@@ -106,59 +145,151 @@ def _session_token(body: dict[str, object]) -> str | None:
     return token if isinstance(token, str) else None
 
 
-def _probe_log(request: Request, body: dict[str, object], claims: VoiceClaims | None) -> None:
-    """Task 1 only, dev only: the facts the proof must confirm. Never runs in prod."""
-    messages: object = body.get("messages")
-    roles = (
-        [m.get("role") for m in cast(list[dict[str, object]], messages)]
-        if isinstance(messages, list)
-        else None
-    )
-    log.warning(
-        "voice probe: path=%s keys=%s roles=%s stream=%s extra_body=%s token_ok=%s last_user=%r",
-        request.url.path,
-        sorted(body),
-        roles,
-        body.get("stream"),
-        body.get("elevenlabs_extra_body"),
-        claims is not None,
-        sse.last_user_text(body.get("messages")),
-    )
+async def _body(request: Request) -> dict[str, object]:
+    try:
+        raw: object = await request.json()
+    except ValueError:  # not JSON: treated like a body with no token
+        return {}
+    return cast(dict[str, object], raw) if isinstance(raw, dict) else {}
 
 
-async def _stream(text: str) -> AsyncIterator[str]:
+async def _run_turn(
+    open_session: SessionFactory,
+    provider: LLMProvider | None,
+    claims: VoiceClaims,
+    sentence: str,
+    flags: RunFlags,
+) -> Spoken:
+    """One voice turn through the same pipeline as typing (AC-3). Any failure speaks the AC-12
+    message and is not cached, so saying it again runs a new turn."""
+    with open_session() as db:
+        result = await handle_utterance(
+            db,
+            provider,
+            claims.experiment_id,
+            sentence,
+            Source.VOICE,
+            claims.holder,
+            flags.may_write,
+        )
+    match result:
+        case TurnResponse(reply=reply):
+            return Spoken(reply.text if reply else "")
+        case Superseded():
+            return Spoken("")
+        case LLMUnavailable() | ExperimentNotFound() | NotPending() | TrialNotInExperiment():
+            return Spoken(BRAIN_FAILED, keep=False)
+
+
+def _start_run(
+    active: ActiveSession,
+    claims: VoiceClaims,
+    key: int,
+    digest: str,
+    open_session: SessionFactory,
+    provider: LLMProvider | None,
+    sentence: str,
+) -> asyncio.Task[Spoken]:
+    flags = RunFlags()
+    task = asyncio.create_task(_run_turn(open_session, provider, claims, sentence, flags))
+    run = TurnRun(digest, task, flags)
+    active.turns[key] = run  # strong reference: the task lives as long as its cache entry
+
+    def done(finished: asyncio.Task[Spoken]) -> None:
+        if not finished.cancelled() and (crash := finished.exception()) is not None:
+            log.error("voice turn crashed sid=%s key=%d", claims.sid, key, exc_info=crash)
+        forget_failed(active.turns, key, run)
+
+    task.add_done_callback(done)
+    return task
+
+
+def _answer(
+    active: ActiveSession,
+    claims: VoiceClaims,
+    sentence: str,
+    key: int,
+    open_session: SessionFactory,
+    provider: LLMProvider | None,
+) -> tuple[str, Spoken | asyncio.Task[Spoken]]:
+    """What this request speaks: a fixed reply now, or a turn's task (started or joined)."""
+    if not sentence:
+        return "empty", Spoken("", keep=False)
+    if len(sentence) > TEXT_MAX:
+        return "too_long", Spoken(BRAIN_FAILED, keep=False)
+    digest = digest_of(sentence)
+    action = plan_request(active.turns, key, digest)
+    match action:
+        case Action.LIMIT:
+            return action.value, Spoken(reply_text(Reason.SESSION_LIMIT), keep=False)
+        case Action.JOIN:
+            return action.value, active.turns[key].task
+        case Action.SUPERSEDE | Action.START:
+            if action is Action.SUPERSEDE:
+                older = active.turns[key].flags
+                older.superseded = True
+                if older.wrote:
+                    # Undoing the older turn's save is build task 3 (AC-7); until then it stays.
+                    log.warning(
+                        "voice turn superseded after it wrote sid=%s key=%d", claims.sid, key
+                    )
+            task = _start_run(active, claims, key, digest, open_session, provider, sentence)
+            return action.value, task
+
+
+async def _spoken(outcome: Spoken | asyncio.Task[Spoken]) -> Spoken:
+    # Shielded: a dropped request never cancels the turn, so its reply is cached for a replay.
+    return await asyncio.shield(outcome) if isinstance(outcome, asyncio.Task) else outcome
+
+
+async def _stream(outcome: Spoken | asyncio.Task[Spoken]) -> AsyncIterator[str]:
     completion_id = f"chatcmpl-{secrets.token_hex(8)}"
     created = int(time.time())
-    yield sse.chunk(completion_id, created, text)
+    if isinstance(outcome, asyncio.Task):
+        done, _ = await asyncio.wait({outcome}, timeout=FILLER_AFTER_S)
+        if not done:
+            yield sse.chunk(completion_id, created, FILLER)  # spoken, never stored (AC-4)
+    spoken = await _spoken(outcome)
+    if spoken.text:
+        yield sse.chunk(completion_id, created, spoken.text)
     yield sse.chunk(completion_id, created, "", finish=True)
     yield sse.DONE
 
 
 @router.post(LLM_ROUTE.removeprefix("/api/voice"), include_in_schema=False, response_model=None)
-async def custom_llm(request: Request) -> StreamingResponse | JSONResponse:
-    """The agent's Custom LLM: OpenAI chat completions in, our Spanish reply out (AC-3, AC-4)."""
+async def custom_llm(
+    request: Request,
+    sessions: VoiceSessionsDep,
+    open_session: SessionFactoryDep,
+    provider_for: ProviderFactoryDep,
+) -> StreamingResponse | JSONResponse:
+    """The agent's Custom LLM: OpenAI chat completions in, our Spanish reply out (AC-3, AC-4).
+    `tools` and `tool_choice` are ignored; the answer is never a tool call."""
     settings = get_settings()
     if not _bearer_ok(request, settings.voice_llm_secret):
         return _UNAUTHORIZED
-    raw: object = await request.json()
-    body = cast(dict[str, object], raw) if isinstance(raw, dict) else {}
+    body = await _body(request)
     token = _session_token(body)
     claims = read_voice_token(settings.session_secret, token) if token else None
-    if settings.env == "dev":
-        _probe_log(request, body, claims)
-    elif claims is None:
-        return _UNAUTHORIZED
+    active = sessions.get(claims, time.monotonic()) if claims else None
+    if claims is None or active is None:
+        return _UNAUTHORIZED  # missing, forged, expired, or ended: before any DB or model work
 
-    heard = sse.last_user_text(body.get("messages"))
-    if claims is None:
-        text = "Prueba: no llegó el token de sesión."
-    elif heard:
-        text = f"Te oí: {heard}"
-    else:
-        text = "Prueba: no llegó ningún texto."
-
-    if body.get("stream") is False:
+    messages = body.get("messages")
+    # NFC so every accent is one character: the number reader slices the text by index.
+    sentence = unicodedata.normalize("NFC", sse.last_user_text(messages) or "").strip()
+    key = sse.count_user_messages(messages)
+    action, outcome = _answer(
+        active, claims, sentence, key, open_session, provider_for(claims.holder)
+    )
+    streamed = body.get("stream") is not False
+    # The sid only: never the transcript, the token, or the bearer (AC-15).
+    log.info(
+        json.dumps({"event": "voice_request", "sid": claims.sid, "key": key, "action": action})
+    )
+    if not streamed:
+        spoken = await _spoken(outcome)
         return JSONResponse(
-            sse.completion(f"chatcmpl-{secrets.token_hex(8)}", int(time.time()), text)
+            sse.completion(f"chatcmpl-{secrets.token_hex(8)}", int(time.time()), spoken.text)
         )
-    return StreamingResponse(_stream(text), media_type="text/event-stream")
+    return StreamingResponse(_stream(outcome), media_type="text/event-stream")
