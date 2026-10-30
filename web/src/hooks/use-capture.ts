@@ -17,6 +17,7 @@ import {
   type ProposalView,
   type TurnResponse,
 } from "@/api/capture";
+import { experimentKeys } from "@/api/experiments";
 import { toCard, toTurn, type CardView, type Turn } from "@/lib/capture";
 
 // Queries need a rejected promise to enter their error state, so the result
@@ -52,6 +53,10 @@ function useTurnMutation<V>(
         captureKeys.proposal(experimentId),
         response.proposal ?? null,
       );
+      // Every turn adds lines to the conversation thread.
+      void client.invalidateQueries({
+        queryKey: experimentKeys.turns(experimentId),
+      });
       return toTurn(response);
     },
   });

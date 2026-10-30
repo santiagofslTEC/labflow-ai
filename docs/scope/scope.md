@@ -34,6 +34,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 19 | Access code gate | Foundation | done |
 | 20 | Push to talk main page | Release 1 (mic live in Release 2) | in-progress |
 | 21 | Mobile version | Release 2 | done |
+| 22 | Accounts (Google and email) | Release 2 | in-progress |
 
 ## Foundations
 
@@ -140,6 +141,14 @@ spec [0004](../specs/0004-push-to-talk-main-page/index.md) · code in `web/src/a
 - [ ] Verify it: `/check verify push to talk main page`
 
 ## Release 2: Hands free
+
+### 22. Accounts (Google and email) · in-progress · from spec 0014
+Anyone signs in with Google or with an email and password (confirmed by email, with reset), and each account sees only its own notebooks. Access codes keep working in a shared space until the team retires them.
+**Done when:** a new person creates an account, makes a notebook, and nobody else can open it; codes still work during the switch (spec 0014, AC-1 to AC-12).
+spec [0014](../specs/0014-accounts/index.md) · code in `api/app/core/{principal,ownership}.py`, `web/src/proxy.ts`, `web/src/components/access/`
+- [x] Design it (spec): `/architect accounts`
+- [x] Build it: `/develop accounts`
+- [ ] Verify it: `/check verify accounts`
 
 ### 21. Mobile version · done · from spec 0010
 The same app built for the phone below 1024px: a bottom tab bar, a notebook page with Capturar, Ensayos, and Variables tabs, full screen sheets, phone sized tables and results, 16px fields, the screen kept on while LabFlow listens, and an installable app with its own icon. Same API; desktop unchanged.

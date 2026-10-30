@@ -1,4 +1,5 @@
-"""The seven tables of spec 0002, plus `protocol` and `protocol_page` (spec 0005).
+"""The seven tables of spec 0002, plus `protocol` and `protocol_page` (spec 0005) and
+`folder` (class folders, 2026-10-30).
 Importing this package registers them all on `SQLModel.metadata`, which Alembic reads."""
 
 from sqlmodel import SQLModel
@@ -13,6 +14,7 @@ SQLModel.metadata.naming_convention = {
 }
 
 from app.models.experiment import Experiment  # noqa: E402
+from app.models.folder import Folder  # noqa: E402
 from app.models.measurement import Measurement  # noqa: E402
 from app.models.proposal import Proposal  # noqa: E402
 from app.models.proposal_value import ProposalValue  # noqa: E402
@@ -24,6 +26,7 @@ from app.models.variable import Variable  # noqa: E402
 
 __all__ = [
     "Experiment",
+    "Folder",
     "Measurement",
     "Proposal",
     "ProposalValue",

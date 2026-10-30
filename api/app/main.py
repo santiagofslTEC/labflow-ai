@@ -12,7 +12,8 @@ from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
 from app.core.instruction_reads import InstructionReads
 from app.core.settings import get_settings
-from app.routers import access, capture, experiments, health, variables, voice
+from app.core.supabase_keys import supabase_keys
+from app.routers import access, capture, experiments, folders, health, variables, voice
 from app.voice.sessions import VoiceSessions
 
 
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.llm_clients = make_clients(get_settings())
     app.state.instruction_reads = InstructionReads()
     app.state.voice_sessions = VoiceSessions()
+    app.state.supabase_keys = supabase_keys(get_settings().supabase_url)
     yield
     get_engine().dispose()
 
@@ -67,3 +69,4 @@ app.include_router(experiments.router)
 app.include_router(capture.router)
 app.include_router(voice.router)
 app.include_router(variables.router)
+app.include_router(folders.router)

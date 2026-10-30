@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from functools import lru_cache
+from types import MappingProxyType
 from typing import Annotated, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -19,7 +20,8 @@ class Settings(BaseSettings):
     # Supavisor session pooler, port 5432: postgresql+psycopg://…?sslmode=require (spec 0001)
     database_url: str
     # `name:code` pairs, comma separated; parsed to holder name → code (access gate, spec 0001).
-    access_codes: Annotated[Mapping[str, str], NoDecode]
+    # Empty or unset turns the codes off once everyone has an account (spec 0014, AC-9).
+    access_codes: Annotated[Mapping[str, str], NoDecode] = MappingProxyType({})
     # Signs the labflow_session cookie. Long and random: `openssl rand -hex 32`.
     session_secret: str = Field(min_length=32)
 
@@ -40,6 +42,9 @@ class Settings(BaseSettings):
     setup_claude_timeout_s: float = Field(default=25, gt=0)
     setup_max_tokens: int = Field(default=6000, gt=0)
 
+    # Accounts (spec 0014). Optional: without it only access codes work (AC-10).
+    supabase_url: str | None = None
+
     # Voice (spec 0007). Optional: without them the session route answers 503 voice_unavailable
     # and typing keeps working. VOICE_LLM_URL is read only by scripts/sync_agent.py.
     elevenlabs_api_key: str | None = None
@@ -58,6 +63,8 @@ class Settings(BaseSettings):
                 raise ValueError("LLM_PROVIDER=fake is not allowed with ENV=prod")
             if not self.ollama_api_key or not self.anthropic_api_key:
                 raise ValueError("ENV=prod needs OLLAMA_API_KEY and ANTHROPIC_API_KEY")
+        if not self.access_codes and not self.supabase_url:
+            raise ValueError("Set ACCESS_CODES or SUPABASE_URL: otherwise nobody can sign in")
         if self.setup_hedge_s >= self.setup_deadline_s:
             raise ValueError("SETUP_HEDGE_S must be below SETUP_DEADLINE_S")
         return self
@@ -67,7 +74,7 @@ class Settings(BaseSettings):
     def _parse_access_codes(cls, value: object) -> Mapping[str, str]:
         if not isinstance(value, str):
             raise ValueError("ACCESS_CODES must be a string of name:code pairs")
-        return parse_access_codes(value)
+        return parse_access_codes(value) if value.strip() else MappingProxyType({})
 
 
 @lru_cache

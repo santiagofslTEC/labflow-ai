@@ -15,6 +15,7 @@ import Link from "next/link";
 
 import { experimentKeys, type ExperimentDetail } from "@/api/experiments";
 import { CaptureStage } from "@/components/capture-stage/capture-stage";
+import { ConversationThread } from "@/components/conversation/conversation-thread";
 import { VoiceConversation } from "@/components/voice/voice-conversation";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -134,7 +135,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const details = (headingId: string) => (
     <div className="flex flex-col gap-3">
       {experiment.goal ? (
-        <p className="text-base whitespace-pre-line text-ink">
+        <p className="text-base whitespace-pre-line text-ink lg:line-clamp-2">
           {experiment.goal}
         </p>
       ) : null}
@@ -146,7 +147,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
           <h2 id={headingId} className="text-xs text-ink-muted">
             Contexto
           </h2>
-          <p className="text-sm whitespace-pre-line text-ink">
+          <p className="text-sm whitespace-pre-line text-ink lg:line-clamp-1">
             {experiment.context}
           </p>
         </section>
@@ -171,10 +172,10 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   return (
     <div
       data-vista={vista}
-      className="group/nb flex flex-1 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0"
+      className="group/nb flex flex-1 flex-col gap-6 lg:grid lg:h-[calc(100svh-5rem-2px)] lg:min-h-0 lg:flex-none lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0"
     >
-      <div className="flex min-w-0 flex-col gap-6 lg:gap-8 lg:pr-10">
-        <div className="flex flex-col gap-2 border-b border-line pb-4 lg:pb-6">
+      <div className="flex min-w-0 flex-col gap-6 lg:min-h-0 lg:gap-0 lg:pr-6">
+        <div className="flex shrink-0 flex-col gap-2 border-b border-line pb-4">
           <BackLink />
           <PageHeader
             title={experiment.title}
@@ -255,19 +256,28 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
         ) : (
           <section
             aria-label="Registrar una medición"
-            className={cn("flex flex-col gap-3", PHONE_VIEW.capturar)}
+            className={cn(
+              "flex flex-1 flex-col gap-4 lg:min-h-0",
+              PHONE_VIEW.capturar,
+            )}
           >
-            <p className="text-sm text-ink-muted">
-              Dicta o escribe un ensayo. Si LabFlow lo entendió sin dudas, lo
-              guarda y puedes deshacerlo; si algo no cuadra, te pregunta.
-            </p>
-            <VoiceConversation
-              experimentId={experiment.id}
-              variant="inline"
-              fallbackInputId="capture-text"
-            />
+            {/* The mic centered on top (2026-10-30 restructure), kept in view
+                while the thread scrolls under it. */}
+            <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur-md lg:static lg:mx-0 lg:mt-4 lg:shrink-0 lg:rounded-[20px] lg:border lg:border-tint-green-line/60 lg:bg-tint-green-soft lg:px-4 lg:py-5">
+              <VoiceConversation
+                experimentId={experiment.id}
+                variant="stage"
+                fallbackInputId="capture-text"
+              />
+            </div>
+            {/* On desktop only the thread scrolls; the header, the mic, the
+                text field, and the side panel stay put. */}
+            <div className="lg:-mr-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-4">
+              <ConversationThread experimentId={experiment.id} />
+            </div>
             <CaptureStage
               experimentId={experiment.id}
+              layout="chat"
               onSaved={() =>
                 void queryClient.invalidateQueries({
                   queryKey: experimentKeys.all,

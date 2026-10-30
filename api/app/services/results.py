@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import ExperimentStatus
+from app.models.enums import ExperimentStatus, Role, Source
 
 
 class _Result(BaseModel):
@@ -123,6 +123,7 @@ class ExperimentSummary(_Result):
     status: ExperimentStatus
     trial_count: int
     last_activity_at: datetime  # UTC
+    folder_id: int | None  # its class folder; none for "Sin carpeta"
 
 
 class VariableDetail(_Result):
@@ -167,6 +168,27 @@ class RecentMeasurement(_Result):
     variable_id: int
     value: float
     saved_at: datetime  # UTC
+
+
+class TurnReading(_Result):
+    """A value a line saved, with the words it came from: "setenta y tres" → 73 %."""
+
+    variable: str
+    said_text: str | None  # the words heard; none on a hand edit
+    value: float
+    unit: str | None
+    trial_number: int
+
+
+class TurnLine(_Result):
+    """One line of a notebook's conversation: what you said or typed, or LabFlow's reply."""
+
+    id: int
+    role: Role
+    text: str
+    source: Source | None  # voice or text on your lines; none on LabFlow's
+    created_at: datetime  # UTC
+    readings: tuple[TurnReading, ...] = ()  # what your line saved, still in the table
 
 
 class TrialsView(_Result):
@@ -237,6 +259,7 @@ class ExperimentDetail(_Result):
     status: ExperimentStatus
     created_by: str
     created_at: datetime
+    folder_id: int | None
     variables: tuple[VariableDetail, ...]
     protocol: ProtocolSummary | None
 
@@ -264,7 +287,20 @@ class InvalidRange(_Result):
     name: str
 
 
-type NewExperimentError = DuplicateVariableName | InvalidRange
+class FolderNotFound(_Result):
+    code: Literal["folder_not_found"] = "folder_not_found"
+
+
+class FolderSummary(_Result):
+    """One class folder on the lab dashboard, with how many notebooks it holds."""
+
+    id: int
+    name: str
+    notebook_count: int
+    created_at: datetime  # UTC
+
+
+type NewExperimentError = DuplicateVariableName | InvalidRange | FolderNotFound
 
 
 # --- Instructions (spec 0005, AC-30): each check's failure, in the order they run ---

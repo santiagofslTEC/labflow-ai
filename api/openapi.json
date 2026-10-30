@@ -130,12 +130,34 @@
         }
       }
     },
+    "/api/access/options": {
+      "get": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Read Access Options",
+        "operationId": "read_access_options_api_access_options_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experiments": {
       "get": {
         "tags": [
           "experiments"
         ],
         "summary": "List Experiments",
+        "description": "Only the caller's space (spec 0014, AC-6).",
         "operationId": "list_experiments_api_experiments_get",
         "responses": {
           "200": {
@@ -202,7 +224,7 @@
             }
           },
           "422": {
-            "description": "invalid_request, duplicate_variable_name, or invalid_range",
+            "description": "invalid_request, duplicate_variable_name, invalid_range, or folder_not_found",
             "content": {
               "application/json": {
                 "schema": {
@@ -302,6 +324,73 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TrialsView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No notebook with this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The id is not an integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/experiments/{experiment_id}/turns": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Read Turns",
+        "description": "The notebook's conversation, oldest first: spoken and typed lines and LabFlow's replies.",
+        "operationId": "read_turns_api_experiments__experiment_id__turns_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TurnLine"
+                  },
+                  "title": "Response Read Turns Api Experiments  Experiment Id  Turns Get"
                 }
               }
             }
@@ -533,7 +622,7 @@
             }
           },
           "422": {
-            "description": "invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, or invalid_range",
+            "description": "invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, invalid_range, or folder_not_found",
             "content": {
               "application/json": {
                 "schema": {
@@ -1179,7 +1268,7 @@
           "voice"
         ],
         "summary": "Start Session",
-        "description": "A signed URL for the private agent plus our token for this holder and notebook (AC-1).",
+        "description": "A signed URL for the private agent plus our token for this holder and notebook (AC-1).\nOnly for a notebook in the caller's space (spec 0014, AC-6); the token carries that.",
         "operationId": "start_session_api_voice_session_post",
         "requestBody": {
           "content": {
@@ -1549,6 +1638,289 @@
           }
         }
       }
+    },
+    "/api/folders": {
+      "get": {
+        "tags": [
+          "folders"
+        ],
+        "summary": "List Folders",
+        "description": "Only the caller's space (spec 0014, AC-6).",
+        "operationId": "list_folders_api_folders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FolderSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Folders Api Folders Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "folders"
+        ],
+        "summary": "Create Folder",
+        "operationId": "create_folder_api_folders_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/folders/{folder_id}": {
+      "patch": {
+        "tags": [
+          "folders"
+        ],
+        "summary": "Rename Folder",
+        "operationId": "rename_folder_api_folders__folder_id__patch",
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Folder Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "folder_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "folders"
+        ],
+        "summary": "Delete Folder",
+        "description": "Its notebooks stay, as \"Sin carpeta\".",
+        "operationId": "delete_folder_api_folders__folder_id__delete",
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Folder Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "folder_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/experiments/{experiment_id}/folder": {
+      "put": {
+        "tags": [
+          "folders"
+        ],
+        "summary": "Move Experiment",
+        "operationId": "move_experiment_api_experiments__experiment_id__folder_put",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No notebook with this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request or folder_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1558,6 +1930,52 @@
           "holder": {
             "type": "string",
             "title": "Holder"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "account",
+              "code"
+            ],
+            "title": "Kind",
+            "default": "code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "google",
+                  "email"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
           }
         },
         "type": "object",
@@ -1565,6 +1983,25 @@
           "holder"
         ],
         "title": "AccessGranted"
+      },
+      "AccessOptions": {
+        "properties": {
+          "codes": {
+            "type": "boolean",
+            "title": "Codes"
+          },
+          "accounts": {
+            "type": "boolean",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codes",
+          "accounts"
+        ],
+        "title": "AccessOptions",
+        "description": "The ways in the sign in page offers, asked before signing in (spec 0014, AC-9, AC-10)."
       },
       "AccessRequest": {
         "properties": {
@@ -1775,6 +2212,17 @@
             "format": "date-time",
             "title": "Created At"
           },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
+          },
           "variables": {
             "items": {
               "$ref": "#/components/schemas/VariableDetail"
@@ -1802,6 +2250,7 @@
           "status",
           "created_by",
           "created_at",
+          "folder_id",
           "variables",
           "protocol"
         ],
@@ -1837,6 +2286,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Last Activity At"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
           }
         },
         "type": "object",
@@ -1845,7 +2305,8 @@
           "title",
           "status",
           "trial_count",
-          "last_activity_at"
+          "last_activity_at",
+          "folder_id"
         ],
         "title": "ExperimentSummary",
         "description": "One row of the notebook list (spec 0005, AC-14)."
@@ -1875,6 +2336,75 @@
           "text"
         ],
         "title": "FlagView"
+      },
+      "FolderIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FolderIn"
+      },
+      "FolderMove": {
+        "properties": {
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "folder_id"
+        ],
+        "title": "FolderMove",
+        "description": "`folder_id` null takes the notebook out of its folder."
+      },
+      "FolderSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "notebook_count": {
+            "type": "integer",
+            "title": "Notebook Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "notebook_count",
+          "created_at"
+        ],
+        "title": "FolderSummary",
+        "description": "One class folder on the lab dashboard, with how many notebooks it holds."
       },
       "HTTPValidationError": {
         "properties": {
@@ -2085,6 +2615,18 @@
             "maxItems": 12,
             "minItems": 1,
             "title": "Variables"
+          },
+          "folder_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Id"
           }
         },
         "additionalProperties": false,
@@ -2444,6 +2986,14 @@
         ],
         "title": "ResultsView"
       },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "user",
+          "assistant"
+        ],
+        "title": "Role"
+      },
       "SavedTrial": {
         "properties": {
           "trial_id": {
@@ -2644,6 +3194,102 @@
         ],
         "title": "TrialsView",
         "description": "A notebook's saved trials by number, and its 5 newest measurements (spec 0007)."
+      },
+      "TurnLine": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Source"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "readings": {
+            "items": {
+              "$ref": "#/components/schemas/TurnReading"
+            },
+            "type": "array",
+            "title": "Readings",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "text",
+          "source",
+          "created_at"
+        ],
+        "title": "TurnLine",
+        "description": "One line of a notebook's conversation: what you said or typed, or LabFlow's reply."
+      },
+      "TurnReading": {
+        "properties": {
+          "variable": {
+            "type": "string",
+            "title": "Variable"
+          },
+          "said_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Said Text"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "trial_number": {
+            "type": "integer",
+            "title": "Trial Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable",
+          "said_text",
+          "value",
+          "unit",
+          "trial_number"
+        ],
+        "title": "TurnReading",
+        "description": "A value a line saved, with the words it came from: \"setenta y tres\" \u2192 73 %."
       },
       "TurnResponse": {
         "properties": {

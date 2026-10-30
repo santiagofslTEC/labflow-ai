@@ -4,7 +4,8 @@ import { LogOutIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import type * as React from "react";
 
-import { readSession, signOut } from "@/api/access";
+import { readSession, type Signed, signOut } from "@/api/access";
+import { signOutAccount } from "@/api/auth";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,8 +13,16 @@ import { ACCESS_PATH } from "@/lib/access";
 
 type Holder =
   | { readonly state: "loading" }
-  | { readonly state: "known"; readonly name: string }
+  | { readonly state: "known"; readonly who: Signed }
   | { readonly state: "unknown" };
+
+// How this person signs in (spec 0014, AC-7).
+export const signInLabel = (who: Signed): string =>
+  who.kind === "code"
+    ? `Código de acceso: ${who.name ?? who.holder}`
+    : who.provider === "google"
+      ? "Google"
+      : "Correo y contraseña";
 
 // /configuracion: the session, the API connection, and how the app behaves.
 // The page passes the connection badge in, so this stays free of app/ imports.
@@ -31,9 +40,7 @@ function SettingsView({
     void readSession().then((result) => {
       if (!live) return;
       setHolder(
-        result.ok
-          ? { state: "known", name: result.holder }
-          : { state: "unknown" },
+        result.ok ? { state: "known", who: result.who } : { state: "unknown" },
       );
     });
     return () => {
@@ -44,6 +51,9 @@ function SettingsView({
   const leave = async () => {
     setLeaving(true);
     setFailed(false);
+    // Both ways out: the Supabase session on this device (a no op without one)
+    // and the code cookie, which only the API can clear (spec 0014, AC-4).
+    await signOutAccount();
     if (await signOut()) {
       window.location.assign(ACCESS_PATH);
       return;
@@ -64,15 +74,24 @@ function SettingsView({
           {holder.state === "loading" ? (
             <Skeleton className="h-4 w-24" />
           ) : holder.state === "known" ? (
-            <span className="font-medium text-ink">{holder.name}</span>
+            <span className="font-medium text-ink">
+              {holder.who.name ?? holder.who.holder}
+            </span>
           ) : (
             <span className="text-ink-muted">No disponible</span>
           )}
         </Row>
-        <Row
-          label="Cerrar sesión"
-          hint="Para volver a entrar necesitarás tu código de acceso."
-        >
+        {holder.state === "known" && holder.who.email ? (
+          <Row label="Correo">
+            <span className="text-ink">{holder.who.email}</span>
+          </Row>
+        ) : null}
+        {holder.state === "known" ? (
+          <Row label="Cómo entras">
+            <span className="text-ink">{signInLabel(holder.who)}</span>
+          </Row>
+        ) : null}
+        <Row label="Cerrar sesión" hint="Cierra la sesión en este dispositivo.">
           <Button
             variant="secondary"
             onClick={() => void leave()}

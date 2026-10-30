@@ -36,7 +36,7 @@ export const failureMessage = (failure: CaptureFailure): string => {
     case "rejected":
       return failure.message;
     case "unauthorized":
-      return "Tu acceso venció. Escribe tu código de acceso para continuar.";
+      return "Tu sesión venció. Entra de nuevo.";
     case "unavailable":
       return "No pude conectar con LabFlow. Intenta de nuevo.";
   }

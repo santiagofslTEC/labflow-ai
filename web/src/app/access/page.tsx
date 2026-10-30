@@ -1,29 +1,29 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { BrandMark } from "@/components/app-shell/brand-mark";
-
-import { AccessForm } from "./access-form";
+import { AccessShell } from "@/components/access/access-shell";
+import { SignIn } from "@/components/access/sign-in";
+import { supabaseConfig } from "@/lib/supabase/config";
 
 export const metadata: Metadata = {
   title: "Entrar · LabFlow AI",
 };
 
-// Outside the app shell: one centered column on the canvas, the same on a phone.
+// Google, email and password, or an access code (spec 0014, AC-1).
 export default function AccessPage() {
+  const accounts = supabaseConfig() !== null;
   return (
-    <main className="flex min-h-svh items-center justify-center bg-canvas px-4 py-12">
-      <div className="flex w-full max-w-[360px] flex-col gap-8">
-        <BrandMark className="self-center" />
-        <header className="flex flex-col gap-2 text-center">
-          <h1 className="text-display font-semibold text-ink">
-            Entra a tu cuaderno
-          </h1>
-          <p className="text-ink-muted">
-            Escribe el código de acceso que te dio tu equipo.
-          </p>
-        </header>
-        <AccessForm />
-      </div>
-    </main>
+    <AccessShell
+      title="Entrar a LabFlow"
+      description={
+        accounts
+          ? "Usa tu cuenta de Google o tu correo."
+          : "Escribe el código de acceso que te dio tu equipo."
+      }
+    >
+      <Suspense>
+        <SignIn accounts={accounts} />
+      </Suspense>
+    </AccessShell>
   );
 }

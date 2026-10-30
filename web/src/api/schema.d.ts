@@ -46,6 +46,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/access/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Access Options */
+        get: operations["read_access_options_api_access_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/experiments": {
         parameters: {
             query?: never;
@@ -53,7 +70,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Experiments */
+        /**
+         * List Experiments
+         * @description Only the caller's space (spec 0014, AC-6).
+         */
         get: operations["list_experiments_api_experiments_get"];
         put?: never;
         /** Create Experiment */
@@ -93,6 +113,26 @@ export interface paths {
          * @description The saved trials by number and the 5 newest measurements (spec 0007, AC-1).
          */
         get: operations["read_trials_api_experiments__experiment_id__trials_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Turns
+         * @description The notebook's conversation, oldest first: spoken and typed lines and LabFlow's replies.
+         */
+        get: operations["read_turns_api_experiments__experiment_id__turns_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -334,6 +374,7 @@ export interface paths {
         /**
          * Start Session
          * @description A signed URL for the private agent plus our token for this holder and notebook (AC-1).
+         *     Only for a notebook in the caller's space (spec 0014, AC-6); the token carries that.
          */
         post: operations["start_session_api_voice_session_post"];
         delete?: never;
@@ -422,6 +463,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Folders
+         * @description Only the caller's space (spec 0014, AC-6).
+         */
+        get: operations["list_folders_api_folders_get"];
+        put?: never;
+        /** Create Folder */
+        post: operations["create_folder_api_folders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/folders/{folder_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Folder
+         * @description Its notebooks stay, as "Sin carpeta".
+         */
+        delete: operations["delete_folder_api_folders__folder_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Folder */
+        patch: operations["rename_folder_api_folders__folder_id__patch"];
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/folder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Move Experiment */
+        put: operations["move_experiment_api_experiments__experiment_id__folder_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -430,6 +530,28 @@ export interface components {
         AccessGranted: {
             /** Holder */
             holder: string;
+            /**
+             * Kind
+             * @default code
+             * @enum {string}
+             */
+            kind: "account" | "code";
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Provider */
+            provider?: ("google" | "email") | null;
+        };
+        /**
+         * AccessOptions
+         * @description The ways in the sign in page offers, asked before signing in (spec 0014, AC-9, AC-10).
+         */
+        AccessOptions: {
+            /** Codes */
+            codes: boolean;
+            /** Accounts */
+            accounts: boolean;
         };
         /** AccessRequest */
         AccessRequest: {
@@ -493,6 +615,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Folder Id */
+            folder_id: number | null;
             /** Variables */
             variables: components["schemas"]["VariableDetail"][];
             protocol: components["schemas"]["ProtocolSummary"] | null;
@@ -519,6 +643,8 @@ export interface components {
              * Format: date-time
              */
             last_activity_at: string;
+            /** Folder Id */
+            folder_id: number | null;
         };
         /**
          * FlagReason
@@ -530,6 +656,36 @@ export interface components {
             reason: components["schemas"]["FlagReason"];
             /** Text */
             text: string;
+        };
+        /** FolderIn */
+        FolderIn: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * FolderMove
+         * @description `folder_id` null takes the notebook out of its folder.
+         */
+        FolderMove: {
+            /** Folder Id */
+            folder_id: number | null;
+        };
+        /**
+         * FolderSummary
+         * @description One class folder on the lab dashboard, with how many notebooks it holds.
+         */
+        FolderSummary: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Notebook Count */
+            notebook_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -607,6 +763,8 @@ export interface components {
             context?: string | null;
             /** Variables */
             variables: components["schemas"]["NewVariable"][];
+            /** Folder Id */
+            folder_id?: number | null;
         };
         /** NewVariable */
         NewVariable: {
@@ -709,6 +867,11 @@ export interface components {
             /** Variables */
             variables: components["schemas"]["VariableSummary"][];
         };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "user" | "assistant";
         /** SavedTrial */
         SavedTrial: {
             /** Trial Id */
@@ -795,6 +958,44 @@ export interface components {
             trials: components["schemas"]["TrialRow"][];
             /** Recent */
             recent: components["schemas"]["RecentMeasurement"][];
+        };
+        /**
+         * TurnLine
+         * @description One line of a notebook's conversation: what you said or typed, or LabFlow's reply.
+         */
+        TurnLine: {
+            /** Id */
+            id: number;
+            role: components["schemas"]["Role"];
+            /** Text */
+            text: string;
+            source: components["schemas"]["Source"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Readings
+             * @default []
+             */
+            readings: components["schemas"]["TurnReading"][];
+        };
+        /**
+         * TurnReading
+         * @description A value a line saved, with the words it came from: "setenta y tres" → 73 %.
+         */
+        TurnReading: {
+            /** Variable */
+            variable: string;
+            /** Said Text */
+            said_text: string | null;
+            /** Value */
+            value: number;
+            /** Unit */
+            unit: string | null;
+            /** Trial Number */
+            trial_number: number;
         };
         /** TurnResponse */
         TurnResponse: {
@@ -1074,6 +1275,26 @@ export interface operations {
             };
         };
     };
+    read_access_options_api_access_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessOptions"];
+                };
+            };
+        };
+    };
     list_experiments_api_experiments_get: {
         parameters: {
             query?: never;
@@ -1134,7 +1355,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
-            /** @description invalid_request, duplicate_variable_name, or invalid_range */
+            /** @description invalid_request, duplicate_variable_name, invalid_range, or folder_not_found */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -1212,6 +1433,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrialsView"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description No notebook with this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The id is not an integer */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    read_turns_api_experiments__experiment_id__turns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnLine"][];
                 };
             };
             /** @description No valid access session */
@@ -1401,7 +1671,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorBody"];
                 };
             };
-            /** @description invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, or invalid_range */
+            /** @description invalid_request, instructions_missing, pdf_unreadable, too_many_pages, invalid_page_range, no_text_in_pdf, instructions_too_short, or text_too_long, duplicate_variable_name, invalid_range, or folder_not_found */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2164,6 +2434,230 @@ export interface operations {
                 };
             };
             /** @description invalid_request, duplicate_variable_name, name_in_use, or invalid_range */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    list_folders_api_folders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderSummary"][];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    create_folder_api_folders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderSummary"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    delete_folder_api_folders__folder_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                folder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description folder_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    rename_folder_api_folders__folder_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                folder_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderSummary"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description folder_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    move_experiment_api_experiments__experiment_id__folder_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description No notebook with this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description invalid_request or folder_not_found */
             422: {
                 headers: {
                     [name: string]: unknown;

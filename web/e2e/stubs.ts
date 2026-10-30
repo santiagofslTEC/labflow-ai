@@ -32,15 +32,58 @@ const RESULTS = {
 
 const answers: Readonly<Record<string, unknown>> = {
   "/api/health": { status: "ok", env: "test" },
-  "/api/access": { holder: "ana" },
+  "/api/access": { holder: "ana", kind: "code", name: "ana" },
+  "/api/access/options": { codes: true, accounts: true },
   "/api/experiments": [
     summary(7, { title: sampleDetail.title, trial_count: 3 }),
-    summary(8),
+    summary(8, { folder_id: 1 }),
+  ],
+  "/api/folders": [
+    {
+      id: 1,
+      name: "Química orgánica",
+      notebook_count: 1,
+      created_at: "2026-10-30T12:00:00Z",
+    },
   ],
   "/api/experiments/7": sampleDetail,
   "/api/experiments/7/trials": TRIALS,
   "/api/experiments/7/results": RESULTS,
   "/api/experiments/7/proposal": null,
+  "/api/experiments/7/turns": [
+    {
+      id: 1,
+      role: "user",
+      text: "Ensayo 3: temperatura 50 grados, duración 15 minutos y rendimiento 73 por ciento.",
+      source: "voice",
+      created_at: new Date().toISOString(),
+      readings: [],
+    },
+    {
+      id: 2,
+      role: "assistant",
+      text: "Guardé el ensayo 3: 50 °C · 15 min · 73 %.",
+      source: null,
+      created_at: new Date().toISOString(),
+      readings: [],
+    },
+    {
+      id: 3,
+      role: "user",
+      text: "¿Cuál fue el rendimiento más alto?",
+      source: "text",
+      created_at: new Date().toISOString(),
+      readings: [],
+    },
+    {
+      id: 4,
+      role: "assistant",
+      text: "El más alto es 80 %, en el ensayo 2 a 55 °C.",
+      source: null,
+      created_at: new Date().toISOString(),
+      readings: [],
+    },
+  ],
 };
 
 const answer = (route: Route) => {

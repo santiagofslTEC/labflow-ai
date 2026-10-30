@@ -7,6 +7,7 @@ import type * as React from "react";
 
 import type { ApiFailure } from "@/api/experiments";
 import { PageHeader } from "@/components/app-shell/page-header";
+import { FolderPicker } from "@/components/folders/folder-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -113,8 +114,14 @@ const TIPS = [
 
 // /cuadernos/nuevo (spec 0005, AC-3 to AC-9, AC-18 to AC-29). It opens on the
 // instructions panel; the form appears after a read or after Llenar a mano.
-function NotebookForm() {
+type NotebookFormProps = {
+  // The class folder it starts in, from `?carpeta=` (2026-10-30).
+  readonly defaultFolderId?: number | null;
+};
+
+function NotebookForm({ defaultFolderId = null }: NotebookFormProps) {
   const router = useRouter();
+  const [folderId, setFolderId] = useState<number | null>(defaultFolderId);
   const [state, dispatch] = useReducer(formReducer, initialFormState);
   const [submitted, setSubmitted] = useState(false);
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
@@ -166,7 +173,10 @@ function NotebookForm() {
     }
     inFlight.current = true;
     create.mutate(
-      { body: toCreateBody(state), instructions: state.instructions },
+      {
+        body: { ...toCreateBody(state), folder_id: folderId },
+        instructions: state.instructions,
+      },
       {
         onSuccess: (created) => leave(`/cuadernos/${created.id}`),
         onError: () => {
@@ -408,6 +418,25 @@ function NotebookForm() {
                   <FieldMessage
                     id={errorId(fieldId.title)}
                     message={titleError}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="notebook-folder"
+                    className="text-sm font-medium text-ink"
+                  >
+                    Carpeta{" "}
+                    <span className="font-normal text-ink-muted">
+                      (opcional)
+                    </span>
+                  </label>
+                  <FolderPicker
+                    id="notebook-folder"
+                    label="Carpeta"
+                    value={folderId}
+                    onChange={setFolderId}
+                    className="w-full sm:w-72"
                   />
                 </div>
 

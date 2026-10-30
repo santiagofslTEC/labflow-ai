@@ -4,9 +4,9 @@ from collections.abc import Sequence
 
 from sqlmodel import Session, col, select
 
-from app.models import Experiment, Turn
+from app.models import Experiment, Measurement, Trial, Turn, Variable
 from app.models.enums import Role, Source
-from app.services.results import ExperimentNotFound
+from app.services.results import ExperimentNotFound, TurnLine, TurnReading
 
 
 def add_turn(
@@ -47,3 +47,54 @@ def last_turns(session: Session, experiment_id: int, limit: int = 10) -> list[Tu
         .limit(limit)
     ).all()
     return list(reversed(latest))
+
+
+def conversation(
+    session: Session, experiment_id: int, limit: int = 200
+) -> list[TurnLine] | ExperimentNotFound:
+    """The latest `limit` turns for the notebook's thread, oldest first, each user line with
+    the values it saved that are still in the table (a later correction moves a value to the
+    line that corrected it)."""
+    if session.get(Experiment, experiment_id) is None:
+        return ExperimentNotFound()
+    lines = [t for t in last_turns(session, experiment_id, limit) if t.id is not None]
+    readings = _readings(session, [t.id for t in lines if t.id is not None])
+    return [
+        TurnLine(
+            id=t.id,
+            role=t.role,
+            text=t.text,
+            source=t.source,
+            created_at=t.created_at,
+            readings=readings.get(t.id, ()),
+        )
+        for t in lines
+        if t.id is not None
+    ]
+
+
+def _readings(session: Session, turn_ids: list[int]) -> dict[int, tuple[TurnReading, ...]]:
+    """The saved values of these turns, in column order."""
+    if not turn_ids:
+        return {}
+    rows = session.exec(
+        select(Measurement, Variable, Trial)
+        .join(Variable, col(Variable.id) == col(Measurement.variable_id))
+        .join(Trial, col(Trial.id) == col(Measurement.trial_id))
+        .where(col(Measurement.turn_id).in_(turn_ids))
+        .order_by(col(Trial.number), col(Variable.position))
+    ).all()
+    grouped: dict[int, list[TurnReading]] = {}
+    for measurement, variable, trial in rows:
+        if measurement.turn_id is None:
+            continue
+        grouped.setdefault(measurement.turn_id, []).append(
+            TurnReading(
+                variable=variable.name,
+                said_text=measurement.said_text,
+                value=measurement.value,
+                unit=measurement.unit,
+                trial_number=trial.number,
+            )
+        )
+    return {turn_id: tuple(values) for turn_id, values in grouped.items()}

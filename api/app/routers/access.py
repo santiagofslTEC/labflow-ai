@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Literal
 
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,7 +13,8 @@ from app.core.access import (
     sign_session,
 )
 from app.core.errors import ApiError, ApiErrorBody
-from app.core.gate import HolderDep, attempt_log, client_ip
+from app.core.gate import PrincipalDep, attempt_log, client_ip
+from app.core.principal import Account, CodeHolder
 from app.core.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,20 @@ class AccessGranted(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     holder: str
+    # Who is signed in (spec 0014, AC-7): an account, or an access code holder.
+    kind: Literal["account", "code"] = "code"
+    name: str | None = None
+    email: str | None = None
+    provider: Literal["google", "email"] | None = None
+
+
+class AccessOptions(BaseModel):
+    """The ways in the sign in page offers, asked before signing in (spec 0014, AC-9, AC-10)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    codes: bool
+    accounts: bool
 
 
 @router.post(
@@ -81,9 +97,21 @@ async def grant_access(body: AccessRequest, request: Request, response: Response
     "",
     responses={401: {"model": ApiErrorBody, "description": "No valid access session"}},
 )
-def read_access(holder: HolderDep) -> AccessGranted:
+def read_access(principal: PrincipalDep) -> AccessGranted:
     """Who is signed in, for the settings page."""
-    return AccessGranted(holder=holder)
+    match principal:
+        case Account(email=email, name=name, provider=provider):
+            return AccessGranted(
+                holder=email, kind="account", name=name, email=email, provider=provider
+            )
+        case CodeHolder(name=name):
+            return AccessGranted(holder=name, kind="code", name=name)
+
+
+@router.get("/options")
+def read_access_options() -> AccessOptions:
+    settings = get_settings()
+    return AccessOptions(codes=bool(settings.access_codes), accounts=bool(settings.supabase_url))
 
 
 @router.delete("", status_code=204)

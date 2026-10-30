@@ -16,6 +16,7 @@ import type * as React from "react";
 
 import type { ExperimentDetail, TrialsView } from "@/api/experiments";
 import { PanelHeading } from "@/components/app-shell/panel-heading";
+import { FolderPicker } from "@/components/folders/folder-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useMoveNotebook } from "@/hooks/use-experiments";
 import { useNow } from "@/hooks/use-now";
 import { csvFileName, trialsCsv } from "@/lib/csv";
 import { formatNumber, formatQuantity, formatRange } from "@/lib/format";
@@ -104,7 +106,7 @@ function NotebookInspector({
     <aside
       id="inspector"
       aria-labelledby="inspector-title"
-      className="flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:border-l lg:border-line lg:pl-8"
+      className="flex min-w-0 scroll-mt-20 flex-col gap-8 max-lg:group-data-[vista=capturar]/nb:hidden lg:min-h-0 lg:gap-4 lg:overflow-y-auto lg:rounded-[20px] lg:border lg:border-tint-blue-line/60 lg:bg-tint-blue-soft lg:p-4"
     >
       <div className="flex items-center justify-between gap-2 max-lg:hidden">
         <h2
@@ -121,7 +123,7 @@ function NotebookInspector({
 
       <section
         aria-labelledby="resumen"
-        className={cn("flex flex-col", PHONE_VIEW.ensayos)}
+        className={cn("flex flex-col", CARD, PHONE_VIEW.ensayos)}
       >
         <h3 id="resumen" className="pb-1 text-sm font-medium text-ink">
           Resumen
@@ -139,6 +141,9 @@ function NotebookInspector({
               </span>
             ) : null}
           </SummaryRow>
+          <SummaryRow label="Carpeta">
+            <NotebookFolder experiment={experiment} />
+          </SummaryRow>
           <SummaryRow label="Creado">
             <time dateTime={experiment.created_at} className="font-sans">
               {formatShortDate(new Date(experiment.created_at), now)}
@@ -149,7 +154,7 @@ function NotebookInspector({
 
       <section
         aria-labelledby="recientes"
-        className={cn("flex flex-col gap-2", PHONE_VIEW.ensayos)}
+        className={cn("flex flex-col gap-2", CARD, PHONE_VIEW.ensayos)}
       >
         <PanelHeading
           id="recientes"
@@ -187,7 +192,11 @@ function NotebookInspector({
       <section
         id="tabla"
         aria-labelledby="ensayos"
-        className={cn("flex scroll-mt-20 flex-col gap-2", PHONE_VIEW.ensayos)}
+        className={cn(
+          "flex scroll-mt-20 flex-col gap-2",
+          CARD,
+          PHONE_VIEW.ensayos,
+        )}
       >
         <PanelHeading id="ensayos" icon={TableIcon} title="Ensayos" />
         <TrialsTable variables={variables} rows={rows} trials={trials} />
@@ -196,7 +205,11 @@ function NotebookInspector({
       <section
         id="lista-variables"
         aria-labelledby="variables"
-        className={cn("flex scroll-mt-20 flex-col gap-2", PHONE_VIEW.variables)}
+        className={cn(
+          "flex scroll-mt-20 flex-col gap-2",
+          CARD,
+          PHONE_VIEW.variables,
+        )}
       >
         <PanelHeading
           id="variables"
@@ -234,7 +247,10 @@ function NotebookInspector({
         </Table>
       </section>
 
-      <section aria-labelledby="acciones" className="flex flex-col gap-2">
+      <section
+        aria-labelledby="acciones"
+        className={cn("flex flex-col gap-2", CARD)}
+      >
         <h3
           id="acciones"
           className="text-sm font-medium text-ink max-lg:sr-only"
@@ -429,6 +445,38 @@ function SummaryRow({
     </div>
   );
 }
+
+// Move the notebook to another class folder, or out of one (2026-10-30).
+function NotebookFolder({
+  experiment,
+}: {
+  readonly experiment: ExperimentDetail;
+}) {
+  const move = useMoveNotebook(experiment.id);
+  return (
+    <span className="flex flex-col items-end gap-1 font-sans">
+      <FolderPicker
+        label="Carpeta"
+        value={move.isPending ? (move.variables ?? null) : experiment.folder_id}
+        onChange={(folderId) => {
+          if (folderId !== experiment.folder_id) move.mutate(folderId);
+        }}
+        disabled={move.isPending}
+        className="h-8 max-w-48"
+      />
+      {move.isError ? (
+        <span role="alert" className="text-xs text-danger">
+          No pudimos moverlo. Intenta de nuevo.
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+// On desktop each part of the panel is a white card on the tinted panel
+// (2026-10-30, the hilos reference); the phone keeps them flat in its tabs.
+const CARD =
+  "lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-4 lg:shadow-control";
 
 // The export waits for the rows, so it never downloads a partial table (AC-6).
 export const exportLabel = (trials: TrialsPanel): string =>

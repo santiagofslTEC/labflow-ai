@@ -5,12 +5,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addVariable,
   createExperiment,
+  createFolder,
+  deleteFolder,
+  folderKeys,
+  listFolders,
+  moveNotebook,
+  renameFolder,
   createWithInstructions,
   deleteVariables,
   experimentKeys,
   getExperiment,
   getResults,
   getTrials,
+  getTurns,
   listExperiments,
   readInstructions,
   updateVariable,
@@ -65,6 +72,53 @@ export function useTrials(id: number) {
     retry: retryOnce,
   });
 }
+
+// The notebook's conversation thread, refreshed after every turn.
+export function useTurns(id: number) {
+  return useQuery({
+    queryKey: experimentKeys.turns(id),
+    queryFn: () => unwrap(getTurns(id)),
+    retry: retryOnce,
+  });
+}
+
+// Class folders, by name with their notebook counts (2026-10-30).
+export function useFolders() {
+  return useQuery({
+    queryKey: folderKeys.all,
+    queryFn: () => unwrap(listFolders()),
+    retry: retryOnce,
+  });
+}
+
+// Every folder change can move counts and notebooks, so it refreshes both lists.
+function useFolderMutation<V, T>(
+  request: (variables: V) => Promise<ApiResult<T>>,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: V) => unwrap(request(variables)),
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: folderKeys.all }),
+        client.invalidateQueries({ queryKey: experimentKeys.all }),
+      ]),
+  });
+}
+
+export const useCreateFolder = () => useFolderMutation(createFolder);
+
+export const useRenameFolder = () =>
+  useFolderMutation((v: { readonly id: number; readonly name: string }) =>
+    renameFolder(v.id, v.name),
+  );
+
+export const useDeleteFolder = () => useFolderMutation(deleteFolder);
+
+export const useMoveNotebook = (experimentId: number) =>
+  useFolderMutation((folderId: number | null) =>
+    moveNotebook(experimentId, folderId),
+  );
 
 // The results summary (spec 0009, AC-8), refreshed by the same invalidation.
 export function useResults(id: number) {

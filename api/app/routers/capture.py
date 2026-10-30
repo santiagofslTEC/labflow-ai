@@ -14,6 +14,7 @@ from app.ai.deps import ProviderDep
 from app.core.db import SessionDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
+from app.core.ownership import CARD, NOTEBOOK
 from app.models import Proposal, ProposalValue, Turn, Variable
 from app.models.enums import ProposalStatus, Role, Source
 from app.repositories import capture, proposals, turns
@@ -164,7 +165,11 @@ def _edit_text(variable: Variable, value: float) -> str:
 # --- routes --------------------------------------------------------------------------
 
 
-@router.post("/api/experiments/{experiment_id}/utterances", responses=_errors(401, 404, 422, 503))
+@router.post(
+    "/api/experiments/{experiment_id}/utterances",
+    dependencies=[NOTEBOOK],
+    responses=_errors(401, 404, 422, 503),
+)
 async def post_utterance(
     experiment_id: int,
     body: UtteranceIn,
@@ -188,7 +193,11 @@ async def post_utterance(
             raise AssertionError("a typed turn has no write gate")
 
 
-@router.get("/api/experiments/{experiment_id}/proposal", responses=_errors(401, 404))
+@router.get(
+    "/api/experiments/{experiment_id}/proposal",
+    dependencies=[NOTEBOOK],
+    responses=_errors(401, 404),
+)
 def get_proposal(experiment_id: int, session: SessionDep) -> ProposalView | None:
     if not 1 <= experiment_id <= _ID_MAX or not capture.experiment_exists(session, experiment_id):
         raise _fail("experiment_not_found")
@@ -196,7 +205,9 @@ def get_proposal(experiment_id: int, session: SessionDep) -> ProposalView | None
 
 
 @router.put(
-    "/api/proposals/{proposal_id}/values/{variable_id}", responses=_errors(401, 404, 409, 422)
+    "/api/proposals/{proposal_id}/values/{variable_id}",
+    dependencies=[CARD],
+    responses=_errors(401, 404, 409, 422),
 )
 def put_value(
     proposal_id: int, variable_id: int, body: ValueIn, session: SessionDep
@@ -218,7 +229,9 @@ def put_value(
     return _card_response(session, proposal.experiment_id, turn.id)
 
 
-@router.post("/api/proposals/{proposal_id}/trial", responses=_errors(401, 404, 409, 422))
+@router.post(
+    "/api/proposals/{proposal_id}/trial", dependencies=[CARD], responses=_errors(401, 404, 409, 422)
+)
 def post_trial(proposal_id: int, body: TrialChoiceIn, session: SessionDep) -> TurnResponse:
     """Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial. Kept
     for cards from before spec 0011; the planner no longer asks it (spec 0011, AC-3)."""
@@ -240,7 +253,9 @@ def post_trial(proposal_id: int, body: TrialChoiceIn, session: SessionDep) -> Tu
 
 
 @router.post(
-    "/api/proposals/{proposal_id}/values/{variable_id}/check", responses=_errors(401, 404, 409)
+    "/api/proposals/{proposal_id}/values/{variable_id}/check",
+    dependencies=[CARD],
+    responses=_errors(401, 404, 409),
 )
 def post_check(proposal_id: int, variable_id: int, session: SessionDep) -> TurnResponse:
     """Check a flagged value (AC-24). Stores no turn."""
@@ -250,7 +265,11 @@ def post_check(proposal_id: int, variable_id: int, session: SessionDep) -> TurnR
     return _card_response(session, proposal.experiment_id, None)
 
 
-@router.post("/api/proposals/{proposal_id}/confirm", responses=_errors(401, 404, 409, 422))
+@router.post(
+    "/api/proposals/{proposal_id}/confirm",
+    dependencies=[CARD],
+    responses=_errors(401, 404, 409, 422),
+)
 def post_confirm(proposal_id: int, session: SessionDep, holder: HolderDep) -> TurnResponse:
     """Save the card (AC-2). Flagged values must be checked first (AC-24), whatever the
     path; a repeat confirm returns the same trial (spec 0002)."""
@@ -285,7 +304,9 @@ def post_confirm(proposal_id: int, session: SessionDep, holder: HolderDep) -> Tu
             raise _fail(result.code)
 
 
-@router.post("/api/proposals/{proposal_id}/undo", responses=_errors(401, 404, 409))
+@router.post(
+    "/api/proposals/{proposal_id}/undo", dependencies=[CARD], responses=_errors(401, 404, 409)
+)
 def post_undo(proposal_id: int, session: SessionDep) -> TurnResponse:
     """Take back a save LabFlow made with no tap (spec 0011, AC-10): its values come back
     as a pending card, or join the card waiting for the same trial; with another trial's
@@ -317,7 +338,9 @@ def post_undo(proposal_id: int, session: SessionDep) -> TurnResponse:
     return _card_response(session, result.experiment_id, turn.id)
 
 
-@router.post("/api/proposals/{proposal_id}/discard", responses=_errors(401, 404, 409))
+@router.post(
+    "/api/proposals/{proposal_id}/discard", dependencies=[CARD], responses=_errors(401, 404, 409)
+)
 def post_discard(proposal_id: int, session: SessionDep) -> TurnResponse:
     """Drop the card; nothing is saved (AC-13)."""
     proposal = _pending(session, proposal_id)
