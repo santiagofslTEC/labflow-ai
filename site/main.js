@@ -17,28 +17,69 @@ const setupNav = () => {
   update();
 };
 
-// Desktop: one sticky stage shows the visual of the step crossing the middle of the screen.
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+const smoothstep = (edge0, edge1, value) => {
+  const t = clamp01((value - edge0) / (edge1 - edge0));
+  return t * t * (3 - 2 * t);
+};
+
+// Desktop: a sticky stage beside the steps. Everything follows one continuous scroll position
+// (0 when the first step sits in the middle of the screen, 1 at the second, and so on): each
+// visual holds steady near its step and hands over around the midpoint, the outgoing one lifting
+// away as the next rises in; step text brightens as it nears the middle and the rail fills.
 // The visuals live inside each step (the phone layout shows them inline); the stage gets copies.
 const setupSteps = () => {
   const steps = $$(".step");
   const stage = $("#stage");
+  const railFill = $("#rail-fill");
   const visuals = steps.map((step) => step.querySelector(".step-visual").cloneNode(true));
   stage.append(...visuals);
+  const desktop = matchMedia("(min-width: 961px)");
+  const lift = reducedMotion ? 0 : 1;
+  const last = steps.length - 1;
 
-  const activate = (index) => {
-    steps.forEach((step, i) => step.classList.toggle("active", i === index));
-    visuals.forEach((visual, i) => visual.classList.toggle("on", i === index));
+  const scrollPosition = () => {
+    const middle = window.innerHeight / 2;
+    const offsets = steps.map((step) => {
+      const box = step.getBoundingClientRect();
+      return box.top + box.height / 2 - middle;
+    });
+    if (offsets[0] >= 0) return 0;
+    const i = offsets.findIndex((offset, k) => k < last && offset <= 0 && offsets[k + 1] > 0);
+    return i === -1 ? last : i + -offsets[i] / (offsets[i + 1] - offsets[i]);
   };
-  activate(0);
 
-  const observer = new IntersectionObserver(
-    (entries) =>
-      entries
-        .filter((entry) => entry.isIntersecting)
-        .forEach((entry) => activate(Number(entry.target.dataset.step))),
-    { rootMargin: "-45% 0px -45% 0px" },
-  );
-  steps.forEach((step) => observer.observe(step));
+  const render = () => {
+    if (!desktop.matches) return;
+    const position = scrollPosition();
+    steps.forEach((step, i) => {
+      const distance = Math.abs(position - i);
+      const shown = 1 - smoothstep(0.2, 0.5, distance);
+      step.style.opacity = String(0.3 + 0.7 * (1 - smoothstep(0.15, 0.6, distance)));
+      step.classList.toggle("active", distance < 0.5);
+      visuals[i].style.opacity = String(shown);
+      visuals[i].style.transform = `translateY(${Math.sign(i - position) * (1 - shown) * 28 * lift}px) scale(${0.97 + 0.03 * shown})`;
+      visuals[i].style.pointerEvents = shown > 0.5 ? "auto" : "none";
+    });
+    railFill.style.transform = `scaleY(${position / last})`;
+  };
+
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      render();
+    });
+  };
+  addEventListener("scroll", schedule, { passive: true });
+  addEventListener("resize", schedule);
+  desktop.addEventListener("change", () => {
+    steps.forEach((step) => (step.style.opacity = ""));
+    schedule();
+  });
+  render();
 };
 
 const showFinalDemo = () => {
@@ -55,11 +96,11 @@ const setupReveals = ({ animate, inView }) => {
       const siblings = [...element.parentElement.children].filter((child) => child.classList.contains("reveal"));
       animate(
         element,
-        { opacity: 1, y: [16, 0] },
-        { duration: 0.7, ease: EASE, delay: siblings.indexOf(element) * 0.08 },
+        { opacity: 1, y: [10, 0] },
+        { duration: 1.1, ease: EASE, delay: siblings.indexOf(element) * 0.1 },
       );
     },
-    { amount: 0.25 },
+    { amount: 0.3 },
   );
 };
 

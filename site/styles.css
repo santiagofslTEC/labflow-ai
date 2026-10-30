@@ -583,21 +583,41 @@ h3 {
   gap: 80px;
 }
 .step {
-  min-height: 62vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-height: 56vh;
   max-width: 440px;
-  opacity: 0.35;
-  transition: opacity 0.4s var(--ease);
 }
-.step.active {
-  opacity: 1;
+.steps-list {
+  position: relative;
+  padding-left: 36px;
+}
+.rail {
+  position: absolute;
+  left: 0;
+  top: 28vh;
+  bottom: 28vh;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.rail-fill {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transform: scaleY(0);
+  transform-origin: top;
 }
 .step-n {
   font-size: 13px;
-  color: var(--brand);
+  color: var(--ink-muted);
   margin-bottom: 12px;
+  transition: color 0.3s var(--ease);
+}
+.step.active .step-n {
+  color: var(--brand);
 }
 .step h3 {
   font-size: 24px;
@@ -625,14 +645,7 @@ h3 {
   display: grid;
   place-items: center;
   opacity: 0;
-  transform: translateY(12px) scale(0.98);
-  transition:
-    opacity 0.45s var(--ease),
-    transform 0.45s var(--ease);
-}
-.stage .step-visual.on {
-  opacity: 1;
-  transform: none;
+  will-change: opacity, transform;
 }
 .panel {
   width: min(420px, 100%);
@@ -881,7 +894,7 @@ h3 {
 /* Reveal: hidden only once main.js has loaded Motion, so the page never stays blank. */
 .motion-ready .reveal {
   opacity: 0;
-  transform: translateY(16px);
+  transform: translateY(10px);
 }
 
 @media (max-width: 960px) {
@@ -901,7 +914,12 @@ h3 {
     min-height: 0;
     max-width: none;
     padding: 32px 0;
-    opacity: 1;
+  }
+  .steps-list {
+    padding-left: 0;
+  }
+  .rail {
+    display: none;
   }
   .step .step-visual {
     display: block;
