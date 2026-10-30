@@ -94,6 +94,7 @@ class NewExperiment(BaseModel):
     goal: str | None = Field(default=None, max_length=GOAL_MAX)
     context: str | None = Field(default=None, max_length=CONTEXT_MAX)  # for the capture prompt
     variables: tuple[NewVariable, ...] = Field(min_length=1, max_length=VARIABLES_MAX)
+    folder_id: int | None = Field(default=None, ge=1)  # its class folder, if any
 
     _optional_text = field_validator("goal", "context")(_blank_to_none)
 

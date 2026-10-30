@@ -9,8 +9,16 @@ from sqlalchemy import select as select_row
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
-from app.models import Experiment, Measurement, Protocol, ProtocolPage, Trial, Turn, Variable
-from app.repositories.space import in_space
+from app.models import (
+    Experiment,
+    Measurement,
+    Protocol,
+    ProtocolPage,
+    Trial,
+    Turn,
+    Variable,
+)
+from app.repositories.space import folder_visible, in_space
 from app.services.experiment_rules import NewExperiment
 from app.services.instructions import NewProtocol
 from app.services.results import (
@@ -18,6 +26,7 @@ from app.services.results import (
     ExperimentDetail,
     ExperimentNotFound,
     ExperimentSummary,
+    FolderNotFound,
     ProtocolSummary,
     VariableDetail,
 )
@@ -73,6 +82,7 @@ def list_summaries(
             col(Experiment.status),
             func.coalesce(type_coerce(trials.c.trial_count, Integer), 0).label("trial_count"),
             last_activity_at,
+            col(Experiment.folder_id),
         )
         .outerjoin(trials, trials.c.experiment_id == col(Experiment.id))
         .outerjoin(turns, turns.c.experiment_id == col(Experiment.id))
@@ -90,8 +100,9 @@ def list_summaries(
             status=status,
             trial_count=trial_count,
             last_activity_at=_utc(last_at),
+            folder_id=folder_id,
         )
-        for experiment_id, title, status, trial_count, last_at in rows
+        for experiment_id, title, status, trial_count, last_at, folder_id in rows
         if experiment_id is not None  # an identity column is never null
     ]
 
@@ -102,12 +113,19 @@ def create_experiment(
     body: NewExperiment,
     protocol: NewProtocol | None = None,
     owner: UUID | None = None,
-) -> ExperimentDetail | DuplicateVariableName:
+) -> ExperimentDetail | DuplicateVariableName | FolderNotFound:
     """The notebook, its variables, and its instructions (when sent) in one transaction,
     `position` in request order. The unique index on `lower(name)` is the backstop for any
     case fold the pure check missed."""
+    if body.folder_id is not None and not folder_visible(session, body.folder_id, owner):
+        return FolderNotFound()
     experiment = Experiment(
-        title=body.title, goal=body.goal, context=body.context, created_by=holder, owner_id=owner
+        title=body.title,
+        goal=body.goal,
+        context=body.context,
+        created_by=holder,
+        owner_id=owner,
+        folder_id=body.folder_id,
     )
     session.add(experiment)
     session.flush()
@@ -157,6 +175,7 @@ def get_experiment(session: Session, experiment_id: int) -> ExperimentDetail | E
         status=experiment.status,
         created_by=experiment.created_by,
         created_at=_utc(experiment.created_at),
+        folder_id=experiment.folder_id,
         variables=tuple(variable_detail(v) for v in variables),
         protocol=_protocol_summary(session, experiment_id),
     )

@@ -12,7 +12,7 @@ from app.core.access import SESSION_COOKIE, sign_session
 from app.core.db import get_session
 from app.core.settings import get_settings
 from app.main import app
-from app.models import Experiment, Proposal
+from app.models import Experiment, Folder, Proposal
 from app.repositories import proposals
 from app.repositories.space import assign_shared
 from tests.accounts import SUPABASE_URL, key_for, mint
@@ -91,6 +91,8 @@ def test_another_space_is_404_on_every_route(api: TestClient, session: Session, 
         ("GET", f"/api/experiments/{e}/trials", None, "experiment_not_found"),
         ("GET", f"/api/experiments/{e}/results", None, "experiment_not_found"),
         ("GET", f"/api/experiments/{e}/proposal", None, "experiment_not_found"),
+        ("GET", f"/api/experiments/{e}/turns", None, "experiment_not_found"),
+        ("PUT", f"/api/experiments/{e}/folder", {"folder_id": None}, "experiment_not_found"),
         ("POST", f"/api/experiments/{e}/utterances", {"text": "ensayo 1"}, "experiment_not_found"),
         ("POST", f"/api/experiments/{e}/variables", {"name": "pH"}, "experiment_not_found"),
         (
@@ -118,6 +120,32 @@ def test_another_space_is_404_on_every_route(api: TestClient, session: Session, 
         assert (answer.status_code, answer.json()["code"]) == (404, code), (method, path)
     as_account(api, ANA, "ana@example.com")
     assert api.get(f"/api/experiments/{e}").status_code == 200
+
+
+def test_folders_stay_in_their_space(api: TestClient) -> None:
+    as_account(api, ANA, "ana@example.com")
+    folder = api.post("/api/folders", json={"name": "Química de Ana"}).json()["id"]
+    mine = new_notebook(api, "De Ana")
+    assert api.put(f"/api/experiments/{mine}/folder", json={"folder_id": folder}).status_code == 200
+
+    for other in (lambda: as_account(api, BETO, "beto@example.com"), lambda: as_code(api)):
+        other()
+        assert "Química de Ana" not in [f["name"] for f in api.get("/api/folders").json()]
+        renamed = api.patch(f"/api/folders/{folder}", json={"name": "Mía"})
+        assert (renamed.status_code, renamed.json()["code"]) == (404, "folder_not_found")
+        deleted = api.delete(f"/api/folders/{folder}")
+        assert (deleted.status_code, deleted.json()["code"]) == (404, "folder_not_found")
+        # Neither a new notebook nor one of its own may go into another space's folder.
+        body = {"title": "Ajeno", "folder_id": folder, "variables": [{"name": "pH"}]}
+        created = api.post("/api/experiments", json=body)
+        assert (created.status_code, created.json()["code"]) == (422, "folder_not_found")
+        own = new_notebook(api, "Propio")
+        moved = api.put(f"/api/experiments/{own}/folder", json={"folder_id": folder})
+        assert (moved.status_code, moved.json()["code"]) == (422, "folder_not_found")
+
+    as_account(api, ANA, "ana@example.com")
+    listed = {f["id"]: f for f in api.get("/api/folders").json()}
+    assert listed[folder]["name"] == "Química de Ana" and listed[folder]["notebook_count"] == 1
 
 
 def test_a_shared_notebook_is_404_for_an_account(api: TestClient, session: Session) -> None:
@@ -169,9 +197,14 @@ def test_the_shared_notebooks_go_to_one_account(session: Session) -> None:
     """AC-9: the assign script's work, counted first, then done."""
     shared = [make_notebook(session, f"Compartido {i}").experiment_id for i in range(2)]
     mine = make_notebook(session, "De Beto", owner=BETO).experiment_id
+    folder = Folder(name="Química", created_by="Equipo")
+    session.add(folder)
+    session.flush()
     assert assign_shared(session, ANA, dry_run=True) >= 2
     assert all(owner_of_notebook(session, e) is None for e in shared)
     moved = assign_shared(session, ANA, dry_run=False)
     assert moved >= 2
     owners = {e: owner_of_notebook(session, e) for e in [*shared, mine]}
     assert owners == {shared[0]: ANA, shared[1]: ANA, mine: BETO}
+    session.refresh(folder)
+    assert folder.owner_id == ANA  # the shared folders go with their notebooks

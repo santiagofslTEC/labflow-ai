@@ -234,7 +234,14 @@ def test_lists_by_latest_activity_with_trial_counts(authed: TestClient, session:
     assert by_id[busy.id]["trial_count"] == 2
     assert by_id[quiet.id]["trial_count"] == 0
     assert by_id[quiet.id]["status"] == "open"
-    assert set(by_id[busy.id]) == {"id", "title", "status", "trial_count", "last_activity_at"}
+    assert set(by_id[busy.id]) == {
+        "id",
+        "title",
+        "status",
+        "trial_count",
+        "last_activity_at",
+        "folder_id",
+    }
     assert datetime.fromisoformat(by_id[quiet.id]["last_activity_at"]) == quiet.created_at
     assert datetime.fromisoformat(by_id[busy.id]["last_activity_at"]).utcoffset() == timedelta(0)
 

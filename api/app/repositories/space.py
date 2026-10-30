@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, text
 from sqlmodel import Session, col, select
 
-from app.models import Experiment
+from app.models import Experiment, Folder
 
 _ID_MAX = 2**63 - 1
 
@@ -15,6 +15,21 @@ def in_space(owner: UUID | None) -> ColumnElement[bool]:
     """The notebooks a principal with this owner id sees."""
     owner_id = col(Experiment.owner_id)
     return owner_id == owner if owner is not None else owner_id.is_(None)
+
+
+def folder_in_space(owner: UUID | None) -> ColumnElement[bool]:
+    """The class folders a principal with this owner id sees (same rule as notebooks)."""
+    owner_id = col(Folder.owner_id)
+    return owner_id == owner if owner is not None else owner_id.is_(None)
+
+
+def folder_visible(session: Session, folder_id: int, owner: UUID | None) -> bool:
+    if not 1 <= folder_id <= _ID_MAX:
+        return False
+    found = session.exec(
+        select(col(Folder.id)).where(col(Folder.id) == folder_id, folder_in_space(owner))
+    ).first()
+    return found is not None
 
 
 def notebook_visible(session: Session, experiment_id: int, owner: UUID | None) -> bool:
@@ -28,12 +43,16 @@ def notebook_visible(session: Session, experiment_id: int, owner: UUID | None) -
 
 def assign_shared(session: Session, owner: UUID, *, dry_run: bool) -> int:
     """Give every notebook in the codes' shared space to one account (spec 0014, AC-9), in
-    one transaction; with `dry_run` only count them. Returns how many."""
+    one transaction, with the shared class folders so each notebook keeps its folder; with
+    `dry_run` only count them. Returns how many notebooks."""
     shared = session.exec(select(Experiment).where(col(Experiment.owner_id).is_(None))).all()
     if not dry_run:
         for experiment in shared:
             experiment.owner_id = owner
             session.add(experiment)
+        for folder in session.exec(select(Folder).where(col(Folder.owner_id).is_(None))).all():
+            folder.owner_id = owner
+            session.add(folder)
         session.commit()
     return len(shared)
 
