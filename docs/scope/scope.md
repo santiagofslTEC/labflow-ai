@@ -150,7 +150,7 @@ spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md), mic [0
   - [ ] Auto save and undo: the `undone` status, clean check, "deshacer", last save and undo routes (AC-5 to AC-7)
   - [ ] Voice on the main page: session start and stop, live words, refetches, saved notice, hold to talk, failure states (AC-1, AC-2, AC-8 to AC-11, AC-20)
   - [ ] Prod agent, phone and accessibility pass, notebook page dock (AC-16 to AC-19)
-  - [ ] Round 2, the silent reply (do first): turn settings, "A ver." filler, voice hedge, thinking state, `voice_probe.py`, tentative words event (spec 0007 task 9, AC-21 to AC-26)
+  - [x] Round 2, the silent reply (do first): turn settings, "A ver." filler, voice hedge, thinking state, `voice_probe.py`, tentative words event (spec 0007 task 9, AC-21 to AC-26)
 - [x] Design the mic at center stage (spec): `/architect voice capture round 2`
 - [ ] Build the mic at center stage: `/develop voice mic center stage` (spec 0012, after partial readings)
   - [ ] Stage, states, and the meter (0012 AC-1 to AC-4, AC-9, AC-10, AC-12)

@@ -10,6 +10,7 @@ prints the stored agent's privacy, turn, and tool settings, to confirm the setti
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import cast
@@ -21,7 +22,13 @@ import httpx  # noqa: E402
 
 from app.core.settings import get_settings  # noqa: E402
 from app.voice import elevenlabs  # noqa: E402
-from app.voice.agent_config import Env, build_payload, load_template, secret_name  # noqa: E402
+from app.voice.agent_config import (  # noqa: E402
+    Env,
+    build_payload,
+    load_template,
+    prod_url_problem,
+    secret_name,
+)
 
 
 def _show(agent: dict[str, object]) -> None:
@@ -61,6 +68,10 @@ def main() -> int:
         print(f"Missing in api/.env: {', '.join(missing)}", file=sys.stderr)
         return 1
     api_key = cast(str, settings.elevenlabs_api_key)
+    llm_url = cast(str, settings.voice_llm_url)
+    if problem := prod_url_problem(env, llm_url, os.environ.get("RAILWAY_PUBLIC_DOMAIN")):
+        print(problem, file=sys.stderr)
+        return 1
 
     with httpx.Client(timeout=elevenlabs.TIMEOUT_S) as client:
         # Secrets cannot be updated through the API, so an existing one is reused as is.
@@ -73,7 +84,7 @@ def main() -> int:
             )
             print(f"Created secret {name}")
 
-        payload = build_payload(load_template(), env, cast(str, settings.voice_llm_url), secret_id)
+        payload = build_payload(load_template(), env, llm_url, secret_id)
         agent_id = settings.elevenlabs_agent_id
         existing = elevenlabs.get_agent(client, api_key, agent_id) if agent_id else None
         if agent_id and existing is not None:

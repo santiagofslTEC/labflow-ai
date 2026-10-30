@@ -30,7 +30,7 @@ from app.services.turn_plan import TurnContext
 from app.services.turns import Superseded, handle_utterance
 from app.services.undo_rules import match_undo
 from app.voice import sse
-from app.voice.agent_config import LLM_PATH, build_payload, load_template
+from app.voice.agent_config import LLM_PATH, build_payload, load_template, prod_url_problem
 from app.voice.session import TOKEN_MAX_AGE_S, VoiceClaims, read_voice_token, sign_voice_token
 from app.voice.sessions import (
     TURN_LIMIT,
@@ -95,6 +95,15 @@ def test_payload_fills_url_and_secret_without_touching_the_template() -> None:
     assert payload["name"] == "LabFlow captura (dev)"
     assert "url" not in template["conversation_config"]["agent"]["prompt"]["custom_llm"]  # type: ignore[index]
     assert "built_in_tools" not in payload["conversation_config"]["agent"]["prompt"]  # type: ignore[index]
+
+
+def test_prod_sync_refuses_a_url_that_is_not_railway() -> None:
+    railway = "labflow-ai-production.up.railway.app"
+    assert prod_url_problem("prod", f"https://{railway}", railway) is None
+    assert prod_url_problem("prod", "https://abc.lhr.life", railway) is not None
+    assert prod_url_problem("prod", f"http://{railway}", railway) is not None
+    assert prod_url_problem("prod", f"https://{railway}", None) is not None
+    assert prod_url_problem("dev", "https://abc.lhr.life", None) is None
 
 
 def test_agent_answers_sooner_and_sends_tentative_words() -> None:
