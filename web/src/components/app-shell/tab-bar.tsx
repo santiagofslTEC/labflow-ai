@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -38,10 +39,21 @@ export const currentTab = (pathname: string): string | null => {
 
 // The phone's bottom tab bar (spec 0010, AC-1): replaces the sidebar below
 // 1024px. Its height is --tabbar-height (globals.css), which the content and
-// the dock reserve.
+// the dock reserve. The path is runtime data, so it streams in under Suspense
+// with the bar drawn unmarked meanwhile.
 function TabBar() {
-  const current = currentTab(usePathname());
+  return (
+    <Suspense fallback={<TabBarView current={null} />}>
+      <CurrentTabBar />
+    </Suspense>
+  );
+}
 
+function CurrentTabBar() {
+  return <TabBarView current={currentTab(usePathname())} />;
+}
+
+function TabBarView({ current }: { readonly current: string | null }) {
   return (
     <nav
       aria-label="Principal"

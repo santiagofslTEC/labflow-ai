@@ -3,6 +3,7 @@
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 import { BrandMark } from "./brand-mark";
 
@@ -20,10 +21,21 @@ export const backFor = (pathname: string): Back | null => {
 };
 
 // The phone's top bar: the brand mark, and a back arrow below a notebook. In
-// standalone mode it clears the notch (AC-10).
+// standalone mode it clears the notch (AC-10). The arrow streams in under
+// Suspense, since the path is runtime data.
 function TopBar() {
-  const back = backFor(usePathname());
+  return (
+    <Suspense fallback={<TopBarView back={null} />}>
+      <CurrentTopBar />
+    </Suspense>
+  );
+}
 
+function CurrentTopBar() {
+  return <TopBarView back={backFor(usePathname())} />;
+}
+
+function TopBarView({ back }: { readonly back: Back | null }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-canvas/85 pt-[env(safe-area-inset-top)] backdrop-blur-md lg:hidden">
       <div className="flex h-14 items-center gap-1 px-2">
