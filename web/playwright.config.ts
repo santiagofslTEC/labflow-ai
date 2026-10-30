@@ -32,6 +32,12 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
     // The build needs an API_URL; the browser never reaches it.
-    env: { API_URL: process.env.API_URL ?? "http://localhost:8000" },
+    // Supabase values that are never called: with no session cookie the client
+    // makes no request, and they turn the account forms on (spec 0014).
+    env: {
+      API_URL: process.env.API_URL ?? "http://localhost:8000",
+      NEXT_PUBLIC_SUPABASE_URL: "https://e2e.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_e2e",
+    },
   },
 });

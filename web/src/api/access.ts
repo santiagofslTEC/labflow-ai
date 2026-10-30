@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { components } from "./schema";
 
 export type AccessResult =
   | { readonly ok: true; readonly holder: string }
@@ -19,16 +20,31 @@ export async function submitAccessCode(code: string): Promise<AccessResult> {
   }
 }
 
-export type SessionResult =
-  { readonly ok: true; readonly holder: string } | { readonly ok: false };
+export type Signed = components["schemas"]["AccessGranted"];
 
-// GET /api/access: who is signed in.
+export type SessionResult =
+  | { readonly ok: true; readonly holder: string; readonly who: Signed }
+  | { readonly ok: false };
+
+// GET /api/access: who is signed in, an account or a code (spec 0014, AC-7).
 export async function readSession(): Promise<SessionResult> {
   try {
     const { data } = await api.GET("/api/access");
-    return data ? { ok: true, holder: data.holder } : { ok: false };
+    return data ? { ok: true, holder: data.holder, who: data } : { ok: false };
   } catch {
     return { ok: false };
+  }
+}
+
+export type AccessOptions = components["schemas"]["AccessOptions"];
+
+// GET /api/access/options: which ways in are on, before signing in (AC-9, AC-10).
+export async function readAccessOptions(): Promise<AccessOptions | null> {
+  try {
+    const { data } = await api.GET("/api/access/options");
+    return data ?? null;
+  } catch {
+    return null;
   }
 }
 

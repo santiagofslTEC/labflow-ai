@@ -32,7 +32,8 @@ const RESULTS = {
 
 const answers: Readonly<Record<string, unknown>> = {
   "/api/health": { status: "ok", env: "test" },
-  "/api/access": { holder: "ana" },
+  "/api/access": { holder: "ana", kind: "code", name: "ana" },
+  "/api/access/options": { codes: true, accounts: true },
   "/api/experiments": [
     summary(7, { title: sampleDetail.title, trial_count: 3 }),
     summary(8),
