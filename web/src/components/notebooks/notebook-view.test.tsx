@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
-import { getExperiment } from "@/api/experiments";
+import { experimentKeys, getExperiment, getTrials } from "@/api/experiments";
 import { sampleDetail } from "@/test/experiments";
 import { renderWithQuery } from "@/test/query";
 
@@ -12,6 +12,7 @@ import { NotebookView, parseNotebookId } from "./notebook-view";
 vi.mock("@/api/experiments", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/experiments")>()),
   getExperiment: vi.fn(),
+  getTrials: vi.fn(),
 }));
 
 vi.mock("@/api/capture", async (importOriginal) => ({
@@ -20,9 +21,12 @@ vi.mock("@/api/capture", async (importOriginal) => ({
 }));
 
 const getMock = vi.mocked(getExperiment);
+const trialsMock = vi.mocked(getTrials);
 
 beforeEach(() => {
   getMock.mockReset();
+  trialsMock.mockReset();
+  trialsMock.mockResolvedValue({ ok: true, data: { trials: [], recent: [] } });
 });
 
 describe("parseNotebookId", () => {
@@ -69,9 +73,45 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
     ]);
 
     const trials = screen.getByRole("region", { name: "Ensayos" });
-    expect(within(trials).getByText("Aún no hay ensayos")).toBeInTheDocument();
+    expect(
+      await within(trials).findByText("Aún no hay ensayos"),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Dictar aquí/)).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("refreshes the trials when a save invalidates the notebooks (spec 0007, AC-4)", async () => {
+    getMock.mockResolvedValue({ ok: true, data: sampleDetail });
+    const { client } = renderWithQuery(<NotebookView rawId="7" />);
+    const trials = await screen.findByRole("region", { name: "Ensayos" });
+    await within(trials).findByText("Aún no hay ensayos");
+    expect(trialsMock).toHaveBeenCalledWith(7);
+
+    trialsMock.mockResolvedValue({
+      ok: true,
+      data: {
+        trials: [
+          {
+            id: 1,
+            number: 6,
+            cells: [
+              {
+                variable_id: 1,
+                value: 65,
+                said_text: "65 grados",
+                saved_at: "2026-10-29T12:00:00Z",
+              },
+            ],
+          },
+        ],
+        recent: [],
+      },
+    });
+    await client.invalidateQueries({ queryKey: experimentKeys.all });
+    await waitFor(() =>
+      expect(within(trials).getAllByRole("row")).toHaveLength(2),
+    );
+    expect(within(trials).getAllByRole("row")[1]).toHaveTextContent("665");
   });
 
   it("shows a skeleton title and three variable rows while loading", () => {

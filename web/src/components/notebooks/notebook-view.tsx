@@ -19,12 +19,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useExperiment, useExperiments } from "@/hooks/use-experiments";
+import {
+  useExperiment,
+  useExperiments,
+  useTrials,
+} from "@/hooks/use-experiments";
+import { tableRows } from "@/lib/trials";
 import { useNow } from "@/hooks/use-now";
 import { protocolLabel } from "@/lib/instructions";
 import { formatShortDate } from "@/lib/relative-time";
 
-import { downloadNotebookCsv, NotebookInspector } from "./notebook-inspector";
+import {
+  downloadNotebookCsv,
+  NotebookInspector,
+  type TrialsPanel,
+} from "./notebook-inspector";
 
 // A route segment that can name a notebook; anything else is "no existe"
 // without asking the API (AC-11).
@@ -86,6 +95,13 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const trialCount = useExperiments().data?.find(
     (notebook) => notebook.id === experiment.id,
   )?.trial_count;
+  const trialsQuery = useTrials(experiment.id);
+  const trials: TrialsPanel = trialsQuery.data
+    ? { kind: "ready", view: trialsQuery.data }
+    : trialsQuery.isError
+      ? { kind: "error", onRetry: () => void trialsQuery.refetch() }
+      : { kind: "loading" };
+  const ready = trials.kind === "ready";
 
   return (
     <div className="flex flex-1 flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:gap-0">
@@ -98,7 +114,17 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
               <>
                 <Button
                   variant="secondary"
-                  onClick={() => downloadNotebookCsv(experiment)}
+                  aria-disabled={!ready || undefined}
+                  onClick={() => {
+                    if (trialsQuery.data)
+                      downloadNotebookCsv(
+                        experiment,
+                        tableRows(
+                          experiment.variables,
+                          trialsQuery.data.trials,
+                        ),
+                      );
+                  }}
                 >
                   <DownloadIcon aria-hidden />
                   Exportar datos
@@ -183,7 +209,11 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
         )}
       </div>
 
-      <NotebookInspector experiment={experiment} trialCount={trialCount} />
+      <NotebookInspector
+        experiment={experiment}
+        trialCount={trialCount}
+        trials={trials}
+      />
     </div>
   );
 }
