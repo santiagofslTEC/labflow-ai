@@ -24,6 +24,7 @@ Setup you may want first: `make seed`, `make dev`, sign in at `/access`, then op
 - [ ] Type "ensayo 20 temperatura 23 a 71 grados pH 7" → a card for Ensayo 20 with pH 7 and "Dijiste 23 y 71 grados para Temperatura. ¿Cuál guardo?"; type "71" → Temperatura 71 °C on the same card (live model; repeat 3 times) → AC-34
 - [ ] Type "5" with nothing pending in a notebook of 3 variables → "¿Es Temperatura, pH o Rendimiento?" → AC-33
 - [ ] When LabFlow asks "¿Es Temperatura?" after "ensayo 20 …", type "71" → a card for Ensayo 20 with 71 °C, not the same question again → AC-35
+- [ ] With nothing pending, type "el 5" → "¿Es Temperatura, pH o Rendimiento?" and no card; type "6: temperatura 65 grados" → a card for Ensayo 6 with 65 °C and no question about the 6 → AC-36
 - [ ] On a notebook with a unitless variable, type "65 grados" → 65 with "65 grados" on the said side, no flag → AC-26
 - [ ] Type "¿Cuál fue el mejor rendimiento?" → "Por ahora solo registro mediciones. Pronto podré responder preguntas y graficar." → AC-12
 - [ ] Type 501 characters → the field stops at 500 → AC-16, AC-18
@@ -59,5 +60,5 @@ Setup you may want first: `make seed`, `make dev`, sign in at `/access`, then op
 - AC-18, AC-22, AC-23 · UI steps and `web/src/components/{proposal-card,capture-stage}`
 - AC-20 · `handle_utterance` takes `source` (feature 8 passes `voice`)
 - AC-21, AC-24 · Value sourcing steps and `tests/test_proposals_checks.py`
-- AC-33, AC-35 · UI steps (error pass) and `tests/test_turn_plan.py`, `tests/test_capture_api.py`
+- AC-33, AC-35, AC-36 · UI steps (error pass) and `tests/test_turn_plan.py`, `tests/test_capture_api.py`
 - AC-34 · UI step "ensayo 20 temperatura 23 a 71 grados pH 7" on the live model, and `tests/test_turn_plan.py` (the prompt rule and the plan for both values)
