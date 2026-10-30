@@ -5,6 +5,7 @@ import { MotionProvider } from "@/components/app-shell/motion-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
+import { THEME_COLORS } from "./manifest";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,13 +20,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LabFlow AI",
   description: "Cuaderno de laboratorio por voz",
+  // Add to Home Screen on iOS opens it standalone with its own icon (spec 0010, AC-10).
+  appleWebApp: { capable: true, title: "LabFlow", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
-// `cover` lets the fixed dock pad itself by env(safe-area-inset-bottom).
+// `cover` lets the fixed dock and the tab bar pad themselves by the safe areas.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: [...THEME_COLORS],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

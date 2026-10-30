@@ -60,7 +60,7 @@ LabFlow is used at the bench, and the bench has a phone, not a laptop. The web a
 - `components/notebooks/variables-dialog.tsx`, `trials-table` (AC-4, AC-5), `components/results/*` (AC-6), `notebook-form.tsx` and `variable-rows.tsx` (AC-7): responsive classes, no second component.
 - `components/ui/input.tsx`, `textarea.tsx`, `select.tsx`: `text-base lg:text-[0.9375rem]` (AC-8).
 - `hooks/use-wake-lock.ts` (AC-9), used by `components/voice/voice-conversation.tsx`.
-- `public/icons/*`, `public/brand/icon.svg`, `app/layout.tsx` metadata (AC-10); `scripts/icons.mjs` renders the PNGs from the SVG with `sharp` (already in the lockfile, as a Next.js dependency), and the PNGs are committed.
+- `public/icons/*`, `public/brand/icon.svg`, `app/layout.tsx` metadata (AC-10); `scripts/icons.mjs` (`pnpm icons`) renders the PNGs from the SVG and the brand tokens with `sharp` (a dev dependency, already in the lockfile through Next.js), and the PNGs are committed.
 - `web/e2e/` with `playwright.config.ts`, the stubs, and the specs (AC-13); `@playwright/test` as a dev dependency; `pnpm test:e2e`.
 
 **Key invariants**: each slot mounts once whatever the width; the desktop DOM order and look do not change; no raw colors (the tab bar and sheets use tokens); every feature reachable on desktop is reachable on the phone.
