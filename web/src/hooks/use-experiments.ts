@@ -7,6 +7,7 @@ import {
   createWithInstructions,
   experimentKeys,
   getExperiment,
+  getTrials,
   listExperiments,
   readInstructions,
   type ApiFailure,
@@ -47,6 +48,15 @@ export function useExperiments() {
   return useQuery({
     queryKey: experimentKeys.all,
     queryFn: () => unwrap(listExperiments()),
+    retry: retryOnce,
+  });
+}
+
+// A notebook's saved trials for the side panel (spec 0007, AC-4).
+export function useTrials(id: number) {
+  return useQuery({
+    queryKey: experimentKeys.trials(id),
+    queryFn: () => unwrap(getTrials(id)),
     retry: retryOnce,
   });
 }

@@ -81,6 +81,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/{experiment_id}/trials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Trials
+         * @description The saved trials by number and the 5 newest measurements (spec 0007, AC-1).
+         */
+        get: operations["read_trials_api_experiments__experiment_id__trials_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/experiments/instructions/read": {
         parameters: {
             query?: never;
@@ -576,6 +596,20 @@ export interface components {
          * @enum {string}
          */
         Reason: "ready" | "missing_values" | "missing_trial" | "choose_trial" | "pending_other_trial" | "ambiguous_variable" | "two_values" | "unknown_unit" | "unclear_number" | "check_values" | "saved" | "auto_saved" | "discarded" | "no_pending" | "not_supported_yet" | "off_topic" | "session_limit" | "undone" | "nothing_to_undo";
+        /** RecentMeasurement */
+        RecentMeasurement: {
+            /** Trial Number */
+            trial_number: number;
+            /** Variable Id */
+            variable_id: number;
+            /** Value */
+            value: number;
+            /**
+             * Saved At
+             * Format: date-time
+             */
+            saved_at: string;
+        };
         /** Reply */
         Reply: {
             reason: components["schemas"]["Reason"];
@@ -622,6 +656,24 @@ export interface components {
          * @enum {string}
          */
         Source: "voice" | "text";
+        /**
+         * TrialCell
+         * @description One saved value of a trial (spec 0007, AC-1). `saved_at` is the last edit, else the
+         *     first confirm.
+         */
+        TrialCell: {
+            /** Variable Id */
+            variable_id: number;
+            /** Value */
+            value: number;
+            /** Said Text */
+            said_text: string | null;
+            /**
+             * Saved At
+             * Format: date-time
+             */
+            saved_at: string;
+        };
         /** TrialChoiceIn */
         TrialChoiceIn: {
             /**
@@ -631,6 +683,25 @@ export interface components {
             kind: "correction" | "new";
             /** Trial Number */
             trial_number?: number | null;
+        };
+        /** TrialRow */
+        TrialRow: {
+            /** Id */
+            id: number;
+            /** Number */
+            number: number;
+            /** Cells */
+            cells: components["schemas"]["TrialCell"][];
+        };
+        /**
+         * TrialsView
+         * @description A notebook's saved trials by number, and its 5 newest measurements (spec 0007).
+         */
+        TrialsView: {
+            /** Trials */
+            trials: components["schemas"]["TrialRow"][];
+            /** Recent */
+            recent: components["schemas"]["RecentMeasurement"][];
         };
         /** TurnResponse */
         TurnResponse: {
@@ -936,6 +1007,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description No valid access session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description No notebook with this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+            /** @description The id is not an integer */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorBody"];
+                };
+            };
+        };
+    };
+    read_trials_api_experiments__experiment_id__trials_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrialsView"];
                 };
             };
             /** @description No valid access session */

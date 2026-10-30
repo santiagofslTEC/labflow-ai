@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import pytest
 
+from app.ai.prompt import system_prompt
 from app.ai.tools import (
     Confirmar,
     Corregir,
@@ -342,6 +343,85 @@ def test_si_skips_numbers_already_placed_from_that_sentence() -> None:
 def test_other_answers_go_to_the_model(question: LastQuestion, answer: str) -> None:
     plan = plan_turn(after(question, card6()), Confirmar(), answer)
     assert all(not isinstance(op, SetValue) for op in plan.operations)
+
+
+# --- AC-33 to AC-35: error pass, 2026-10-30 ---
+
+
+def test_the_which_variable_question_offers_its_choices_with_o() -> None:
+    names = ["Temperatura", "pH", "Rendimiento"]
+    assert reply_text(Reason.AMBIGUOUS_VARIABLE, names) == (
+        "No sé a qué variable va ese valor. ¿Es Temperatura, pH o Rendimiento?"
+    )
+    assert reply_text(Reason.AMBIGUOUS_VARIABLE, names[:2]).endswith("¿Es Temperatura o pH?")
+    assert reply_text(Reason.AMBIGUOUS_VARIABLE, names[:1]).endswith("¿Es Temperatura?")
+    assert (
+        reply_text(Reason.MISSING_VALUES, names[1:]) == "Me falta pH y Rendimiento. ¿Cuánto fueron?"
+    )
+
+
+def test_a_range_for_one_variable_keeps_the_rest_of_the_sentence() -> None:
+    """What the prompt now asks the model for (AC-34): both values, plus the others."""
+    sentence = "ensayo 20 temperatura 23 a 71 grados duración 30"
+    call = ProponerMedicion(
+        trial_number=20,
+        values=[ev(TEMP, "23", 23), ev(TEMP, "71", 71, "grados"), ev(DUR, "30", 30)],
+    )
+    plan = plan_turn(ctx(), call, sentence)
+    assert plan.operations == (StartProposal(20), SetValue(DUR, 30.0, "30", Grounding.MODEL))
+    assert plan.reason == Reason.TWO_VALUES and plan.variable_ids == (TEMP,)
+    assert plan.said == ("23", "71 grados")
+
+
+def test_the_prompt_asks_for_both_values_of_a_range() -> None:
+    prompt = system_prompt(ctx())
+    assert '"temperatura 23 a 71 grados"' in prompt
+    assert "No uses `pedir_aclaracion` por eso" in prompt
+
+
+@pytest.mark.parametrize("answer", ["71", "71 grados", "el 71"])
+def test_a_bare_number_answers_a_one_variable_question(answer: str) -> None:
+    context = after(asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 6, reflujo 23 a 71", TEMP), card6())
+    plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), answer)
+    assert plan.operations == (SetValue(TEMP, 71.0, answer.removeprefix("el "), Grounding.MODEL),)
+
+
+def test_with_no_card_the_answer_starts_the_asked_trial() -> None:
+    """Not the remembered trial (AC-31): the student was dictating ensayo 20."""
+    remembered = RememberedTrial(trial_id=33, number=3, filled=frozenset({TEMP}))
+    context = replace(
+        after(asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 20 temperatura 23 a 71", TEMP)),
+        remembered=remembered,
+    )
+    plan = plan_turn(context, PedirAclaracion(reason="ambiguous_variable"), "71")
+    assert plan.operations == (StartProposal(20), SetValue(TEMP, 71.0, "71", Grounding.MODEL))
+    yes = plan_turn(
+        replace(
+            context, last_question=asked(Reason.AMBIGUOUS_VARIABLE, "ensayo 20, reflujo 71", TEMP)
+        ),
+        Confirmar(),
+        "sí",
+    )
+    assert yes.operations == (
+        StartProposal(20),
+        SetValue(TEMP, 71.0, "71", Grounding.MODEL, turn_id=40),
+    )
+
+
+@pytest.mark.parametrize(
+    ("question", "answer"),
+    [
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71", TEMP, DUR), "71"),  # two candidates
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71", TEMP), "71 y 72"),
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71", TEMP), "rendimiento 71"),
+        (asked(Reason.AMBIGUOUS_VARIABLE, "reflujo 71", TEMP), "ensayo 7"),
+    ],
+)
+def test_other_numbers_after_a_which_variable_question_go_to_the_model(
+    question: LastQuestion, answer: str
+) -> None:
+    plan = plan_turn(after(question, card6()), PedirAclaracion(reason="ambiguous_variable"), answer)
+    assert plan.operations == () and plan.reason == Reason.AMBIGUOUS_VARIABLE
 
 
 def test_one_number_for_two_variables_drops_both() -> None:

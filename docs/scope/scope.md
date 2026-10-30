@@ -19,7 +19,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 4 | Design system & UI foundation | Foundation | done |
 | 5 | Experiments: create and list | Release 1 | in-progress |
 | 6 | Text capture and confirm card | Release 1 | in-progress |
-| 7 | Trials table | Release 1 | planned |
+| 7 | Trials table | Release 1 | in-progress |
 | 8 | Voice capture | Release 2 | in-progress |
 | 9 | Chart: X against Y | Release 3 | planned |
 | 10 | Questions about the data | Release 3 | planned |
@@ -28,7 +28,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 13 | Spoken replies | Later | planned |
 | 14 | Edit and delete saved trials | Later | planned |
 | 15 | Pending measurements check | Later | planned |
-| 16 | CSV export | Later | planned |
+| 16 | CSV export | Later | in-progress |
 | 17 | Protocol PDF questions | Later | planned |
 | 18 | Draft report | Later | planned |
 | 19 | Access code gate | Foundation | done |
@@ -114,9 +114,10 @@ spec [0006](../specs/0006-text-capture-confirm-card/index.md) · code in `api/ap
 - [ ] Verify it: `/check verify text capture and confirm card`
 - [ ] Test it: `/test text capture and confirm card`
 
-### 7. Trials table
+### 7. Trials table · in-progress · from spec 0007
 The table of confirmed trials in the workspace (P3), updating the moment you confirm. RF-09.
 **Done when:** the table matches exactly what is saved, and refreshes right after each confirmation.
+spec [0007](../specs/0007-trials-table/index.md) · code in `api/app/repositories/trials.py`, `web/src/components/notebooks/notebook-inspector.tsx`, `web/src/lib/trials.ts`
 - [ ] Build it: `/develop trials table`
 
 ### 20. Push to talk main page · in-progress · from spec 0004
@@ -186,9 +187,10 @@ When you say "terminar", list trials with required variables still empty. RF-13.
 **Done when:** finishing an experiment with gaps lists each trial and missing variable before closing.
 - [ ] Build it: `/develop pending measurements check`
 
-### 16. CSV export
+### 16. CSV export · in-progress · from spec 0007
 Download the trials table as a CSV. RF-15.
 **Done when:** the file opens in Excel with the same rows and columns as the table.
+spec [0007](../specs/0007-trials-table/index.md) · code in `web/src/lib/trials.ts`, `web/src/lib/csv.ts`
 - [ ] Build it: `/develop csv export`
 
 ### 17. Protocol PDF questions · needs a decision
