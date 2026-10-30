@@ -1,7 +1,7 @@
 # 0011. Partial readings: save what was said, one or two values at a time
 
 **Date**: 2026-10-30
-**Status**: Proposed
+**Status**: In Progress
 
 Supersedes, in spec 0006: AC-5 (missing values asked), AC-7 (repeated trial asks "corregir o es otro") for sentences, the `pending_other_trial` part of AC-8 when the new reading is clean, AC-17's list of state reasons (AC-15 here), AC-25 and AC-35 where they say the card then asks for what is still missing, AC-27's clean rule, and AC-29's undo when a card is pending. Supersedes, in spec 0007: the "every required value present" part of AC-5, the `missing_values` and `choose_trial` questions in AC-6, and the undo rules of AC-7 and AC-14 (AC-10 and AC-13 here). Everything else in 0006 and 0007 stays in force. The `ElegirEnsayo` tool and `POST /api/proposals/{id}/trial` stay only for cards created before this change.
 
