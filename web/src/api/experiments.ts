@@ -12,6 +12,9 @@ import type { components } from "./schema";
 export type ExperimentSummary = components["schemas"]["ExperimentSummary"];
 export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
 export type TrialsView = components["schemas"]["TrialsView"];
+export type ResultsView = components["schemas"]["ResultsView"];
+export type VariableIn = components["schemas"]["VariableIn"];
+export type VariablesDeleted = components["schemas"]["VariablesDeleted"];
 export type VariableDetail = components["schemas"]["VariableDetail"];
 export type NewExperiment = components["schemas"]["NewExperiment"];
 export type InstructionsRead = components["schemas"]["InstructionsRead"];
@@ -23,6 +26,7 @@ export const experimentKeys = {
   detail: (id: number) => ["experiments", id] as const,
   // Under `all`, so the save invalidation refreshes it (spec 0007, AC-4).
   trials: (id: number) => ["experiments", id, "trials"] as const,
+  results: (id: number) => ["experiments", id, "results"] as const,
 };
 
 // What went wrong, in the terms the screens care about. `invalid` carries the
@@ -54,6 +58,7 @@ const toResult = <T>({ data, error, response }: Answer<T>): ApiResult<T> => {
       return { ok: false, error: { kind: "unauthorized" } };
     case 404:
       return { ok: false, error: { kind: "not_found" } };
+    case 409:
     case 413:
     case 422:
       return {
@@ -99,6 +104,48 @@ export const getExperiment = (
 export const getTrials = (id: number): Promise<ApiResult<TrialsView>> =>
   settle(() =>
     api.GET("/api/experiments/{experiment_id}/trials", {
+      params: { path: { experiment_id: id } },
+    }),
+  );
+
+// Review variables after the notebook exists (spec 0008).
+export const addVariable = (
+  experimentId: number,
+  body: VariableIn,
+): Promise<ApiResult<VariableDetail>> =>
+  settle(() =>
+    api.POST("/api/experiments/{experiment_id}/variables", {
+      params: { path: { experiment_id: experimentId } },
+      body,
+    }),
+  );
+
+export const updateVariable = (
+  variableId: number,
+  body: VariableIn,
+): Promise<ApiResult<VariableDetail>> =>
+  settle(() =>
+    api.PUT("/api/variables/{variable_id}", {
+      params: { path: { variable_id: variableId } },
+      body,
+    }),
+  );
+
+export const deleteVariables = (
+  experimentId: number,
+  variableIds: readonly number[],
+): Promise<ApiResult<VariablesDeleted>> =>
+  settle(() =>
+    api.POST("/api/experiments/{experiment_id}/variables/delete", {
+      params: { path: { experiment_id: experimentId } },
+      body: { variable_ids: [...variableIds] },
+    }),
+  );
+
+// Count, min, max, and mean per variable, worked out by the API (spec 0009).
+export const getResults = (id: number): Promise<ApiResult<ResultsView>> =>
+  settle(() =>
+    api.GET("/api/experiments/{experiment_id}/results", {
       params: { path: { experiment_id: id } },
     }),
   );

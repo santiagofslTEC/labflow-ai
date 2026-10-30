@@ -19,6 +19,7 @@ export const sampleDetail: ExperimentDetail = {
       max_value: 100,
       required: true,
       position: 0,
+      aliases: ["temp"],
     },
     {
       id: 2,
@@ -28,6 +29,7 @@ export const sampleDetail: ExperimentDetail = {
       max_value: null,
       required: true,
       position: 1,
+      aliases: [],
     },
     {
       id: 3,
@@ -37,6 +39,7 @@ export const sampleDetail: ExperimentDetail = {
       max_value: null,
       required: false,
       position: 2,
+      aliases: [],
     },
   ],
 };

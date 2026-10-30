@@ -339,6 +339,69 @@
         }
       }
     },
+    "/api/experiments/{experiment_id}/results": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Read Results",
+        "description": "Count, min, max, and mean per variable, with the trials at each extreme (spec 0009).",
+        "operationId": "read_results_api_experiments__experiment_id__results_get",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultsView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No notebook with this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The id is not an integer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experiments/instructions/read": {
       "post": {
         "tags": [
@@ -1237,6 +1300,255 @@
           }
         }
       }
+    },
+    "/api/experiments/{experiment_id}/variables": {
+      "post": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "Add Variable",
+        "description": "A new variable, last in the notebook (AC-2).",
+        "operationId": "add_variable_api_experiments__experiment_id__variables_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariableDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "experiment_not_found or variable_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "experiment_closed, variables_full, unit_locked, or last_variable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/variables/{variable_id}": {
+      "put": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "Update Variable",
+        "description": "A full replacement; the unit locks once a value is saved (AC-3).",
+        "operationId": "update_variable_api_variables__variable_id__put",
+        "parameters": [
+          {
+            "name": "variable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Variable Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariableDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "experiment_not_found or variable_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "experiment_closed, variables_full, unit_locked, or last_variable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/experiments/{experiment_id}/variables/delete": {
+      "post": {
+        "tags": [
+          "variables"
+        ],
+        "summary": "Delete Variables",
+        "description": "The variables, their saved values, and the trials left empty (AC-6).",
+        "operationId": "delete_variables_api_experiments__experiment_id__variables_delete_post",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteVariablesIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariablesDeleted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "experiment_not_found or variable_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "experiment_closed, variables_full, unit_locked, or last_variable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1399,6 +1711,25 @@
         },
         "type": "object",
         "title": "Body_read_instructions_api_experiments_instructions_read_post"
+      },
+      "DeleteVariablesIn": {
+        "properties": {
+          "variable_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Variable Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variable_ids"
+        ],
+        "title": "DeleteVariablesIn"
       },
       "ExperimentDetail": {
         "properties": {
@@ -2095,6 +2426,22 @@
         ],
         "title": "Reply"
       },
+      "ResultsView": {
+        "properties": {
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableSummary"
+            },
+            "type": "array",
+            "title": "Variables"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variables"
+        ],
+        "title": "ResultsView"
+      },
       "SavedTrial": {
         "properties": {
           "trial_id": {
@@ -2549,6 +2896,14 @@
           "position": {
             "type": "integer",
             "title": "Position"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases",
+            "default": []
           }
         },
         "type": "object",
@@ -2562,6 +2917,165 @@
           "position"
         ],
         "title": "VariableDetail"
+      },
+      "VariableIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "VariableIn",
+        "description": "One variable added or edited after the notebook exists (spec 0008, AC-2 to AC-4): the\ncreate fields plus `aliases`, the other names the capture prompt lists."
+      },
+      "VariableSummary": {
+        "properties": {
+          "variable_id": {
+            "type": "integer",
+            "title": "Variable Id"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "min_trials": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Min Trials"
+          },
+          "max_trials": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Max Trials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variable_id",
+          "count",
+          "min",
+          "max",
+          "mean",
+          "min_trials",
+          "max_trials"
+        ],
+        "title": "VariableSummary",
+        "description": "One variable's saved values, worked out with SQL (spec 0009, AC-7). The trial lists\nname every trial holding the extreme, ascending; empty when there are no values."
+      },
+      "VariablesDeleted": {
+        "properties": {
+          "variables": {
+            "type": "integer",
+            "title": "Variables"
+          },
+          "measurements": {
+            "type": "integer",
+            "title": "Measurements"
+          },
+          "trials": {
+            "type": "integer",
+            "title": "Trials"
+          }
+        },
+        "type": "object",
+        "required": [
+          "variables",
+          "measurements",
+          "trials"
+        ],
+        "title": "VariablesDeleted",
+        "description": "What a delete removed (spec 0008, AC-6)."
       },
       "VoiceSession": {
         "properties": {
