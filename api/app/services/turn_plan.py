@@ -230,6 +230,23 @@ def _said_trial_number(trial_number: int | None, utterance: str) -> int | None:
     return trial_number if said else None
 
 
+def _placed_trial(
+    trial_number: int | None, utterance: str, values: tuple[SetValue, ...], used: frozenset[int]
+) -> tuple[int | None, frozenset[int]]:
+    """One number is the trial or a value, never both (AC-36). A trial number with no trial
+    word before it is kept only beside an accepted value, and then its number counts as placed;
+    alone it is ignored, so a lone number still asks which variable."""
+    said = _said_trial_number(trial_number, utterance)
+    if said is None:
+        return None, used
+    spans = [s for s in find_numbers(utterance) if s.value == said and s.start not in used]
+    if not spans or any(s.is_trial for s in spans):
+        return said, used
+    if not values:
+        return None, used
+    return said, used | {spans[0].start}
+
+
 def _measurement_ops(
     context: TurnContext, trial_number: int | None, values: tuple[SetValue, ...]
 ) -> tuple[tuple[Operation, ...], Reason | None]:
@@ -421,17 +438,21 @@ def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
     match call:
         case ProponerMedicion() | Corregir():
             checked = _check_values(call.values, variables, utterance)
+            used = checked.used
             if isinstance(call, Corregir) and card is not None:
                 trial_number = None
             else:
-                trial_number = _said_trial_number(
-                    call.trial_number if isinstance(call, ProponerMedicion) else None, utterance
+                trial_number, used = _placed_trial(
+                    call.trial_number if isinstance(call, ProponerMedicion) else None,
+                    utterance,
+                    checked.accepted,
+                    used,
                 )
             ops, other = _measurement_ops(context, trial_number, checked.accepted)
             if other is not None:
                 return TurnPlan((), other)
             reason, ids = checked.reason, checked.variable_ids
-            if reason is None and _unplaced_number(utterance, checked.used):
+            if reason is None and _unplaced_number(utterance, used):
                 reason, ids = Reason.AMBIGUOUS_VARIABLE, _open_variables(context)
             if not ops and reason is None and card is None:
                 return TurnPlan((), Reason.OFF_TOPIC)

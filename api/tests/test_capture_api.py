@@ -515,6 +515,14 @@ def test_the_which_variable_question_says_o(
     assert text.endswith("¿Es Temperatura, Duración o Rendimiento?")
 
 
+def test_a_lone_number_opens_no_card(authed: TestClient, nb: Notebook, script: list[Any]) -> None:
+    """The second error pass (AC-36): "el 5" opened an empty card for ensayo 5."""
+    script += [ProponerMedicion(trial_number=5)]
+    body = say(authed, nb, "el 5")
+    assert body["proposal"] is None and body["reply"]["reason"] == "ambiguous_variable"
+    assert authed.get(f"/api/experiments/{nb.experiment_id}/proposal").json() is None
+
+
 def test_si_after_a_question_with_several_candidates_does_not_guess(
     authed: TestClient, nb: Notebook, script: list[Any]
 ) -> None:
