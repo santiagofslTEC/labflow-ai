@@ -95,7 +95,7 @@ function ResultsPage({
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-2 border-b border-line pb-6">
-        <nav aria-label="Ruta" className="flex items-center text-sm">
+        <nav aria-label="Ruta" className="hidden items-center text-sm lg:flex">
           <Link
             href={`/cuadernos/${experiment.id}`}
             className="-ml-2 inline-flex h-9 items-center gap-1 rounded-control px-2 text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"

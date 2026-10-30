@@ -72,7 +72,10 @@ function NotebookView({ rawId }: { readonly rawId: string }) {
 
 function BackLink() {
   return (
-    <nav aria-label="Ruta" className="flex items-center gap-1 text-sm">
+    <nav
+      aria-label="Ruta"
+      className="hidden items-center gap-1 text-sm lg:flex"
+    >
       <Link
         href="/cuadernos"
         className="-ml-2 inline-flex h-9 items-center rounded-control px-2 text-ink-muted focus-ring transition-colors hover:bg-sunken hover:text-ink"
