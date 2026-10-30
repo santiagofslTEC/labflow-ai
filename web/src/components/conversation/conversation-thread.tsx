@@ -104,7 +104,9 @@ function ConversationThread({
           </ol>
         </div>
       ))}
-      <div ref={end} />
+      {/* The scroll margin keeps the newest line clear of the text field
+          that sticks over the bottom of the chat box. */}
+      <div ref={end} className="scroll-mb-28" />
     </section>
   );
 }

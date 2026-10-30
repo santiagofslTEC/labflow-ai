@@ -2,6 +2,7 @@
 
 import {
   ChartColumnIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
   CloudOffIcon,
   DownloadIcon,
@@ -130,12 +131,13 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
   const [vista, setVista] = useVista();
   const pending = Boolean(usePendingProposal(experiment.id).data);
   const resultsHref = `/cuadernos/${experiment.id}/resultados`;
-  // The goal, the context, and who made it: under the title on desktop, in
-  // the Más sheet on the phone (two copies, so each takes its heading id).
+  // The goal, the context, and who made it: behind "Ver contexto del
+  // proyecto" on desktop, so the conversation gets the room; in the Más sheet
+  // on the phone (two copies, so each takes its heading id).
   const details = (headingId: string) => (
     <div className="flex flex-col gap-3">
       {experiment.goal ? (
-        <p className="text-base whitespace-pre-line text-ink lg:line-clamp-2">
+        <p className="text-base whitespace-pre-line text-ink">
           {experiment.goal}
         </p>
       ) : null}
@@ -147,7 +149,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
           <h2 id={headingId} className="text-xs text-ink-muted">
             Contexto
           </h2>
-          <p className="text-sm whitespace-pre-line text-ink lg:line-clamp-1">
+          <p className="text-sm whitespace-pre-line text-ink">
             {experiment.context}
           </p>
         </section>
@@ -174,7 +176,7 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
       data-vista={vista}
       className="group/nb flex flex-1 flex-col gap-6 lg:grid lg:h-[calc(100svh-5rem-2px)] lg:min-h-0 lg:flex-none lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:grid-rows-[minmax(0,1fr)] lg:gap-0"
     >
-      <div className="flex min-w-0 flex-col gap-6 lg:min-h-0 lg:gap-0 lg:pr-6">
+      <div className="flex min-w-0 flex-col gap-6 lg:min-h-0 lg:gap-0 lg:overflow-hidden lg:pr-6">
         <div className="flex shrink-0 flex-col gap-2 border-b border-line pb-4">
           <BackLink />
           <PageHeader
@@ -200,7 +202,25 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
                 </Button>
               </>
             }
-            description={details("contexto-titulo")}
+            description={
+              <details className="group/ctx">
+                <summary className="-ml-2 inline-flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-control px-2 text-sm text-ink-muted focus-ring transition-colors select-none hover:bg-sunken hover:text-ink [&::-webkit-details-marker]:hidden">
+                  <span className="group-open/ctx:hidden">
+                    Ver contexto del proyecto
+                  </span>
+                  <span className="hidden group-open/ctx:inline">
+                    Ocultar contexto
+                  </span>
+                  <ChevronDownIcon
+                    aria-hidden
+                    className="size-4 transition-transform group-open/ctx:rotate-180"
+                  />
+                </summary>
+                <div className="mt-2 max-h-48 overflow-y-auto pr-2">
+                  {details("contexto-titulo")}
+                </div>
+              </details>
+            }
           />
           {/* The phone's compact header (spec 0010, AC-2): the badge, and Más
               for the goal, the context, and the two header actions. */}
@@ -263,32 +283,35 @@ function Notebook({ experiment }: { readonly experiment: ExperimentDetail }) {
           >
             {/* The mic centered on top (2026-10-30 restructure), kept in view
                 while the thread scrolls under it. */}
-            <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur-md lg:static lg:mx-0 lg:mt-4 lg:shrink-0 lg:rounded-[20px] lg:border lg:border-tint-green-line/60 lg:bg-tint-green-soft lg:px-4 lg:py-5">
+            <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur-md lg:static lg:mx-0 lg:mt-3 lg:shrink-0 lg:rounded-[20px] lg:border lg:border-tint-green-line/60 lg:bg-tint-green-soft lg:px-4 lg:py-3">
               <VoiceConversation
                 experimentId={experiment.id}
                 variant="stage"
                 fallbackInputId="capture-text"
               />
             </div>
-            {/* On desktop only the thread scrolls; the header, the mic, the
-                text field, and the side panel stay put. */}
-            <div className="lg:-mr-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-4">
+            {/* The chat: the thread, then the card under review, inside one
+                scroll box, so a tall card scrolls with the thread instead of
+                pushing past the window. The text field sticks to its bottom.
+                On desktop only this box scrolls; the header, the mic, and the
+                side panel stay put. */}
+            <div className="flex flex-1 flex-col gap-4 lg:-mr-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-4">
               <ConversationThread experimentId={experiment.id} />
+              <CaptureStage
+                experimentId={experiment.id}
+                layout="chat"
+                onSaved={() =>
+                  void queryClient.invalidateQueries({
+                    queryKey: experimentKeys.all,
+                  })
+                }
+                onUndone={() =>
+                  void queryClient.invalidateQueries({
+                    queryKey: experimentKeys.all,
+                  })
+                }
+              />
             </div>
-            <CaptureStage
-              experimentId={experiment.id}
-              layout="chat"
-              onSaved={() =>
-                void queryClient.invalidateQueries({
-                  queryKey: experimentKeys.all,
-                })
-              }
-              onUndone={() =>
-                void queryClient.invalidateQueries({
-                  queryKey: experimentKeys.all,
-                })
-              }
-            />
           </section>
         )}
       </div>

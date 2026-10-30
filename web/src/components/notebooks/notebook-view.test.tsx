@@ -226,6 +226,23 @@ describe("NotebookView instructions (spec 0005, AC-31)", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("keeps the goal and context behind Ver contexto del proyecto", async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      data: { ...sampleDetail, context: "Se mide a 3 temperaturas." },
+    });
+    renderWithQuery(<NotebookView rawId="7" />);
+    const toggle = (await screen.findByText("Ver contexto del proyecto"))
+      .parentElement;
+    const disclosure = toggle?.parentElement;
+    expect(toggle?.tagName).toBe("SUMMARY");
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent("Se mide a 3 temperaturas.");
+    expect(disclosure).toHaveTextContent(sampleDetail.goal ?? "");
+    await userEvent.click(screen.getByText("Ver contexto del proyecto"));
+    expect(disclosure).toHaveAttribute("open");
+  });
+
   it("shows neither for a notebook made by hand", async () => {
     getMock.mockResolvedValue({ ok: true, data: sampleDetail });
     renderWithQuery(<NotebookView rawId="7" />);
