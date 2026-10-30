@@ -1244,7 +1244,7 @@
             }
           },
           "422": {
-            "description": "invalid_request, duplicate_variable_name, or invalid_range",
+            "description": "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
             "content": {
               "application/json": {
                 "schema": {
@@ -1327,7 +1327,7 @@
             }
           },
           "422": {
-            "description": "invalid_request, duplicate_variable_name, or invalid_range",
+            "description": "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
             "content": {
               "application/json": {
                 "schema": {
@@ -1410,7 +1410,7 @@
             }
           },
           "422": {
-            "description": "invalid_request, duplicate_variable_name, or invalid_range",
+            "description": "invalid_request, duplicate_variable_name, name_in_use, or invalid_range",
             "content": {
               "application/json": {
                 "schema": {

@@ -93,6 +93,44 @@ def test_edit_replaces_every_field_and_keeps_the_rules(
     assert put(authed, nb.dur, variable("Duración", "min")).status_code == 200  # own name
 
 
+# --- AC-10: names and other names are one set (error pass, 2026-10-30) ---
+
+
+def test_an_other_name_cannot_be_another_variables_name_or_other_name(
+    authed: TestClient, session: Session
+) -> None:
+    nb = make_notebook(session)
+    assert put(authed, nb.temp, variable("Temperatura", "°C", aliases=["temp"])).status_code == 200
+    cases = [
+        (
+            variable("Presión", aliases=[" rendimiento "]),
+            "«rendimiento» ya es el nombre de otra variable.",
+        ),
+        (
+            variable("Presión", aliases=["p", "TEMP"]),
+            "«TEMP» ya es otro nombre de Temperatura.",
+        ),
+        (variable("Temp"), "«Temp» ya es otro nombre de Temperatura."),
+    ]
+    for body, message in cases:
+        answer = add(authed, nb, body)
+        assert answer.status_code == 422
+        assert answer.json() == {"code": "name_in_use", "message": message}
+    edited = put(authed, nb.dur, variable("Duración", "min", aliases=["Temperatura"]))
+    assert edited.json()["code"] == "name_in_use"
+    assert names(authed, nb) == ["Temperatura", "Duración", "Rendimiento"]
+
+
+def test_a_variable_keeps_its_own_other_names_and_drops_its_name(
+    authed: TestClient, session: Session
+) -> None:
+    nb = make_notebook(session)
+    first = put(authed, nb.temp, variable("Temperatura", "°C", aliases=["temp", "TEMPERATURA"]))
+    assert first.status_code == 200 and first.json()["aliases"] == ["temp"]
+    again = put(authed, nb.temp, variable("Temp. del baño", "°C", aliases=["temp"]))
+    assert again.status_code == 200  # its own other name is no clash
+
+
 def test_the_unit_locks_once_a_value_is_saved(authed: TestClient, session: Session) -> None:
     nb = make_notebook(session)
     save(session, nb, 1, {nb.temp: 65}, T0)
