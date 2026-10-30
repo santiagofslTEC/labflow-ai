@@ -22,8 +22,8 @@ def format_number(value: float) -> str:
     return "0" if text in {"-0", ""} else text.replace(".", ",")
 
 
-def join_names(names: Sequence[str]) -> str:
-    """Names joined as "a", "a y b", or "a, b y c"."""
+def join_names(names: Sequence[str], conjunction: str = "y") -> str:
+    """Names joined as "a", "a y b", or "a, b y c" ("a, b o c" with `conjunction="o"`)."""
     if len(names) <= 1:
         return "".join(names)
-    return f"{', '.join(names[:-1])} y {names[-1]}"
+    return f"{', '.join(names[:-1])} {conjunction} {names[-1]}"

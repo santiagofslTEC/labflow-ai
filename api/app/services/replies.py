@@ -64,7 +64,8 @@ def reply_text(
         case Reason.AMBIGUOUS_VARIABLE:
             if not names:
                 return "No sé a qué variable va ese valor. ¿A qué variable corresponde?"
-            return f"No sé a qué variable va ese valor. ¿Es {listed}?"
+            # It asks for one of them, so "o" (AC-33).
+            return f"No sé a qué variable va ese valor. ¿Es {join_names(names, 'o')}?"
         case Reason.TWO_VALUES:
             return f"Dijiste {join_names(said)} para {listed}. ¿Cuál guardo?"
         case Reason.UNKNOWN_UNIT:

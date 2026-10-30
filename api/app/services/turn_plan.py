@@ -343,16 +343,33 @@ def _unplaced_in(asked: LastQuestion, card: CardInfo | None) -> Span | None:
     return open_spans[0] if len(open_spans) == 1 else None
 
 
+def _trial_in(sentence: str) -> int | None:
+    """The trial number said in `sentence` ("ensayo 20"), when it says exactly one."""
+    numbers = {
+        int(span.value)
+        for span in find_numbers(sentence)
+        if span.is_trial and span.value.is_integer() and span.value > 0
+    }
+    return next(iter(numbers)) if len(numbers) == 1 else None
+
+
 def _set_from(
-    context: TurnContext, variable_id: int, span: Span, sentence: str, turn_id: int | None
+    context: TurnContext,
+    variable_id: int,
+    span: Span,
+    sentence: str,
+    turn_id: int | None,
+    trial_number: int | None = None,
 ) -> TurnPlan:
-    """One value read by code from `span` of `sentence`, checked like a model value."""
+    """One value read by code from `span` of `sentence`, checked like a model value.
+    `trial_number` starts the card when none is pending (AC-35)."""
     value = ExtractedValue(
         variable_id=variable_id, number_text=sentence[span.start : span.end], value=span.value
     )
     checked = _check_values([value], by_id(context.variables), sentence)
     accepted = tuple(replace(v, turn_id=turn_id) for v in checked.accepted)
-    ops, other = _measurement_ops(context, None, accepted)
+    trial = trial_number if context.card is None else None
+    ops, other = _measurement_ops(context, trial, accepted)
     if other is not None:
         return TurnPlan((), other)
     return _with_state_reason(context, ops, checked.reason, checked.variable_ids)
@@ -378,13 +395,20 @@ def _short_answer(context: TurnContext, utterance: str) -> TurnPlan | None:
             if span is None or span.is_trial:
                 return None
             return _set_from(context, one_variable, span, utterance, None)
-        case Reason.AMBIGUOUS_VARIABLE if (
-            one_variable is not None and one_variable in variables and _is_yes(utterance)
-        ):
-            span = _unplaced_in(asked, card)
-            if span is None:
+        case Reason.AMBIGUOUS_VARIABLE if one_variable is not None and one_variable in variables:
+            # Either answer lands on the trial the asked sentence named (AC-35).
+            trial = _trial_in(asked.sentence)
+            if _is_yes(utterance):
+                span = _unplaced_in(asked, card)
+                if span is None:
+                    return None
+                return _set_from(
+                    context, one_variable, span, asked.sentence, asked.sentence_turn_id, trial
+                )
+            span = _only_number(utterance, variables[one_variable].unit)
+            if span is None or span.is_trial:
                 return None
-            return _set_from(context, one_variable, span, asked.sentence, asked.sentence_turn_id)
+            return _set_from(context, one_variable, span, utterance, None, trial)
         case _:
             return None
 

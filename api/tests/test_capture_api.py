@@ -493,6 +493,28 @@ def test_si_accepts_the_one_suggested_variable(
     assert body["reply"]["reason"] == "missing_trial"
 
 
+def test_a_bare_number_answers_which_variable_on_the_asked_trial(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    """The live loop of 2026-10-30 (AC-35): "71" used to ask the same question again."""
+    script += [
+        PedirAclaracion(reason="ambiguous_variable", variable_ids=[nb.temp]),
+        PedirAclaracion(reason="ambiguous_variable"),
+    ]
+    say(authed, nb, "ensayo 20 temperatura 23 a 71 grados")
+    body = say(authed, nb, "71")
+    assert body["proposal"]["trial_number"] == 20
+    assert values(body) == [71, None, None] and body["reply"]["reason"] == "missing_values"
+
+
+def test_the_which_variable_question_says_o(
+    authed: TestClient, nb: Notebook, script: list[Any]
+) -> None:
+    script += [PedirAclaracion(reason="ambiguous_variable")]
+    text = say(authed, nb, "5")["reply"]["text"]
+    assert text.endswith("¿Es Temperatura, Duración o Rendimiento?")
+
+
 def test_si_after_a_question_with_several_candidates_does_not_guess(
     authed: TestClient, nb: Notebook, script: list[Any]
 ) -> None:
