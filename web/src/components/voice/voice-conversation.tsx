@@ -8,6 +8,7 @@ import { formatElapsed } from "@/components/mic-dock/meter";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useVoiceSession } from "@/hooks/use-voice-session";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import { voiceCopy, type VoiceState } from "@/lib/voice";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,8 @@ function Conversation({
     state.kind === "listening" ||
     state.kind === "thinking" ||
     state.kind === "speaking";
+  // The screen stays on while the conversation is live (spec 0010, AC-9).
+  useWakeLock(live);
   const liveRef = useRef<HTMLDivElement>(null);
 
   // One polite region for session states; the final user text is said once.
