@@ -16,7 +16,13 @@ def test_read_access_names_the_holder(client: TestClient, holder: str) -> None:
     client.cookies.set(SESSION_COOKIE, sign_session(get_settings().session_secret, holder))
     response = client.get("/api/access")
     assert response.status_code == 200
-    assert response.json() == {"holder": holder}
+    assert response.json() == {
+        "holder": holder,
+        "kind": "code",
+        "name": holder,
+        "email": None,
+        "provider": None,
+    }
 
 
 def test_revoke_access_clears_the_cookie(client: TestClient, holder: str) -> None:

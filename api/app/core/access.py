@@ -10,7 +10,9 @@ SESSION_COOKIE = "labflow_session"
 SESSION_MAX_AGE_S = 30 * 24 * 60 * 60
 # Every route needs a valid session except these. The voice Custom LLM is called by ElevenLabs,
 # which has no cookie: it checks its own bearer secret and session token (spec 0007, AC-13).
-OPEN_PATHS = frozenset({"/api/health", "/api/access", "/api/voice/llm/chat/completions"})
+OPEN_PATHS = frozenset(
+    {"/api/health", "/api/access", "/api/access/options", "/api/voice/llm/chat/completions"}
+)
 ATTEMPT_LIMIT = 5
 ATTEMPT_WINDOW_S = 60.0
 
