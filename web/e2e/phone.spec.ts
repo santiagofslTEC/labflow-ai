@@ -113,9 +113,10 @@ test.describe("in landscape (AC-11)", () => {
     });
 });
 
-// A touch swipe to the bottom stays there, with the last content clear of the
-// tab bar (AC-11). Swipes repeat until the page stops moving; then it must
-// not move back on its own.
+// Scrolled to the bottom, a page stays there, with the last content clear of
+// the tab bar (AC-11). It scrolls until the page stops moving, then must not
+// move back on its own. The wheel stands in for a swipe: CI's headless
+// Chromium ignores synthesized touch gestures.
 for (const path of [
   "/cuadernos",
   "/cuadernos/7?vista=ensayos",
@@ -126,17 +127,12 @@ for (const path of [
   test(`${path} scrolls to the bottom and stays`, async ({ page }) => {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
-    const cdp = await page.context().newCDPSession(page);
+    await page.mouse.move(180, 400);
     const scrollY = () => page.evaluate(() => Math.round(window.scrollY));
     const positions: number[] = [];
     for (let i = 0; i < 20; i += 1) {
-      await cdp.send("Input.synthesizeScrollGesture", {
-        x: 180,
-        y: 400,
-        yDistance: -700,
-        speed: 2000,
-        gestureSourceType: "touch",
-      });
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(150);
       positions.push(await scrollY());
       if (i > 0 && positions[i] === positions[i - 1]) break;
     }
@@ -156,7 +152,7 @@ for (const path of [
         barTop: Math.round(bar?.top ?? window.innerHeight),
       };
     });
-    const story = `swipes ${positions.join(" → ")}, then ${JSON.stringify(end)}`;
+    const story = `scrolls ${positions.join(" → ")}, then ${JSON.stringify(end)}`;
     expect(
       Math.abs(reached - end.bottom),
       `reaches the bottom: ${story}`,
