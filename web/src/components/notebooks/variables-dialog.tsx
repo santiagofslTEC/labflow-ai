@@ -42,6 +42,7 @@ import {
   deleteLabel,
   draftOf,
   emptyDraft,
+  rangeNote,
   toVariableIn,
   validateVariable,
   VARIABLE_MESSAGES,
@@ -49,6 +50,8 @@ import {
   variableCount,
   type DraftErrors,
   type DraftField,
+  type OtherVariable,
+  type SavedValue,
   type VariableDraft,
 } from "@/lib/variable-form";
 
@@ -64,7 +67,7 @@ type VariablesDialogProps = {
   readonly experiment: ExperimentDetail;
   // Saved values per variable from the trials query (spec 0007); null while it
   // loads, so the unit is not locked from a guess (the API checks anyway).
-  readonly counts: ReadonlyMap<number, number> | null;
+  readonly saved: ReadonlyMap<number, readonly SavedValue[]> | null;
   readonly triggerClassName: string;
   readonly children: React.ReactNode;
 };
@@ -86,7 +89,7 @@ const failureText = (failure: ApiFailure): string => {
 // add, edit one at a time, and select several to delete after a confirmation.
 function VariablesDialog({
   experiment,
-  counts,
+  saved,
   triggerClassName,
   children,
 }: VariablesDialogProps) {
@@ -100,6 +103,11 @@ function VariablesDialog({
   const addRef = useRef<HTMLButtonElement>(null);
 
   const variables = experiment.variables;
+  const savedOf = (id: number): readonly SavedValue[] => saved?.get(id) ?? [];
+  const othersThan = (id: number | null): readonly OtherVariable[] =>
+    variables
+      .filter((v) => v.id !== id)
+      .map((v) => ({ name: v.name, aliases: v.aliases ?? [] }));
   const editable = experiment.status !== "closed";
   const full = variables.length >= LIMITS.variables;
   const chosen = variables.filter((v) => selected.has(v.id));
@@ -148,10 +156,7 @@ function VariablesDialog({
     );
   };
 
-  const chosenValues = chosen.reduce(
-    (sum, v) => sum + (counts?.get(v.id) ?? 0),
-    0,
-  );
+  const chosenValues = chosen.reduce((sum, v) => sum + savedOf(v.id).length, 0);
 
   return (
     <Dialog onOpenChange={(open) => (open ? undefined : reset())}>
@@ -275,11 +280,10 @@ function VariablesDialog({
                       columns={editable ? 7 : 5}
                       title={`Editar ${variable.name}`}
                       initial={draftOf(variable)}
-                      otherNames={variables
-                        .filter((v) => v.id !== variable.id)
-                        .map((v) => v.name)}
+                      others={othersThan(variable.id)}
+                      saved={savedOf(variable.id)}
                       lockedUnit={
-                        (counts?.get(variable.id) ?? 0) > 0
+                        savedOf(variable.id).length > 0
                           ? { unit: variable.unit }
                           : null
                       }
@@ -291,7 +295,7 @@ function VariablesDialog({
                     <VariableRow
                       key={variable.id}
                       variable={variable}
-                      values={counts ? (counts.get(variable.id) ?? 0) : null}
+                      values={saved ? savedOf(variable.id).length : null}
                       editable={editable}
                       checked={selected.has(variable.id)}
                       onCheck={(on) => toggle(variable.id, on)}
@@ -308,7 +312,7 @@ function VariablesDialog({
                     columns={7}
                     title="Nueva variable"
                     initial={emptyDraft}
-                    otherNames={variables.map((v) => v.name)}
+                    others={othersThan(null)}
                     lockedUnit={null}
                     saving={add.isPending}
                     onSave={save}
@@ -387,7 +391,8 @@ function FormRow({
   columns,
   title,
   initial,
-  otherNames,
+  others,
+  saved = [],
   lockedUnit,
   saving,
   onSave,
@@ -396,7 +401,9 @@ function FormRow({
   readonly columns: number;
   readonly title: string;
   readonly initial: VariableDraft;
-  readonly otherNames: readonly string[];
+  readonly others: readonly OtherVariable[];
+  // This variable's saved values, for the range note (AC-11); none when adding.
+  readonly saved?: readonly SavedValue[];
   // Set while the variable has saved values (AC-3).
   readonly lockedUnit: { readonly unit: string | null } | null;
   readonly saving: boolean;
@@ -408,6 +415,8 @@ function FormRow({
   const formRef = useRef<HTMLFormElement>(null);
   const base = useId();
   const id = (field: DraftField | "required") => `${base}-${field}`;
+  const note = rangeNote(saved, initial, draft);
+  const noteId = `${base}-range-note`;
 
   const set = (field: DraftField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -418,7 +427,7 @@ function FormRow({
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving) return;
-    const found = validateVariable(draft, otherNames);
+    const found = validateVariable(draft, others);
     setErrors(found);
     const first = (["name", "unit", "min", "max", "aliases"] as const).find(
       (field) => found[field],
@@ -440,9 +449,11 @@ function FormRow({
   ) => {
     const error = errors[name];
     const hintId = hint ? `${id(name)}-hint` : null;
+    const noted = note && (name === "min" || name === "max") ? noteId : null;
     const described =
-      [error ? errorId(id(name)) : null, hintId].filter(Boolean).join(" ") ||
-      undefined;
+      [error ? errorId(id(name)) : null, hintId, noted]
+        .filter(Boolean)
+        .join(" ") || undefined;
     return (
       <div className="flex min-w-0 flex-col gap-1">
         <label htmlFor={id(name)} className="text-xs text-ink-muted">
@@ -514,6 +525,13 @@ function FormRow({
               className: "font-mono tabular-nums",
             })}
           </div>
+          <p
+            id={noteId}
+            role="status"
+            className="text-xs text-ink-muted empty:hidden"
+          >
+            {note}
+          </p>
           <datalist id={`${base}-units`}>
             {UNIT_SUGGESTIONS.map((unit) => (
               <option key={unit} value={unit} />

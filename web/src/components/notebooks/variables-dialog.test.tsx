@@ -29,10 +29,17 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Temperatura has 6 saved values and Duración 2; pH has none.
-const COUNTS = new Map([
-  [1, 6],
-  [2, 2],
+// Temperatura has 6 saved values (30 to 80 °C, trials 1 to 6) and Duración 2;
+// pH has none.
+const SAVED = new Map([
+  [1, [30, 40, 50, 60, 70, 80].map((value, i) => ({ trial: i + 1, value }))],
+  [
+    2,
+    [
+      { trial: 1, value: 20 },
+      { trial: 2, value: 25 },
+    ],
+  ],
 ]);
 
 const open = async (experiment: ExperimentDetail = sampleDetail) => {
@@ -40,7 +47,7 @@ const open = async (experiment: ExperimentDetail = sampleDetail) => {
   const view = renderWithQuery(
     <VariablesDialog
       experiment={experiment}
-      counts={COUNTS}
+      saved={SAVED}
       triggerClassName="trigger"
     >
       Revisar variables
@@ -127,6 +134,47 @@ describe("VariablesDialog (spec 0008)", () => {
       required: true,
       aliases: ["temp"],
     });
+  });
+
+  it("notes saved values a narrower range leaves outside, and still saves (AC-11)", async () => {
+    updateMock.mockResolvedValue(ok(sampleDetail.variables[0]!));
+    const { user, dialog, baseElement } = await open();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Editar Temperatura" }),
+    );
+    const form = within(dialog).getByRole("form", {
+      name: "Editar Temperatura",
+    });
+    const min = within(form).getByLabelText("Mín");
+    const note =
+      "2 valores guardados quedan fuera de este rango (ensayos 1 y 2). No se cambian.";
+    await user.clear(min);
+    await user.type(min, "45");
+    expect(within(form).getByRole("status")).toHaveTextContent(note);
+    expect(min).toHaveAccessibleDescription(note);
+    expect(within(form).getByLabelText("Máx")).toHaveAccessibleDescription(
+      note,
+    );
+    expect(await axe(baseElement)).toHaveNoViolations();
+    await user.click(within(form).getByRole("button", { name: "Guardar" }));
+    expect(updateMock).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ min_value: 45 }),
+    );
+  });
+
+  it("refuses an other name another variable already has (AC-10)", async () => {
+    const { user, dialog } = await open();
+    await user.click(within(dialog).getByRole("button", { name: "Editar pH" }));
+    const form = within(dialog).getByRole("form", { name: "Editar pH" });
+    const aliases = within(form).getByLabelText("Otros nombres");
+    await user.type(aliases, "acidez, Temp");
+    await user.click(within(form).getByRole("button", { name: "Guardar" }));
+    expect(aliases).toHaveFocus();
+    expect(aliases).toHaveAccessibleDescription(
+      expect.stringContaining("«Temp» ya es otro nombre de Temperatura."),
+    );
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("lets a variable with no values change its unit", async () => {
