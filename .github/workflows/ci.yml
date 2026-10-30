@@ -35,6 +35,9 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # The phone suite (spec 0010, AC-13) runs against that build, with the API stubbed.
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
 
   api:
     runs-on: ubuntu-latest

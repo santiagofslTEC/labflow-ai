@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "cd .. && lefthook install || echo \"lefthook: no git repo, hooks skipped\"",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@elevenlabs/react": "1.19.1",
