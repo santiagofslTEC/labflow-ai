@@ -95,6 +95,7 @@ def test_trims_and_nulls_blank_fields(authed: TestClient) -> None:
         "max_value": None,
         "required": False,
         "position": 0,
+        "aliases": [],
     }
 
 

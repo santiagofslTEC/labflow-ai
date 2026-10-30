@@ -44,6 +44,9 @@ import {
   type TrialTableRow,
 } from "@/lib/trials";
 import { cn } from "@/lib/utils";
+import { savedValues } from "@/lib/variable-form";
+
+import { VariablesDialog } from "./variables-dialog";
 
 // The notebook as a CSV: one column per variable, one row per saved trial, the
 // same rows the table shows (spec 0007, AC-6).
@@ -74,9 +77,6 @@ type NotebookInspectorProps = {
   // From the notebooks list cache; undefined until it loads.
   readonly trialCount: number | undefined;
   readonly trials: TrialsPanel;
-  // The "Tabla completa" dialog, also opened by the page's "Ver resultados".
-  readonly tableOpen?: boolean;
-  readonly onTableOpenChange?: (open: boolean) => void;
 };
 
 // "Inspector activo" (from the Stitch reference): a summary of the open
@@ -86,8 +86,6 @@ function NotebookInspector({
   experiment,
   trialCount,
   trials,
-  tableOpen,
-  onTableOpenChange,
 }: NotebookInspectorProps) {
   const now = useNow();
   const variables = experiment.variables;
@@ -187,8 +185,7 @@ function NotebookInspector({
       <section
         id="lista-variables"
         aria-labelledby="variables"
-        tabIndex={-1}
-        className="flex scroll-mt-20 flex-col gap-2 rounded-control outline-none focus:ring-2 focus:ring-brand focus:ring-offset-4 focus:ring-offset-surface"
+        className="flex scroll-mt-20 flex-col gap-2"
       >
         <PanelHeading
           id="variables"
@@ -232,7 +229,7 @@ function NotebookInspector({
         </h3>
         <ul className="flex flex-col gap-1.5">
           <li>
-            <Dialog open={tableOpen} onOpenChange={onTableOpenChange}>
+            <Dialog>
               <DialogTrigger className={quickActionClass}>
                 <QuickActionContent icon={TableIcon} label="Tabla completa" />
               </DialogTrigger>
@@ -269,11 +266,18 @@ function NotebookInspector({
             </Dialog>
           </li>
           <li>
-            <QuickAction
-              icon={ListChecksIcon}
-              label="Revisar variables"
-              onClick={showVariables}
-            />
+            <VariablesDialog
+              experiment={experiment}
+              saved={
+                trials.kind === "ready" ? savedValues(trials.view.trials) : null
+              }
+              triggerClassName={quickActionClass}
+            >
+              <QuickActionContent
+                icon={ListChecksIcon}
+                label="Revisar variables"
+              />
+            </VariablesDialog>
           </li>
           <li>
             <QuickAction
@@ -400,14 +404,6 @@ export const exportLabel = (trials: TrialsPanel): string =>
     : trials.kind === "error"
       ? "Exportar CSV (no disponible)"
       : "Exportar CSV";
-
-// "Revisar variables": bring the list into view and focus it, so the jump shows
-// even when the list is already on screen.
-const showVariables = () => {
-  const list = document.getElementById("lista-variables");
-  list?.scrollIntoView({ behavior: "smooth", block: "start" });
-  list?.focus({ preventScroll: true });
-};
 
 const quickActionClass =
   "flex h-11 w-full items-center gap-3 rounded-control border border-line bg-surface px-3 text-left text-sm text-ink shadow-control focus-ring transition-colors hover:bg-sunken";

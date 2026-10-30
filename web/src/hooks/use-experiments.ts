@@ -3,18 +3,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  addVariable,
   createExperiment,
   createWithInstructions,
+  deleteVariables,
   experimentKeys,
   getExperiment,
+  getResults,
   getTrials,
   listExperiments,
   readInstructions,
+  updateVariable,
   type ApiFailure,
   type ApiResult,
   type ExperimentDetail,
   type NewExperiment,
   type ReadResult,
+  type VariableIn,
 } from "@/api/experiments";
 import type {
   AttachedInstructions,
@@ -57,6 +62,15 @@ export function useTrials(id: number) {
   return useQuery({
     queryKey: experimentKeys.trials(id),
     queryFn: () => unwrap(getTrials(id)),
+    retry: retryOnce,
+  });
+}
+
+// The results summary (spec 0009, AC-8), refreshed by the same invalidation.
+export function useResults(id: number) {
+  return useQuery({
+    queryKey: experimentKeys.results(id),
+    queryFn: () => unwrap(getResults(id)),
     retry: retryOnce,
   });
 }
@@ -112,3 +126,28 @@ export function useReadInstructions() {
       readInstructions(input, range, signal),
   });
 }
+
+// Variable writes (spec 0008, AC-7): the notebook, the panel, the trials table,
+// and the list all read under experimentKeys.all, so one invalidation does it.
+function useVariableMutation<V, T>(
+  request: (variables: V) => Promise<ApiResult<T>>,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: V) => unwrap(request(variables)),
+    onSuccess: () => client.invalidateQueries({ queryKey: experimentKeys.all }),
+  });
+}
+
+export const useAddVariable = (experimentId: number) =>
+  useVariableMutation((body: VariableIn) => addVariable(experimentId, body));
+
+export const useUpdateVariable = () =>
+  useVariableMutation((v: { readonly id: number; readonly body: VariableIn }) =>
+    updateVariable(v.id, v.body),
+  );
+
+export const useDeleteVariables = (experimentId: number) =>
+  useVariableMutation((ids: readonly number[]) =>
+    deleteVariables(experimentId, ids),
+  );
