@@ -16,6 +16,10 @@ jobs:
     # (in typecheck) and `next build` load it; any URL works here.
     env:
       API_URL: http://localhost:8000
+      # Inlined by `pnpm build`, which the Playwright suite then serves: values that
+      # are never called but turn the account forms on (spec 0014).
+      NEXT_PUBLIC_SUPABASE_URL: https://e2e.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_e2e
     defaults:
       run:
         working-directory: web

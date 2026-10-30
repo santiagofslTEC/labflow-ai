@@ -7,6 +7,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
+from functools import partial
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Form, UploadFile
@@ -19,6 +20,7 @@ from app.core.db import SessionDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
 from app.core.instruction_reads import InstructionReads, InstructionReadsDep
+from app.core.ownership import NOTEBOOK, OwnerDep
 from app.repositories import experiments, results, trials
 from app.services.experiment_rules import NewExperiment, check_new_experiment
 from app.services.instructions import (
@@ -70,8 +72,9 @@ _UNAUTHORIZED = {"model": ApiErrorBody, "description": "No valid access session"
 
 
 @router.get("", responses={401: _UNAUTHORIZED})
-def list_experiments(session: SessionDep) -> list[ExperimentSummary]:
-    return experiments.list_summaries(session)
+def list_experiments(session: SessionDep, owner: OwnerDep) -> list[ExperimentSummary]:
+    """Only the caller's space (spec 0014, AC-6)."""
+    return experiments.list_summaries(session, owner)
 
 
 @router.post(
@@ -86,11 +89,13 @@ def list_experiments(session: SessionDep) -> list[ExperimentSummary]:
     },
 )
 def create_experiment(
-    body: NewExperiment, session: SessionDep, holder: HolderDep
+    body: NewExperiment, session: SessionDep, holder: HolderDep, owner: OwnerDep
 ) -> ExperimentDetail:
     checked = check_new_experiment(body)
     result = (
-        checked if checked is not None else experiments.create_experiment(session, holder, body)
+        checked
+        if checked is not None
+        else experiments.create_experiment(session, holder, body, owner=owner)
     )
     return _created(result, holder, None)
 
@@ -129,6 +134,7 @@ def _created(
 
 @router.get(
     "/{experiment_id}",
+    dependencies=[NOTEBOOK],
     responses={
         401: _UNAUTHORIZED,
         404: {"model": ApiErrorBody, "description": "No notebook with this id"},
@@ -148,6 +154,7 @@ def read_experiment(experiment_id: int, session: SessionDep) -> ExperimentDetail
 
 @router.get(
     "/{experiment_id}/trials",
+    dependencies=[NOTEBOOK],
     responses={
         401: _UNAUTHORIZED,
         404: {"model": ApiErrorBody, "description": "No notebook with this id"},
@@ -168,6 +175,7 @@ def read_trials(experiment_id: int, session: SessionDep) -> TrialsView:
 
 @router.get(
     "/{experiment_id}/results",
+    dependencies=[NOTEBOOK],
     responses={
         401: _UNAUTHORIZED,
         404: {"model": ApiErrorBody, "description": "No notebook with this id"},
@@ -429,6 +437,7 @@ async def create_with_instructions(
     body: Annotated[Json[NewExperiment], Form()],
     session: SessionDep,
     holder: HolderDep,
+    owner: OwnerDep,
     reads: InstructionReadsDep,
     file: UploadFile | None = None,
     instructions_text: Annotated[str | None, Form()] = None,
@@ -443,6 +452,12 @@ async def create_with_instructions(
     result = (
         checked
         if checked is not None
-        else await run_in_threadpool(experiments.create_experiment, session, holder, body, protocol)
+        else await run_in_threadpool(
+            partial(experiments.create_experiment, owner=owner),
+            session,
+            holder,
+            body,
+            protocol,
+        )
     )
     return _created(result, holder, protocol)

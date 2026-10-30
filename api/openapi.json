@@ -130,12 +130,34 @@
         }
       }
     },
+    "/api/access/options": {
+      "get": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Read Access Options",
+        "operationId": "read_access_options_api_access_options_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOptions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/experiments": {
       "get": {
         "tags": [
           "experiments"
         ],
         "summary": "List Experiments",
+        "description": "Only the caller's space (spec 0014, AC-6).",
         "operationId": "list_experiments_api_experiments_get",
         "responses": {
           "200": {
@@ -1179,7 +1201,7 @@
           "voice"
         ],
         "summary": "Start Session",
-        "description": "A signed URL for the private agent plus our token for this holder and notebook (AC-1).",
+        "description": "A signed URL for the private agent plus our token for this holder and notebook (AC-1).\nOnly for a notebook in the caller's space (spec 0014, AC-6); the token carries that.",
         "operationId": "start_session_api_voice_session_post",
         "requestBody": {
           "content": {
@@ -1558,6 +1580,52 @@
           "holder": {
             "type": "string",
             "title": "Holder"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "account",
+              "code"
+            ],
+            "title": "Kind",
+            "default": "code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "google",
+                  "email"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
           }
         },
         "type": "object",
@@ -1565,6 +1633,25 @@
           "holder"
         ],
         "title": "AccessGranted"
+      },
+      "AccessOptions": {
+        "properties": {
+          "codes": {
+            "type": "boolean",
+            "title": "Codes"
+          },
+          "accounts": {
+            "type": "boolean",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codes",
+          "accounts"
+        ],
+        "title": "AccessOptions",
+        "description": "The ways in the sign in page offers, asked before signing in (spec 0014, AC-9, AC-10)."
       },
       "AccessRequest": {
         "properties": {

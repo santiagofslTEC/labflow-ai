@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.db import SessionDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
+from app.core.ownership import NOTEBOOK, VARIABLE
 from app.repositories import variables
 from app.services.experiment_rules import VARIABLES_MAX, VariableIn
 from app.services.results import (
@@ -96,6 +97,7 @@ class DeleteVariablesIn(BaseModel):
 
 @router.post(
     "/api/experiments/{experiment_id}/variables",
+    dependencies=[NOTEBOOK],
     status_code=201,
     responses=_errors(401, 404, 409, 422),
 )
@@ -115,7 +117,9 @@ def add_variable(
     return result
 
 
-@router.put("/api/variables/{variable_id}", responses=_errors(401, 404, 409, 422))
+@router.put(
+    "/api/variables/{variable_id}", dependencies=[VARIABLE], responses=_errors(401, 404, 409, 422)
+)
 def update_variable(
     variable_id: int, body: VariableIn, session: SessionDep, holder: HolderDep
 ) -> VariableDetail:
@@ -130,7 +134,9 @@ def update_variable(
 
 
 @router.post(
-    "/api/experiments/{experiment_id}/variables/delete", responses=_errors(401, 404, 409, 422)
+    "/api/experiments/{experiment_id}/variables/delete",
+    dependencies=[NOTEBOOK],
+    responses=_errors(401, 404, 409, 422),
 )
 def delete_variables(
     experiment_id: int, body: DeleteVariablesIn, session: SessionDep, holder: HolderDep

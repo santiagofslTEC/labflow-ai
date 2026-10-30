@@ -46,6 +46,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/access/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Access Options */
+        get: operations["read_access_options_api_access_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/experiments": {
         parameters: {
             query?: never;
@@ -53,7 +70,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Experiments */
+        /**
+         * List Experiments
+         * @description Only the caller's space (spec 0014, AC-6).
+         */
         get: operations["list_experiments_api_experiments_get"];
         put?: never;
         /** Create Experiment */
@@ -334,6 +354,7 @@ export interface paths {
         /**
          * Start Session
          * @description A signed URL for the private agent plus our token for this holder and notebook (AC-1).
+         *     Only for a notebook in the caller's space (spec 0014, AC-6); the token carries that.
          */
         post: operations["start_session_api_voice_session_post"];
         delete?: never;
@@ -430,6 +451,28 @@ export interface components {
         AccessGranted: {
             /** Holder */
             holder: string;
+            /**
+             * Kind
+             * @default code
+             * @enum {string}
+             */
+            kind: "account" | "code";
+            /** Name */
+            name?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Provider */
+            provider?: ("google" | "email") | null;
+        };
+        /**
+         * AccessOptions
+         * @description The ways in the sign in page offers, asked before signing in (spec 0014, AC-9, AC-10).
+         */
+        AccessOptions: {
+            /** Codes */
+            codes: boolean;
+            /** Accounts */
+            accounts: boolean;
         };
         /** AccessRequest */
         AccessRequest: {
@@ -1071,6 +1114,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    read_access_options_api_access_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessOptions"];
+                };
             };
         };
     };

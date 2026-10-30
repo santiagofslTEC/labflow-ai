@@ -13,6 +13,7 @@ vi.mock("@/api/access", () => ({
 }));
 
 const readMock = vi.mocked(readSession);
+const CODE = { holder: "ana", kind: "code", name: "ana" } as const;
 const signOutMock = vi.mocked(signOut);
 
 beforeEach(() => {
@@ -22,7 +23,7 @@ beforeEach(() => {
 
 describe("SettingsView", () => {
   it("names who is signed in", async () => {
-    readMock.mockResolvedValue({ ok: true, holder: "ana" });
+    readMock.mockResolvedValue({ ok: true, holder: "ana", who: CODE });
     const { container } = render(<SettingsView connection={<span>ok</span>} />);
 
     expect(await screen.findByText("ana")).toBeInTheDocument();
@@ -39,7 +40,7 @@ describe("SettingsView", () => {
   });
 
   it("signs out and goes to the access page", async () => {
-    readMock.mockResolvedValue({ ok: true, holder: "ana" });
+    readMock.mockResolvedValue({ ok: true, holder: "ana", who: CODE });
     signOutMock.mockResolvedValue(true);
     const assign = vi.fn();
     vi.stubGlobal("location", { ...window.location, assign });
@@ -55,7 +56,7 @@ describe("SettingsView", () => {
   });
 
   it("explains a failed sign out and stays", async () => {
-    readMock.mockResolvedValue({ ok: true, holder: "ana" });
+    readMock.mockResolvedValue({ ok: true, holder: "ana", who: CODE });
     signOutMock.mockResolvedValue(false);
 
     render(<SettingsView connection={null} />);
@@ -66,5 +67,25 @@ describe("SettingsView", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No pudimos cerrar la sesión",
     );
+  });
+});
+
+describe("SettingsView with an account (spec 0014, AC-7)", () => {
+  it("shows the name, the email, and how the account signs in", async () => {
+    readMock.mockResolvedValue({
+      ok: true,
+      holder: "ana@example.com",
+      who: {
+        holder: "ana@example.com",
+        kind: "account",
+        name: "Ana Ruiz",
+        email: "ana@example.com",
+        provider: "google",
+      },
+    });
+    render(<SettingsView connection={null} />);
+    expect(await screen.findByText("Ana Ruiz")).toBeInTheDocument();
+    expect(screen.getByText("ana@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Google")).toBeInTheDocument();
   });
 });

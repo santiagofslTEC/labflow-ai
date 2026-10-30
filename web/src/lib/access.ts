@@ -13,7 +13,8 @@ export function safeNextPath(raw: string | null | undefined): string {
     raw.startsWith("/\\") ||
     raw === ACCESS_PATH ||
     raw.startsWith(`${ACCESS_PATH}?`) ||
-    raw.startsWith(`${ACCESS_PATH}/`)
+    (raw.startsWith(`${ACCESS_PATH}/`) &&
+      raw !== `${ACCESS_PATH}/nueva-contrasena`)
   ) {
     return "/";
   }

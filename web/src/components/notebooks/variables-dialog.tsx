@@ -79,7 +79,7 @@ const failureText = (failure: ApiFailure): string => {
     case "not_found":
       return "Esa variable ya no existe en este cuaderno.";
     case "unauthorized":
-      return "Tu acceso venció. Escribe tu código de acceso para continuar.";
+      return "Tu sesión venció. Entra de nuevo.";
     case "unavailable":
       return "No pudimos conectar con LabFlow. Intenta de nuevo.";
   }

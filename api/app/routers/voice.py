@@ -29,10 +29,11 @@ from app.ai.provider import LLMProvider
 from app.core.db import SessionDep, SessionFactory, SessionFactoryDep
 from app.core.errors import ApiError, ApiErrorBody
 from app.core.gate import HolderDep
+from app.core.ownership import OwnerDep
 from app.core.settings import get_settings
-from app.models import Experiment
 from app.models.enums import Source
 from app.repositories import proposals
+from app.repositories.space import notebook_visible
 from app.routers.capture import TEXT_MAX
 from app.services.replies import Reason, auto_saved_aloud, reply_text
 from app.services.results import ExperimentNotFound, NotPending, TrialNotInExperiment
@@ -92,10 +93,15 @@ _UNAUTHORIZED = JSONResponse(
     },
 )
 async def start_session(
-    body: VoiceSessionRequest, holder: HolderDep, session: SessionDep, sessions: VoiceSessionsDep
+    body: VoiceSessionRequest,
+    holder: HolderDep,
+    owner: OwnerDep,
+    session: SessionDep,
+    sessions: VoiceSessionsDep,
 ) -> VoiceSession:
-    """A signed URL for the private agent plus our token for this holder and notebook (AC-1)."""
-    if session.get(Experiment, body.experiment_id) is None:
+    """A signed URL for the private agent plus our token for this holder and notebook (AC-1).
+    Only for a notebook in the caller's space (spec 0014, AC-6); the token carries that."""
+    if not notebook_visible(session, body.experiment_id, owner):
         raise ApiError(404, "experiment_not_found", "Este cuaderno no existe.")
     settings = get_settings()
     if not settings.elevenlabs_api_key or not settings.elevenlabs_agent_id:

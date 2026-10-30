@@ -1,6 +1,7 @@
 """Rows for database tests: a notebook with the seed's three variables."""
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from sqlmodel import Session
 
@@ -15,8 +16,12 @@ class Notebook:
     rend: int
 
 
-def make_notebook(session: Session, title: str = "Prueba captura") -> Notebook:
-    experiment = Experiment(title=title, created_by="test")
+def make_notebook(
+    session: Session, title: str = "Prueba captura", owner: UUID | None = None
+) -> Notebook:
+    """A notebook with Temperatura, Duración, and Rendimiento; a null owner is the access
+    codes' shared space, an owner is that account's (spec 0014)."""
+    experiment = Experiment(title=title, created_by="test", owner_id=owner)
     session.add(experiment)
     session.flush()
     assert experiment.id is not None

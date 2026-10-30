@@ -1,6 +1,7 @@
 """Notebooks: list, create, and open (spec 0005, AC-14 to AC-16, AC-29, AC-31)."""
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from psycopg.errors import UniqueViolation
 from sqlalchemy import DateTime, Integer, func, type_coerce
@@ -9,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from app.models import Experiment, Measurement, Protocol, ProtocolPage, Trial, Turn, Variable
+from app.repositories.space import in_space
 from app.services.experiment_rules import NewExperiment
 from app.services.instructions import NewProtocol
 from app.services.results import (
@@ -24,7 +26,9 @@ LIST_LIMIT = 200
 _UNIQUE_NAME_INDEX = "uq_variable_experiment_name"
 
 
-def list_summaries(session: Session, limit: int = LIST_LIMIT) -> list[ExperimentSummary]:
+def list_summaries(
+    session: Session, owner: UUID | None = None, limit: int = LIST_LIMIT
+) -> list[ExperimentSummary]:
     """Newest activity first, ties by higher id. Each stat comes from its own grouped
     subquery joined on `experiment_id`, so no join multiplies the counts."""
     # A trial counts once it holds a saved value (spec 0011, AC-11).
@@ -73,6 +77,7 @@ def list_summaries(session: Session, limit: int = LIST_LIMIT) -> list[Experiment
         .outerjoin(trials, trials.c.experiment_id == col(Experiment.id))
         .outerjoin(turns, turns.c.experiment_id == col(Experiment.id))
         .outerjoin(measurements, measurements.c.experiment_id == col(Experiment.id))
+        .where(in_space(owner))  # the caller's space only (spec 0014, AC-6)
         .order_by(last_activity_at.desc(), col(Experiment.id).desc())
         .limit(limit)
     )
@@ -92,13 +97,17 @@ def list_summaries(session: Session, limit: int = LIST_LIMIT) -> list[Experiment
 
 
 def create_experiment(
-    session: Session, holder: str, body: NewExperiment, protocol: NewProtocol | None = None
+    session: Session,
+    holder: str,
+    body: NewExperiment,
+    protocol: NewProtocol | None = None,
+    owner: UUID | None = None,
 ) -> ExperimentDetail | DuplicateVariableName:
     """The notebook, its variables, and its instructions (when sent) in one transaction,
     `position` in request order. The unique index on `lower(name)` is the backstop for any
     case fold the pure check missed."""
     experiment = Experiment(
-        title=body.title, goal=body.goal, context=body.context, created_by=holder
+        title=body.title, goal=body.goal, context=body.context, created_by=holder, owner_id=owner
     )
     session.add(experiment)
     session.flush()
