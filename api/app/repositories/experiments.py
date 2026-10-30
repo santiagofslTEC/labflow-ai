@@ -27,8 +27,12 @@ _UNIQUE_NAME_INDEX = "uq_variable_experiment_name"
 def list_summaries(session: Session, limit: int = LIST_LIMIT) -> list[ExperimentSummary]:
     """Newest activity first, ties by higher id. Each stat comes from its own grouped
     subquery joined on `experiment_id`, so no join multiplies the counts."""
+    # A trial counts once it holds a saved value (spec 0011, AC-11).
     trials = (
-        select(col(Trial.experiment_id), func.count().label("trial_count"))
+        select(
+            col(Trial.experiment_id), func.count(func.distinct(col(Trial.id))).label("trial_count")
+        )
+        .join(Measurement, col(Measurement.trial_id) == col(Trial.id))
         .group_by(col(Trial.experiment_id))
         .subquery()
     )

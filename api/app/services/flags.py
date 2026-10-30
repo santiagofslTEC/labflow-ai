@@ -4,7 +4,7 @@ Only `grounding` and `checked_at` are stored; every reason is worked out again f
 value, its said text, and the variable, so a changed range moves the flags with it.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Container, Iterable, Mapping
 from enum import StrEnum
 from typing import Protocol
 
@@ -65,16 +65,18 @@ def flags(value: ValueLike, variable: VariableLike) -> tuple[FlagReason, ...]:
 
 
 def unchecked(
-    values: Iterable[ValueLike], variables: Mapping[int, VariableLike], correction: bool
+    values: Iterable[ValueLike], variables: Mapping[int, VariableLike], filled: Container[int]
 ) -> tuple[int, ...]:
-    """Variable ids of flagged values not yet checked. A correction is never flagged per
-    value: choosing "Corregir" is already its extra step."""
-    if correction:
-        return ()
+    """Variable ids of flagged values not yet checked. A value that replaces a saved one
+    (its variable is in `filled`) is never flagged: its "¿Cambio…?" is already its extra
+    step (spec 0011, AC-6)."""
     return tuple(
         v.variable_id
         for v in values
-        if v.variable_id in variables and not v.checked and flags(v, variables[v.variable_id])
+        if v.variable_id in variables
+        and v.variable_id not in filled
+        and not v.checked
+        and flags(v, variables[v.variable_id])
     )
 
 

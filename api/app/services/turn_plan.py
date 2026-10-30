@@ -8,7 +8,7 @@ before it can reach an operation; the model never picks the card or writes a rep
 import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from app.ai.tools import (
     Confirmar,
@@ -24,12 +24,14 @@ from app.models.enums import Grounding
 from app.services.card_state import (
     CardInfo,
     RememberedTrial,
+    Slots,
     ValueInfo,
     VariableInfo,
     by_id,
     can_confirm,
     card_reason,
-    is_clean,
+    slots_of,
+    split_values,
 )
 from app.services.numbers import Said, Span, find_numbers, ground, said_slice
 from app.services.replies import Reason
@@ -68,6 +70,9 @@ class TurnContext:
     context: str | None = None  # the notebook's "Contexto para la captura" (spec 0005, AC-26)
     last_question: LastQuestion | None = None
     remembered: RememberedTrial | None = None  # the latest saved trial (AC-31)
+    # Saved trial number → its saved values: the only test of "new" versus "replace"
+    # (spec 0011, AC-12). Notebooks are small, so every trial is read.
+    saved: Mapping[int, Slots] = field(default_factory=dict[int, Slots])
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +103,7 @@ class SetValue:
 
 @dataclass(frozen=True, slots=True)
 class Confirm:
-    auto: bool = False  # code found the card clean and saves it with no tap (AC-27)
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,7 +111,39 @@ class Discard:
     pass
 
 
-type Operation = StartProposal | SetTrial | SetTarget | SetValue | Confirm | Discard
+@dataclass(frozen=True, slots=True)
+class Unset:
+    """Take values off the pending card: they move into this turn's `SaveNow` (spec 0011)."""
+
+    variable_ids: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Supersede:
+    """Retire the pending card: every value it held saved in this turn (spec 0011)."""
+
+
+@dataclass(frozen=True, slots=True)
+class SaveNow:
+    """Save these values on trial `trial_number` with no tap, as their own confirmed
+    proposal (spec 0011, AC-1, AC-5). Runs after the card operations; a value with
+    `turn_id` None was read from this turn."""
+
+    trial_number: int
+    values: tuple[ValueInfo, ...]
+
+
+type Operation = (
+    StartProposal
+    | SetTrial
+    | SetTarget
+    | SetValue
+    | Confirm
+    | Discard
+    | Unset
+    | Supersede
+    | SaveNow
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,29 +284,43 @@ def _placed_trial(
     return said, used | {spans[0].start}
 
 
+def _start(context: TurnContext, trial_number: int | None) -> tuple[Operation, ...]:
+    """A new card; a saved number always targets its trial (spec 0011, AC-3)."""
+    trial_id = context.trial_numbers.get(trial_number) if trial_number is not None else None
+    return (
+        (StartProposal(trial_number),)
+        if trial_id is None
+        else (
+            StartProposal(trial_number),
+            SetTarget(trial_id),
+        )
+    )
+
+
+def _set_number(context: TurnContext, trial_number: int | None) -> Operation:
+    """The pending card's new number; a saved number targets its trial (spec 0011, AC-3)."""
+    trial_id = context.trial_numbers.get(trial_number) if trial_number is not None else None
+    return SetTrial(trial_number) if trial_id is None else SetTarget(trial_id)
+
+
 def _measurement_ops(
     context: TurnContext, trial_number: int | None, values: tuple[SetValue, ...]
 ) -> tuple[tuple[Operation, ...], Reason | None]:
     """Step 2: where `proponer_medicion` puts its trial number and values. With no card and
-    no number, values go to the remembered trial as a correction of it (AC-31)."""
+    no number, values go to the remembered trial (AC-31; spec 0011, AC-7)."""
     card, remembered = context.card, context.remembered
     if card is None:
         if trial_number is None and not values:
             return (), None
         if trial_number is None and remembered is not None:
-            return (
-                StartProposal(remembered.number),
-                SetTarget(remembered.trial_id),
-                *values,
-            ), None
-        return (StartProposal(trial_number), *values), None
+            return (*_start(context, remembered.number), *values), None
+        return (*_start(context, trial_number), *values), None
     if trial_number is None or trial_number == card.trial_number:
         return values, None
     if card.trial_number is not None and card.values:
         return (), Reason.PENDING_OTHER_TRIAL
-    # A card with no number yet, in choose_trial, or with no values takes the new number
-    # (SetTrial also clears a correction target).
-    return (SetTrial(trial_number), *values), None
+    # A card with no number yet, or an empty selection, takes the new number (AC-8).
+    return (_set_number(context, trial_number), *values), None
 
 
 def _apply(
@@ -289,9 +340,9 @@ def _apply(
                 card = _retarget(card, trial_id, numbers_by_id.get(trial_id, card.trial_number))
             case SetValue(variable_id=vid, value=value, said_text=said, grounding=grounding):
                 kept = tuple(v for v in card.values if v.variable_id != vid)
-                new = ValueInfo(vid, value, said, grounding, checked=False)
+                new = ValueInfo(vid, value, said, grounding, checked=False, turn_id=op.turn_id)
                 card = replace(card, values=(*kept, new))
-            case Confirm() | Discard():
+            case Confirm() | Discard() | Unset() | Supersede() | SaveNow():
                 pass
     return card
 
@@ -306,6 +357,34 @@ def _retarget(card: CardInfo, target: int | None, number: int | None) -> CardInf
     return replace(card, target_trial_id=target, trial_number=number, values=values)
 
 
+def _split(
+    context: TurnContext,
+    ops: tuple[Operation, ...],
+    card: CardInfo,
+    reason: Reason | None,
+) -> tuple[tuple[Operation, ...], CardInfo | None] | None:
+    """Step 6, the split (spec 0011, AC-5, AC-6): clean values save now with `SaveNow`,
+    the rest wait on one card. Returns the operations and the card as it is left (None when
+    no card is left), or None when nothing can save."""
+    if card.trial_number is None:
+        return None
+    clean, waiting = split_values(card, context.variables, slots_of(card, context.saved))
+    if not clean:
+        return None
+    moved = frozenset(v.variable_id for v in clean)
+    card_ops = tuple(op for op in ops if not (isinstance(op, SetValue) and op.variable_id in moved))
+    keep = bool(waiting) or reason is not None  # an unplaced number keeps the trial selected
+    existing = context.card
+    if existing is None:
+        card_ops = card_ops if keep else ()
+    else:
+        on_card = tuple(i for i in sorted(moved) if existing.value_of(i) is not None)
+        card_ops = (*card_ops, *((Unset(on_card),) if on_card else ()))
+        card_ops = card_ops if keep else (*card_ops, Supersede())
+    left = replace(card, values=waiting) if keep else None
+    return (*card_ops, SaveNow(card.trial_number, clean)), left
+
+
 def _with_state_reason(
     context: TurnContext,
     ops: tuple[Operation, ...],
@@ -313,17 +392,41 @@ def _with_state_reason(
     variable_ids: tuple[int, ...] = (),
     said: tuple[str, ...] = (),
 ) -> TurnPlan:
-    """Step 6: a reason from steps 1 to 5 wins; then a clean card that this turn changed is
-    saved with no tap (AC-27); otherwise the card's own question."""
-    if reason is not None:
-        return TurnPlan(ops, reason, variable_ids, said)
+    """Step 6: split what this turn changed (clean values save, the rest wait); then a
+    reason from steps 1 to 5 wins over the card's own question."""
     card = _apply(context.card, ops, context.trial_numbers)
     if card is None:
-        return TurnPlan(ops, Reason.AMBIGUOUS_VARIABLE)
-    if ops and is_clean(card, context.variables, context.trial_numbers, context.remembered):
-        return TurnPlan((*ops, Confirm(auto=True)), Reason.AUTO_SAVED)
-    state, ids = card_reason(card, context.variables, context.trial_numbers)
+        return TurnPlan(ops, reason or Reason.AMBIGUOUS_VARIABLE, variable_ids, said)
+    split = _split(context, ops, card, reason) if ops else None
+    if split is not None:
+        ops, left = split
+        if reason is not None:
+            return TurnPlan(ops, reason, variable_ids, said)
+        if left is None:
+            return TurnPlan(ops, Reason.AUTO_SAVED)
+        state, ids = card_reason(left, context.variables, slots_of(left, context.saved))
+        return TurnPlan(ops, state, ids)
+    if reason is not None:
+        return TurnPlan(ops, reason, variable_ids, said)
+    state, ids = card_reason(card, context.variables, slots_of(card, context.saved))
     return TurnPlan(ops, state, ids)
+
+
+def _other_trial(
+    context: TurnContext, trial_number: int, values: tuple[SetValue, ...]
+) -> TurnPlan | None:
+    """A sentence about another trial while a card waits (spec 0011, AC-9): when every
+    value is clean on its trial, it saves on its own and the card stays as it is."""
+    card = context.card
+    if card is None or not values:
+        return None
+    sentence = CardInfo(id=None, trial_number=trial_number, target_trial_id=None)
+    sentence = _apply(sentence, values, context.trial_numbers) or sentence
+    clean, waiting = split_values(sentence, context.variables, context.saved.get(trial_number, {}))
+    if waiting:
+        return None
+    state, ids = card_reason(card, context.variables, slots_of(card, context.saved))
+    return TurnPlan((SaveNow(trial_number, clean),), state, ids)
 
 
 def _only_number(utterance: str, own_unit: str | None = None) -> Span | None:
@@ -406,7 +509,7 @@ def _short_answer(context: TurnContext, utterance: str) -> TurnPlan | None:
             span = _only_number(utterance)
             if span is None or not span.value.is_integer() or span.value <= 0:
                 return None
-            return _with_state_reason(context, (SetTrial(int(span.value)),))
+            return _with_state_reason(context, (_set_number(context, int(span.value)),))
         case Reason.TWO_VALUES if one_variable is not None and one_variable in variables:
             span = _only_number(utterance, variables[one_variable].unit)
             if span is None or span.is_trial:
@@ -430,6 +533,42 @@ def _short_answer(context: TurnContext, utterance: str) -> TurnPlan | None:
             return None
 
 
+def _untargeted(context: TurnContext, card: CardInfo) -> tuple[Operation, ...]:
+    """A card from before spec 0011 (or one whose number was saved meanwhile) whose number
+    is saved but not targeted: point it at that trial so confirm adds to it (AC-3)."""
+    trial_id = context.trial_numbers.get(card.trial_number) if card.trial_number else None
+    return (SetTarget(trial_id),) if trial_id is not None and card.target_trial_id is None else ()
+
+
+def bare_trial(utterance: str) -> int | None:
+    """The number of a sentence that is only a trial word and a number ("ensayo 4", "es el
+    ensayo 4"), read by code before the model (spec 0011, AC-8)."""
+    span = _only_number(utterance)
+    if span is None or not span.is_trial or not span.value.is_integer() or span.value <= 0:
+        return None
+    return int(span.value)
+
+
+def plan_before_model(context: TurnContext, utterance: str) -> TurnPlan | None:
+    """A turn planned with no model call: a bare trial (spec 0011, AC-8). Short answers to
+    the last question keep their meaning ("ensayo 5" answering "¿Qué número de ensayo
+    es?" sets the card's number), so they still go through `plan_turn`."""
+    n = bare_trial(utterance)
+    if n is None or _short_answer(context, utterance) is not None:
+        return None
+    card = context.card
+    if card is None or (card.trial_number is not None and not card.values):
+        if card is not None and card.trial_number == n:
+            return TurnPlan((), Reason.TRIAL_SELECTED)
+        # A new empty selection; it replaces the old one (StartProposal supersedes it).
+        return TurnPlan(_start(context, n), Reason.TRIAL_SELECTED)
+    if card.trial_number is None:
+        return _with_state_reason(context, (_set_number(context, n),))
+    if card.trial_number != n:
+        return TurnPlan((), Reason.PENDING_OTHER_TRIAL)
+    return _with_state_reason(context, ())
+
+
 def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
     if (short := _short_answer(context, utterance)) is not None:
         return short
@@ -449,11 +588,16 @@ def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
                     used,
                 )
             ops, other = _measurement_ops(context, trial_number, checked.accepted)
-            if other is not None:
-                return TurnPlan((), other)
             reason, ids = checked.reason, checked.variable_ids
             if reason is None and _unplaced_number(utterance, used):
                 reason, ids = Reason.AMBIGUOUS_VARIABLE, _open_variables(context)
+            if other is not None:
+                alone = (
+                    _other_trial(context, trial_number, checked.accepted)
+                    if trial_number is not None and reason is None
+                    else None
+                )
+                return alone or TurnPlan((), other)
             if not ops and reason is None and card is None:
                 return TurnPlan((), Reason.OFF_TOPIC)
             return _with_state_reason(context, ops, reason, ids, checked.said)
@@ -468,16 +612,17 @@ def plan_turn(context: TurnContext, call: ToolCall, utterance: str) -> TurnPlan:
                 )
                 ops: tuple[Operation, ...] = () if trial_id is None else (SetTarget(trial_id),)
                 return _with_state_reason(context, ops)
-            return _with_state_reason(context, (SetTrial(_said_trial_number(n, utterance)),))
+            said = _said_trial_number(n, utterance)
+            return _with_state_reason(context, (_set_number(context, said),))
         case Confirmar():
             if card is None:
                 return TurnPlan((), Reason.NO_PENDING)
             # "sí, ensayo 7" carries numbers: never a confirm, just the card's question.
             if find_numbers(utterance) or not can_confirm(
-                card, context.variables, context.trial_numbers
+                card, context.variables, slots_of(card, context.saved)
             ):
                 return _with_state_reason(context, ())
-            return TurnPlan((Confirm(),), Reason.SAVED)
+            return TurnPlan((*_untargeted(context, card), Confirm()), Reason.SAVED)
         case Descartar():
             if card is None:
                 return TurnPlan((), Reason.NO_PENDING)

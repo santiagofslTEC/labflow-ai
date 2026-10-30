@@ -86,6 +86,27 @@ class UndoExpired(_Result):
     code: Literal["undo_expired"] = "undo_expired"
 
 
+class SavedNow(_Result):
+    """What `save_now` wrote (spec 0011, AC-12). `proposal_id` is None when every slot was
+    filled in between and nothing was written; `skipped` are those variable ids."""
+
+    proposal_id: int | None
+    trial_id: int
+    created_trial: bool
+    skipped: tuple[int, ...] = ()
+
+
+class Undone(_Result):
+    """How an undo ended (spec 0011, AC-10): the values came back as a pending card
+    (`reopened`), joined the waiting card of the same trial (`merged`), or were dropped
+    (`discarded`: another trial's card waits, or voice)."""
+
+    outcome: Literal["reopened", "merged", "discarded"]
+    proposal_id: int  # the pending card that holds the values now, or the dropped save
+    experiment_id: int
+    trial_number: int | None
+
+
 type StartError = ExperimentNotFound | InvalidTrialNumber
 type PendingError = ProposalNotFound | NotPending
 type SetTrialError = PendingError | TrialNotInExperiment | InvalidTrialNumber

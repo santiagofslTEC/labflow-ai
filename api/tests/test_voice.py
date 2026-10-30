@@ -342,7 +342,11 @@ def test_a_voice_turn_runs_the_capture_turn_and_speaks_our_reply(
     turns = _turns(session, nb)
     assert [(t.role, t.source, t.text) for t in turns] == [
         ("user", Source.VOICE, AC1),
-        ("assistant", None, "Guardé el ensayo 6."),  # the DB keeps source on user turns only
+        (
+            "assistant",
+            None,
+            "Guardado ensayo 6: 65 °C, 20 min y 74 %.",
+        ),  # the DB keeps source on user turns only
     ]
 
 
@@ -412,7 +416,7 @@ def test_a_slow_reply_starts_with_the_filler_which_is_never_stored(
     script.append(ac1_call(nb))
     token = _open(holder, nb.experiment_id)
     assert _spoken(_post(authed, token, AC1)) == f"A ver. {SAVED_ALOUD}"
-    assert _turns(session, nb)[-1].text == "Guardé el ensayo 6."
+    assert _turns(session, nb)[-1].text == "Guardado ensayo 6: 65 °C, 20 min y 74 %."
 
 
 def test_logs_carry_the_sid_never_the_sentence_or_the_token(
@@ -498,11 +502,11 @@ def test_deshacer_takes_back_the_last_auto_save_once(
 def test_deshacer_with_a_pending_card_discards_it(
     authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
 ) -> None:
-    sentence = "Ensayo 6, temperatura 65 grados"
+    sentence = "Ensayo 6, temperatura 500 grados"
     script.append(
         ProponerMedicion(
             trial_number=6,
-            values=[ExtractedValue(variable_id=nb.temp, number_text="65", value=65)],
+            values=[ExtractedValue(variable_id=nb.temp, number_text="500", value=500)],
         )
     )
     token = _open(holder, nb.experiment_id)
@@ -522,3 +526,68 @@ def test_a_longer_version_of_a_saved_turn_takes_the_first_save_back(
     # The same turn key arrives again with more words: the newest request wins.
     assert _spoken(_post(authed, token, AC1 + ", listo")) == SAVED_ALOUD
     assert _measurements(session) == before + 3 and _trials(session, nb) == 1
+
+
+# --- spec 0011: partial readings by voice (AC-13) -------------------------------------
+
+
+SPLIT = "Ensayo 6, temperatura 500 grados, duración 20 minutos"
+
+
+def split_call(nb: Notebook) -> ProponerMedicion:
+    return ProponerMedicion(
+        trial_number=6,
+        values=[
+            ExtractedValue(variable_id=nb.temp, number_text="500", value=500, unit_text="grados"),
+            ExtractedValue(variable_id=nb.dur, number_text="20", value=20, unit_text="minutos"),
+        ],
+    )
+
+
+def test_a_split_turn_speaks_the_joined_reply(
+    authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
+) -> None:
+    script.append(split_call(nb))
+    token = _open(holder, nb.experiment_id)
+    spoken = _spoken(_post(authed, token, SPLIT))
+    assert spoken == "Guardado ensayo 6: 20 min. Antes de guardar, revisa Temperatura."
+    assert _pending(session, nb) is not None and _trials(session, nb) == 1
+
+
+def test_deshacer_after_a_split_takes_back_the_save_and_keeps_the_card(
+    authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
+) -> None:
+    before = _measurements(session)
+    script.append(split_call(nb))
+    token = _open(holder, nb.experiment_id)
+    _spoken(_post(authed, token, SPLIT))
+    assert _spoken(_post(authed, token, SPLIT, "deshacer")) == "Deshecho: ensayo 6."
+    assert _measurements(session) == before and _trials(session, nb) == 0
+    card = _pending(session, nb)
+    assert card is not None and card.trial_number == 6 and card.target_trial_id is None
+
+
+def test_a_superseded_turn_leaves_no_stale_card(
+    authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
+) -> None:
+    """ "ensayo 1 temperatura 650" heard first, then the full "ensayo 13 temperatura 65"."""
+
+    def temp(trial: int, text: str, value: float) -> ProponerMedicion:
+        found = ExtractedValue(variable_id=nb.temp, number_text=text, value=value)
+        return ProponerMedicion(trial_number=trial, values=[found])
+
+    script += [temp(1, "650", 650), temp(13, "65", 65)]
+    token = _open(holder, nb.experiment_id)
+    _spoken(_post(authed, token, "ensayo 1 temperatura 650"))
+    assert _pending(session, nb) is not None
+    spoken = _spoken(_post(authed, token, "ensayo 13 temperatura 65"))
+    assert spoken == "Guardado ensayo 13: 65 °C. Di deshacer para quitarlo."
+    assert _pending(session, nb) is None and _trials(session, nb) == 1
+
+
+def test_a_bare_trial_by_voice(
+    authed: TestClient, session: Session, nb: Notebook, holder: str, script: list[Any]
+) -> None:
+    token = _open(holder, nb.experiment_id)  # the script is empty: no model call
+    assert _spoken(_post(authed, token, "ensayo 4")) == "Ensayo 4. Dime los valores."
+    assert _trials(session, nb) == 0

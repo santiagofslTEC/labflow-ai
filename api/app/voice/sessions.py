@@ -25,12 +25,13 @@ SESSION_LIFE_S = 30 * 60
 @dataclass(frozen=True, slots=True)
 class Spoken:
     """What a turn says. `keep` is False for a failed turn, so saying it again runs anew.
-    `auto_saved` is the proposal a turn saved with no tap, so a newer request for the same
-    turn can take it back (AC-14)."""
+    `auto_saved` is the proposal a turn saved with no tap and `started` the card it opened,
+    so a newer request for the same turn can take both back (spec 0011, AC-13)."""
 
     text: str
     keep: bool = True
     auto_saved: int | None = None
+    started: int | None = None
 
 
 @dataclass(slots=True)

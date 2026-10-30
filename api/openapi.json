@@ -795,7 +795,7 @@
           "capture"
         ],
         "summary": "Post Trial",
-        "description": "Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial.",
+        "description": "Answer `choose_trial` (AC-7): a correction of the saved trial, or a new trial. Kept\nfor cards from before spec 0011; the planner no longer asks it (spec 0011, AC-3).",
         "operationId": "post_trial_api_proposals__proposal_id__trial_post",
         "parameters": [
           {
@@ -1033,7 +1033,7 @@
           "capture"
         ],
         "summary": "Post Undo",
-        "description": "Take back a save LabFlow made with no tap (AC-29): the same card comes back pending,\nand a \"Deshecho\" turn records it. Only until the next sentence.",
+        "description": "Take back a save LabFlow made with no tap (spec 0011, AC-10): its values come back\nas a pending card, or join the card waiting for the same trial; with another trial's\ncard waiting they are dropped and that card stays. A \"Deshecho\" turn records it. Only\nuntil the next sentence.",
         "operationId": "post_undo_api_proposals__proposal_id__undo_post",
         "parameters": [
           {
@@ -2362,6 +2362,8 @@
           "missing_values",
           "missing_trial",
           "choose_trial",
+          "trial_selected",
+          "confirm_change",
           "pending_other_trial",
           "ambiguous_variable",
           "two_values",
