@@ -114,7 +114,8 @@ test.describe("in landscape (AC-11)", () => {
 });
 
 // A touch swipe to the bottom stays there, with the last content clear of the
-// tab bar (AC-11).
+// tab bar (AC-11). Swipes repeat until the page stops moving; then it must
+// not move back on its own.
 for (const path of [
   "/cuadernos",
   "/cuadernos/7?vista=ensayos",
@@ -122,15 +123,13 @@ for (const path of [
   "/cuadernos/7/resultados",
   "/cuadernos/nuevo",
 ])
-  test(`${path} scrolls to the bottom and stays`, async ({
-    page,
-    browserName,
-  }) => {
-    test.skip(browserName !== "chromium", "touch gestures need CDP");
+  test(`${path} scrolls to the bottom and stays`, async ({ page }) => {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
     const cdp = await page.context().newCDPSession(page);
-    for (let i = 0; i < 8; i += 1)
+    const scrollY = () => page.evaluate(() => Math.round(window.scrollY));
+    const positions: number[] = [];
+    for (let i = 0; i < 20; i += 1) {
       await cdp.send("Input.synthesizeScrollGesture", {
         x: 180,
         y: 400,
@@ -138,24 +137,32 @@ for (const path of [
         speed: 2000,
         gestureSourceType: "touch",
       });
-    await page.waitForTimeout(500);
+      positions.push(await scrollY());
+      if (i > 0 && positions[i] === positions[i - 1]) break;
+    }
+    const reached = positions.at(-1) ?? 0;
+    await page.waitForTimeout(1000);
     const end = await page.evaluate(() => {
       const bar = document
         .querySelector('nav[aria-label="Principal"].fixed')
         ?.getBoundingClientRect();
-      const main = document.querySelector("main");
-      const last = main?.lastElementChild?.getBoundingClientRect();
+      const last = document
+        .querySelector("main")
+        ?.lastElementChild?.getBoundingClientRect();
       return {
-        atBottom:
-          Math.abs(
-            window.scrollY +
-              window.innerHeight -
-              document.documentElement.scrollHeight,
-          ) <= 1,
-        lastBottom: last?.bottom ?? 0,
-        barTop: bar?.top ?? window.innerHeight,
+        y: Math.round(window.scrollY),
+        bottom: document.documentElement.scrollHeight - window.innerHeight,
+        lastBottom: Math.round(last?.bottom ?? 0),
+        barTop: Math.round(bar?.top ?? window.innerHeight),
       };
     });
-    expect(end.atBottom).toBe(true);
-    expect(end.lastBottom).toBeLessThanOrEqual(end.barTop);
+    const story = `swipes ${positions.join(" → ")}, then ${JSON.stringify(end)}`;
+    expect(
+      Math.abs(reached - end.bottom),
+      `reaches the bottom: ${story}`,
+    ).toBeLessThanOrEqual(1);
+    expect(end.y, `stays there: ${story}`).toBe(reached);
+    expect(end.lastBottom, `clears the tab bar: ${story}`).toBeLessThanOrEqual(
+      end.barTop,
+    );
   });
