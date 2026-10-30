@@ -1,4 +1,4 @@
-# 0007 rationale: trials table, recent measurements, and CSV export
+# 0010 rationale: trials table, recent measurements, and CSV export
 
 **Why now**: the side panel already draws the table, the recent list, and the export, so students see controls that never fill in even after they save. Features 7 and 16 are the smallest change that makes everything visible in the panel work.
 

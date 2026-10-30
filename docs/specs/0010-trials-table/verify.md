@@ -1,5 +1,5 @@
-# Verify: trials table, recent measurements, and CSV export · spec 0007 · updated 2026-10-29
-_Steps derived from spec 0007 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones._
+# Verify: trials table, recent measurements, and CSV export · spec 0010 (was 0007) · updated 2026-10-29
+_Steps derived from spec 0010 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones._
 
 ## UI / manual
 - [ ] Open a notebook with no trials → "Aún no hay ensayos" and "Aún no hay mediciones" as before → AC-2, AC-3
