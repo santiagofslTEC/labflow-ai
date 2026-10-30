@@ -18,7 +18,7 @@
 **Acceptance criteria**:
 - **AC-1**: "Ver resultados" in the notebook header links to `/cuadernos/{id}/resultados`. The page shows the notebook title, "Resultados", and a "Volver al cuaderno" link. An invalid or unknown id shows the notebook's "no existe" state (spec 0005, AC-11); loading shows skeletons for the chart and the summary.
 - **AC-2**: The chart has an X and a Y selector listing the notebook's variables by position ("{name} ({unit})", or the name alone). By default X is the first variable and Y the second; the choice lives in the URL (`?x={variable_id}&y={variable_id}`), so a reload or a shared link keeps it, and an unknown or missing id falls back to the default. X and Y can be the same variable only if the notebook has just one variable.
-- **AC-3**: The chart draws one point per trial that has a value for both variables, at exactly the saved values (the trials query of spec 0007, in the variables' units, never rounded). Hovering a point shows "Ensayo {n} · {X name} {x} · {Y name} {y}" through `formatQuantity`. The axes are titled with the variable names and units. Below the chart: "{k} ensayos graficados" and, when some trials miss X or Y, "{m} ensayos sin {name} no aparecen". With no plottable trial it shows "Aún no hay ensayos con {X} y {Y}" instead of an empty chart.
+- **AC-3**: The chart draws one point per trial that has a value for both variables, at exactly the saved values (the trials query of spec 0010, in the variables' units, never rounded). Hovering a point shows "Ensayo {n} · {X name} {x} · {Y name} {y}" through `formatQuantity`. The axes are titled with the variable names and units. Below the chart: "{k} ensayos graficados" and, when some trials miss X or Y, "{m} ensayos sin {name} no aparecen". With no plottable trial it shows "Aún no hay ensayos con {X} y {Y}" instead of an empty chart.
 - **AC-4**: The chart is understandable without seeing it: it has a text alternative ("Gráfica de {Y} contra {X}, {k} ensayos") and a "Ver puntos" disclosure that lists the plotted points as a table (Ensayo, X, Y) in X order. Keyboard and screen reader users get the same point text from "Ver puntos" (Plotly's points cannot take focus one by one). The one series uses the `chart-1` token, which `web/design.md` reserves for Plotly; its dark step moves from `#4fbf8b` to `#3faa7b`, the nearest green that passes the dataviz validator's lightness band on the dark surface. Axes, grid, and labels use the ink, muted, and line tokens, read at runtime so the chart follows the theme.
 - **AC-5**: The summary lists every variable by position: values count, minimum, maximum, and average, each value through `formatQuantity(value, unit)`. Minimum and maximum name their trials ("83 % · ensayo 10"; when several trials tie, "ensayos 3 y 7"). A variable with no values shows "Sin valores" in place of the numbers. The average is the arithmetic mean of the saved values, shown with at most 3 decimals; it names no trial.
 - **AC-6**: "Mejor ensayo" has a variable selector and a choice "Más alto es mejor" or "Más bajo es mejor" (in the URL as `?best={variable_id}&dir=max|min`, defaulting to the last variable and `max`). It shows the trial with the highest or lowest value of that variable, with all its values in variable order ("—" for a missing one). On a tie it shows the lowest trial number and says "Empata con los ensayos {list}". With no values for that variable it says "Aún no hay valores de {name}".
@@ -34,7 +34,7 @@
 **Calls made in this spec** (scope decided with the team on 2026-10-29; reasoning in [rationale.md](rationale.md)):
 - **A page, not a dialog**: a chart needs width, and a link to `/resultados?x=…&y=…` can be shared or reloaded. Runner up: a dialog like "Tabla completa", with a smaller chart and no shareable state.
 - **Summary on the server with SQL**: spec 0001 picked SQL aggregates for exact min, max, average, and count with their source trial; feature 10's questions will reuse this route. Runner up: compute in the browser from the trials query, which would put a second copy of the math where feature 10 cannot reuse it.
-- **Chart and best trial from the trials query** (spec 0007): they only place and pick saved values; the best trial's value is the summary's own `max_trials` or `min_trials`, so the two never disagree.
+- **Chart and best trial from the trials query** (spec 0010): they only place and pick saved values; the best trial's value is the summary's own `max_trials` or `min_trials`, so the two never disagree.
 - **Plotly through `react-plotly.js` with `plotly.js-basic-dist-min`**: spec 0001 chose Plotly; the basic bundle has scatter plots at about a third of the full bundle's size. Runner up: the full `plotly.js` bundle.
 - **Selections in the URL**: reload and share keep them, and there is no client state to sync.
 - **The spoken request ("grafica rendimiento contra temperatura")** stays with feature 10, which already answers `not_supported_yet` for it.
@@ -63,7 +63,7 @@
 
 | Shown | Source |
 |---|---|
-| Chart points, best trial's values, "Ver puntos" | `measurement.value` via the trials route (spec 0007) |
+| Chart points, best trial's values, "Ver puntos" | `measurement.value` via the trials route (spec 0010) |
 | Count, min, max, mean, tie trials | the results route (AC-7), SQL aggregates |
 | Axis titles, selectors, units | `experiment.variables` |
 

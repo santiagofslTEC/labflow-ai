@@ -42,8 +42,11 @@ def make_clients(settings: Settings) -> LLMClients:
     )
 
 
-def build_provider(settings: Settings, clients: LLMClients, holder: str) -> LLMProvider | None:
-    """None when no provider can run (dev with no keys): the route answers 503."""
+def build_provider(
+    settings: Settings, clients: LLMClients, holder: str, hedge_s: float | None = None
+) -> LLMProvider | None:
+    """None when no provider can run (dev with no keys): the route answers 503. `hedge_s`
+    overrides when Claude starts (voice turns, spec 0007 AC-23)."""
     if settings.llm_provider == "fake":
         return FakeProvider()
     primary = OllamaProvider(clients.ollama, settings.ollama_model) if clients.ollama else None
@@ -72,7 +75,7 @@ def build_provider(settings: Settings, clients: LLMClients, holder: str) -> LLMP
                 return FallbackProvider(
                     primary,
                     backup,
-                    settings.ollama_hedge_s,
+                    hedge_s or settings.ollama_hedge_s,
                     settings.llm_deadline_s,
                     setup_hedge_s=settings.setup_hedge_s,
                     setup_deadline_s=settings.setup_deadline_s,
@@ -90,10 +93,11 @@ ProviderDep = Annotated[LLMProvider | None, Depends(get_provider)]
 
 def get_provider_factory(request: Request) -> Callable[[str], LLMProvider | None]:
     """For routes with no cookie (the voice Custom LLM, spec 0007): the holder comes from the
-    signed session token, so the chain is built once the token is read."""
+    signed session token, so the chain is built once the token is read. Voice turns use the
+    shorter `VOICE_HEDGE_S` (AC-23)."""
     clients = cast(LLMClients, request.app.state.llm_clients)
     settings = get_settings()
-    return lambda holder: build_provider(settings, clients, holder)
+    return lambda holder: build_provider(settings, clients, holder, settings.voice_hedge_s)
 
 
 ProviderFactoryDep = Annotated[Callable[[str], LLMProvider | None], Depends(get_provider_factory)]

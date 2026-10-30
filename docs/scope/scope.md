@@ -102,8 +102,8 @@ spec [0005](../specs/0005-experiments-create-list/index.md) · code in `api/app/
 
 ### 6. Text capture and confirm card · in-progress · Beta
 The heart of LabFlow. You type a sentence, the AI turns it into trial, variable, value, unit, and shows a card asking "¿Lo guardo?". You confirm, edit a field, or discard. It asks instead of guessing when something is missing or ambiguous. This spec also decides the AI model, the output schema, and the intent and tool pattern that later features reuse. RF-04, RF-05, RF-06, RF-07, RN-01 to RN-03.
-**Done when:** nothing reaches the table before you confirm; a correction replaces the value with no duplicate; "Ensayo 6, 65 grados" makes it ask for the missing values; dictating a trial number that exists asks whether it is a correction; "grados" becomes °C and "por ciento" becomes % (PA-03, PA-04, PA-09).
-spec [0006](../specs/0006-text-capture-confirm-card/index.md) · code in `api/app/routers/capture.py`, `api/app/services/turn_plan.py`, `web/src/components/capture-stage/`
+**Done when:** a reading that is not clean waits for your confirm; a correction replaces the value with no duplicate; "Ensayo 6, 65 grados" saves 65 °C on trial 6 and never asks for the rest, and a later sentence adds to the same trial (spec 0011); a value that would replace a saved one asks first; "grados" becomes °C and "por ciento" becomes % (PA-03, PA-04, PA-09).
+spec [0006](../specs/0006-text-capture-confirm-card/index.md), partial readings [0011](../specs/0011-partial-readings/index.md) · code in `api/app/routers/capture.py`, `api/app/services/turn_plan.py`, `web/src/components/capture-stage/`
 - [x] Design it (spec): `/architect text capture and confirm card`
 - [x] Build it: `/develop text capture and confirm card` (after feature 19)
   - [x] The pure core: the said text and check columns (migration), number reading and grounding with said text, units, reply templates, the tool schema, the planner, flags, and the card view (AC-3, AC-5 to AC-12, AC-17, AC-21, AC-23, AC-24)
@@ -111,13 +111,19 @@ spec [0006](../specs/0006-text-capture-confirm-card/index.md) · code in `api/ap
   - [x] The routes: the turn service with its executor and stale check, the seven capture routes with the check guard on confirm, `make openapi` (AC-1 to AC-4, AC-6 to AC-8, AC-13, AC-16, AC-17, AC-19, AC-20, AC-24)
   - [x] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
   - [x] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
+- [x] Design partial readings (spec): `/architect voice capture round 2`
+- [ ] Build partial readings: `/develop partial readings` (spec 0011, after feature 8's silent reply fix)
+  - [ ] The clean rule and targets: context with every trial's saved values, AC-12 clean rule, state reasons, no more `choose_trial` (0011 AC-1 to AC-3, AC-12, AC-15)
+  - [ ] The split: `save_now`, one transaction, insert only writes, `confirm_change`, joined replies (0011 AC-4 to AC-6, AC-14)
+  - [ ] Trials without values and undo: bare trial, remembered trial, another trial while a card waits, undo branches, superseded voice turns (0011 AC-7 to AC-10, AC-13)
+  - [ ] Web: notice plus card, "esperando valores", resend rule, "Esperada", table "—" (0011 AC-2, AC-5, AC-8, AC-11, AC-16)
 - [ ] Verify it: `/check verify text capture and confirm card`
 - [ ] Test it: `/test text capture and confirm card`
 
-### 7. Trials table · in-progress · from spec 0007
+### 7. Trials table · in-progress · from spec 0010
 The table of confirmed trials in the workspace (P3), updating the moment you confirm. RF-09.
 **Done when:** the table matches exactly what is saved, and refreshes right after each confirmation.
-spec [0007](../specs/0007-trials-table/index.md) · code in `api/app/repositories/trials.py`, `web/src/components/notebooks/notebook-inspector.tsx`, `web/src/lib/trials.ts`
+spec [0010](../specs/0010-trials-table/index.md) · code in `api/app/repositories/trials.py`, `web/src/components/notebooks/notebook-inspector.tsx`, `web/src/lib/trials.ts`
 - [ ] Build it: `/develop trials table`
 
 ### 20. Push to talk main page · in-progress · from spec 0004
@@ -137,13 +143,19 @@ spec [0004](../specs/0004-push-to-talk-main-page/index.md) · code in `web/src/a
 ### 8. Voice capture · in-progress
 A mic button with a visible state; your dictation in Spanish (numbers in words, "coma" decimals) becomes the same proposal as typed text, and you can correct by voice ("No, el rendimiento es setenta y tres"). Decides the voice integration (an all in one voice agent platform vs speech to text plus your own agent). No audio stored. RF-03, RF-06, RNF-01, RNF-02, RNF-09.
 **Done when:** a full dictation shows a proposal in 5 s or less; a spoken correction updates the card; if the voice service fails, typing still works (PA-02); a clean reading saves with a spoken read back and "deshacer" works (spec 0007, AC-1 to AC-20).
-spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md) · code in `api/app/voice/`, `api/app/routers/voice.py`, `api/voice/agent.json`, `api/scripts/sync_agent.py`, `web/src/hooks/use-voice-session.ts`, `web/src/components/push-to-talk/`
+spec [0007](../specs/0007-voice-conversation-elevenlabs-agents/index.md), mic [0012](../specs/0012-voice-mic-center-stage/index.md) · code in `api/app/voice/`, `api/app/routers/voice.py`, `api/voice/agent.json`, `api/scripts/sync_agent.py`, `web/src/hooks/use-voice-session.ts`, `web/src/components/push-to-talk/`
 - [x] Design it (spec): `/architect voice capture`
 - [ ] Build it: `/develop voice capture`
   - [x] Proof and brain: dev agent through a tunnel, the Custom LLM endpoint, session tokens, replays and caps (AC-3, AC-4, AC-12 to AC-15, AC-17)
   - [ ] Auto save and undo: the `undone` status, clean check, "deshacer", last save and undo routes (AC-5 to AC-7)
   - [ ] Voice on the main page: session start and stop, live words, refetches, saved notice, hold to talk, failure states (AC-1, AC-2, AC-8 to AC-11, AC-20)
   - [ ] Prod agent, phone and accessibility pass, notebook page dock (AC-16 to AC-19)
+  - [ ] Round 2, the silent reply (do first): turn settings, "A ver." filler, voice hedge, thinking state, `voice_probe.py`, tentative words event (spec 0007 task 9, AC-21 to AC-26)
+- [x] Design the mic at center stage (spec): `/architect voice capture round 2`
+- [ ] Build the mic at center stage: `/develop voice mic center stage` (spec 0012, after partial readings)
+  - [ ] Stage, states, and the meter (0012 AC-1 to AC-4, AC-9, AC-10, AC-12)
+  - [ ] Live words, reply, and the server counted stop line (0012 AC-5 to AC-8)
+  - [ ] Accessibility and phone pass (0012 AC-11)
 - [ ] Verify it: `/check verify voice capture`
 
 ## Release 3: Understand your data
@@ -188,10 +200,10 @@ When you say "terminar", list trials with required variables still empty. RF-13.
 **Done when:** finishing an experiment with gaps lists each trial and missing variable before closing.
 - [ ] Build it: `/develop pending measurements check`
 
-### 16. CSV export · in-progress · from spec 0007
+### 16. CSV export · in-progress · from spec 0010
 Download the trials table as a CSV. RF-15.
 **Done when:** the file opens in Excel with the same rows and columns as the table.
-spec [0007](../specs/0007-trials-table/index.md) · code in `web/src/lib/trials.ts`, `web/src/lib/csv.ts`
+spec [0010](../specs/0010-trials-table/index.md) · code in `web/src/lib/trials.ts`, `web/src/lib/csv.ts`
 - [ ] Build it: `/develop csv export`
 
 ### 17. Protocol PDF questions · needs a decision

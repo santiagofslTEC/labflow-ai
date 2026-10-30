@@ -10,7 +10,9 @@ import { endVoiceSession, startVoiceSession } from "@/api/voice";
 import {
   micErrorMessage,
   SILENCE_MS,
+  tentativeText,
   voiceCopy,
+  withoutFiller,
   type VoiceState,
 } from "@/lib/voice";
 
@@ -37,6 +39,8 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [heard, setHeard] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
+  // From your final words until LabFlow's real reply (spec 0007, AC-24).
+  const [thinking, setThinking] = useState(false);
   const [now, setNow] = useState(0); // set when a session starts, never at render
   const sid = useRef<string | null>(null);
   const silence = useRef<number | undefined>(undefined);
@@ -51,6 +55,7 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
 
   const release = () => {
     window.clearTimeout(silence.current);
+    setThinking(false);
     if (sid.current !== null) void endVoiceSession(sid.current);
     sid.current = null;
   };
@@ -59,11 +64,22 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
     onMessage: ({ role, message }) => {
       if (role === "user") {
         setHeard(message);
-        armSilence();
+        setThinking(true);
+        // No silence timeout while LabFlow works on your turn (AC-24).
+        window.clearTimeout(silence.current);
       } else {
-        setAnswer(message);
+        // The filler alone ("A ver.") does not end thinking (AC-22, AC-24).
+        const reply = withoutFiller(message);
+        if (reply === "") return;
+        setAnswer(reply);
+        setThinking(false);
+        armSilence();
       }
       refresh();
+    },
+    // You kept talking: back to listening (AC-24).
+    onIncomingEvent: (event: unknown) => {
+      if (tentativeText(event) !== null) setThinking(false);
     },
     onModeChange: ({ mode }) => {
       if (mode === "listening") refresh();
@@ -175,6 +191,8 @@ export function useVoiceSession(experimentId: number | null): VoiceSession {
       case "live": {
         if (conversation.status !== "connected") return { kind: "starting" };
         const elapsedMs = Math.max(0, now - phase.startedAt);
+        // Thinking wins over the filler's audio (AC-24).
+        if (thinking) return { kind: "thinking", elapsedMs };
         return conversation.isSpeaking
           ? { kind: "speaking", elapsedMs }
           : { kind: "listening", elapsedMs };

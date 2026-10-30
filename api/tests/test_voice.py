@@ -97,6 +97,18 @@ def test_payload_fills_url_and_secret_without_touching_the_template() -> None:
     assert "built_in_tools" not in payload["conversation_config"]["agent"]["prompt"]  # type: ignore[index]
 
 
+def test_agent_answers_sooner_and_sends_tentative_words() -> None:
+    """Round 2 (AC-21, AC-26): normal eagerness with speculative turns, and the browser gets
+    the words you are still saying."""
+    config = load_template()["conversation_config"]
+    assert config["turn"]["turn_eagerness"] == "normal"  # type: ignore[index]
+    assert config["turn"]["speculative_turn"] is True  # type: ignore[index]
+    events = config["conversation"]["client_events"]  # type: ignore[index]
+    assert {"tentative_user_transcript", "user_transcript", "agent_response", "audio"} <= set(
+        events  # type: ignore[arg-type]
+    )
+
+
 # --- turn keys, replays, and the write gate (AC-14) ----------------------------------
 
 
@@ -140,7 +152,10 @@ def test_sessions_open_get_end_and_expire() -> None:
 
 @pytest.fixture
 def bearer(monkeypatch: pytest.MonkeyPatch) -> str:
-    settings = get_settings().model_copy(update={"voice_llm_secret": BEARER})
+    # The remote test database can take over a second, so the filler waits longer here.
+    settings = get_settings().model_copy(
+        update={"voice_llm_secret": BEARER, "voice_filler_after_s": 60.0}
+    )
     monkeypatch.setattr(voice, "get_settings", lambda: settings)
     return BEARER
 
@@ -269,12 +284,9 @@ def script(
     session: Session,
     bearer: str,
     delay: list[float],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[list[ToolCall | ProviderFailure]]:
     """Append the tool calls the model should return, in order. Voice turns open their own
-    session, so they get the rolled back test session here. The remote test database can
-    take over 1.5 s, so the filler waits longer unless a test sets it."""
-    monkeypatch.setattr(voice, "FILLER_AFTER_S", 60.0)
+    session, so they get the rolled back test session here."""
     steps: list[ToolCall | ProviderFailure] = []
     fake = FakeProvider(steps)
     app.dependency_overrides[get_session_factory] = lambda: lambda: nullcontext(session)
@@ -385,11 +397,12 @@ def test_a_slow_reply_starts_with_the_filler_which_is_never_stored(
     delay: list[float],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(voice, "FILLER_AFTER_S", 0.05)
+    fast = voice.get_settings().model_copy(update={"voice_filler_after_s": 0.05})
+    monkeypatch.setattr(voice, "get_settings", lambda: fast)
     delay[0] = 0.3
     script.append(ac1_call(nb))
     token = _open(holder, nb.experiment_id)
-    assert _spoken(_post(authed, token, AC1)) == f"Mm, {SAVED_ALOUD}"
+    assert _spoken(_post(authed, token, AC1)) == f"A ver. {SAVED_ALOUD}"
     assert _turns(session, nb)[-1].text == "Guardé el ensayo 6."
 
 

@@ -854,9 +854,11 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "certifi" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -875,9 +877,11 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "certifi", specifier = ">=2026.10.23" },
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "ruff", specifier = ">=0.17.3" },
+    { name = "websockets", specifier = ">=17.3" },
 ]
 
 [[package]]

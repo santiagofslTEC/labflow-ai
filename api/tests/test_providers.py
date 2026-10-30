@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.ai.claude_cap import CappedProvider, ClaudeCap, allow_call
+from app.ai.deps import build_provider, make_clients
 from app.ai.provider import Decision, LLMProvider, ProviderFailure, SetupDecision
 from app.ai.providers.anthropic import tool_definitions as claude_tools
 from app.ai.providers.fake import FakeProvider, read_by_rules
@@ -279,3 +280,19 @@ def test_another_tool_is_not_a_setup_call() -> None:
 
     with pytest.raises(ValueError, match="unexpected tool"):
         parse_setup_call("confirmar", {})
+
+
+def test_voice_turns_start_claude_sooner() -> None:
+    """Spec 0007 AC-23: the voice factory passes `VOICE_HEDGE_S`; typing keeps `OLLAMA_HEDGE_S`."""
+    settings = Settings(  # pyright: ignore[reportCallIssue]
+        llm_provider="fallback",
+        ollama_api_key="test",
+        anthropic_api_key="test",
+        ollama_hedge_s=1.5,
+        voice_hedge_s=0.8,
+    )
+    clients = make_clients(settings)
+    typed = build_provider(settings, clients, "ana")
+    spoken = build_provider(settings, clients, "ana", settings.voice_hedge_s)
+    assert isinstance(typed, FallbackProvider) and typed.hedge_s == 1.5
+    assert isinstance(spoken, FallbackProvider) and spoken.hedge_s == 0.8

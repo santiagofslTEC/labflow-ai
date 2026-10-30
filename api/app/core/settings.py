@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     elevenlabs_agent_id: str | None = None
     voice_llm_secret: str | None = Field(default=None, min_length=32)
     voice_llm_url: str | None = None
+    # Round 2 (spec 0007, AC-22, AC-23): voice turns start Claude sooner and speak a filler.
+    voice_hedge_s: float = Field(default=0.8, gt=0)
+    voice_filler_after_s: float = Field(default=1.0, gt=0)
 
     @model_validator(mode="after")
     def _check_ai_keys(self) -> "Settings":

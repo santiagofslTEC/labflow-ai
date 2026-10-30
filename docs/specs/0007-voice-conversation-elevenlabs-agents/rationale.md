@@ -95,3 +95,17 @@ LangGraph does not fit capture: spec 0001 kept code in charge of state and the s
 - Conversation flow (turn timeout, eagerness, max duration): https://elevenlabs.io/docs/eleven-agents/customization/conversation-flow
 - Pricing: https://elevenlabs.io/pricing/agents
 - Scribe realtime client streaming: https://elevenlabs.io/docs/eleven-api/guides/how-to/speech-to-text/realtime/client-side-streaming
+
+## Round 2 diagnosis: the silent reply (2026-10-30)
+
+**Symptom**: in production LabFlow captured values but the agent never spoke a reply.
+
+**Evidence**:
+- ElevenLabs conversation records for agent `agent_4901m66hht7jfk4rc6v3fv466ywv` (`GET /v1/convai/conversations`): every call holds the first message and the user turn, never an agent turn, and ends "Client disconnected: 1000" (a normal close from the browser).
+- Railway logs, matched to call start times: the user spoke 2 to 3 s into the call, ElevenLabs called `POST /api/voice/llm/chat/completions` 7 to 13 s into the call (5 to 10 s after the student stopped), and the browser sent `DELETE /api/voice/session/{sid}` 0.7 to 2.2 s after that, before our reply was ready. Each turn logged "llm fallback started" (Ollama slower than the 1.5 s hedge).
+- The engineer confirmed tapping stop after waiting in silence.
+- A typed probe over the prod agent WebSocket (no turn detection) got the reply's audio 2.9 s after sending, and the reply text arrived as "Mm, Solo registro mediciones…": the filler was not spoken on its own.
+
+**Root cause**: not a broken stream. The wait was too long and invisible: `turn_eagerness: patient` added 5 to 10 s before our turn even started, our turn added up to the 4.5 s deadline, the 4 character filler was buffered by text to speech, and the screen kept showing "Escuchando…".
+
+**Fix**: AC-21 to AC-26 (turn settings, a speakable filler, a shorter voice hedge, a thinking state, a probe for numbers, tentative words for spec 0012). Runner up considered: Claude first for every voice turn, steadier latency but a higher cost per turn; the engineer chose the shorter hedge.

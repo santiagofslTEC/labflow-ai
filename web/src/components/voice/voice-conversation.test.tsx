@@ -13,6 +13,7 @@ type Options = {
   readonly onMessage?: (m: { role: string; message: string }) => void;
   readonly onDisconnect?: (d: { reason: string }) => void;
   readonly onError?: (message: string, context?: unknown) => void;
+  readonly onIncomingEvent?: (event: unknown) => void;
 };
 
 const conversation = {
@@ -117,6 +118,79 @@ describe("VoiceConversation", () => {
     expect(screen.getByText("Guardado ensayo 7: 65 °C.")).toBeInTheDocument();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["proposal", 3] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["experiments"] });
+  });
+
+  it("shows Pensando from your words until the real reply, past the filler's audio (AC-24)", async () => {
+    renderVoice();
+    await userEvent.click(screen.getByRole("button", { name: /hablar/i }));
+    await waitFor(() => expect(conversation.startSession).toHaveBeenCalled());
+    act(() => options.onMessage?.({ role: "user", message: "Ensayo 7" }));
+    expect(
+      screen.getByText("Pensando…", { selector: "p" }),
+    ).toBeInTheDocument();
+
+    // The filler plays: still thinking, nothing shown as the answer.
+    conversation.isSpeaking = true;
+    act(() => options.onMessage?.({ role: "agent", message: "A ver." }));
+    expect(
+      screen.getByText("Pensando…", { selector: "p" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("A ver.")).not.toBeInTheDocument();
+
+    act(() =>
+      options.onMessage?.({
+        role: "agent",
+        message: "A ver. Guardado ensayo 7: 65 °C.",
+      }),
+    );
+    expect(screen.getByText("Guardado ensayo 7: 65 °C.")).toBeInTheDocument();
+    expect(
+      screen.getByText("LabFlow está hablando", { selector: "p" }),
+    ).toBeInTheDocument();
+  });
+
+  it("goes back to listening when you keep talking while it thinks (AC-24)", async () => {
+    renderVoice();
+    await userEvent.click(screen.getByRole("button", { name: /hablar/i }));
+    await waitFor(() => expect(conversation.startSession).toHaveBeenCalled());
+    act(() => options.onMessage?.({ role: "user", message: "Ensayo 7" }));
+    expect(
+      screen.getByText("Pensando…", { selector: "p" }),
+    ).toBeInTheDocument();
+    act(() =>
+      options.onIncomingEvent?.({
+        type: "tentative_user_transcript",
+        tentative_user_transcription_event: {
+          user_transcript: "Ensayo 7, 65",
+          event_id: 4,
+        },
+      }),
+    );
+    expect(
+      screen.queryByText("Pensando…", { selector: "p" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Te escucho. Dicta el ensayo.", { selector: "p" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not end for silence while LabFlow is thinking (AC-24)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderVoice();
+      await userEvent.click(screen.getByRole("button", { name: /hablar/i }));
+      await waitFor(() => expect(conversation.startSession).toHaveBeenCalled());
+      act(() => options.onMessage?.({ role: "user", message: "Ensayo 7" }));
+      act(() => vi.advanceTimersByTime(61_000));
+      expect(conversation.endSession).not.toHaveBeenCalled();
+      act(() =>
+        options.onMessage?.({ role: "agent", message: "Guardado ensayo 7." }),
+      );
+      act(() => vi.advanceTimersByTime(61_000));
+      expect(conversation.endSession).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stops the session and ends it on our side (AC-1)", async () => {

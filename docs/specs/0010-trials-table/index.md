@@ -1,7 +1,9 @@
-# 0007. Trials table, recent measurements, and CSV export
+# 0010. Trials table, recent measurements, and CSV export
 
 **Date**: 2026-10-29
 **Status**: In Progress
+
+Renumbered from 0007 on 2026-10-30: two specs shared that number. Code comments that say "spec 0007" about the trials table, the recent list, or CSV export mean this spec.
 
 ## Summary
 
