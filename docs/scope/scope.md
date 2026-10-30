@@ -112,11 +112,11 @@ spec [0006](../specs/0006-text-capture-confirm-card/index.md), partial readings 
   - [x] The screen: the card's `choose_trial` state, said vs understood rows, the value naming save button, the flagged look with its checks, the capture hooks, `CaptureStage`, `/dev/capture` (AC-7, AC-8, AC-18, AC-21 to AC-23)
   - [x] Real models: the live smoke test on both providers, model and timeout tuning, keys in Railway (AC-19)
 - [x] Design partial readings (spec): `/architect voice capture round 2`
-- [ ] Build partial readings: `/develop partial readings` (spec 0011, after feature 8's silent reply fix)
-  - [ ] The clean rule and targets: context with every trial's saved values, AC-12 clean rule, state reasons, no more `choose_trial` (0011 AC-1 to AC-3, AC-12, AC-15)
-  - [ ] The split: `save_now`, one transaction, insert only writes, `confirm_change`, joined replies (0011 AC-4 to AC-6, AC-14)
-  - [ ] Trials without values and undo: bare trial, remembered trial, another trial while a card waits, undo branches, superseded voice turns (0011 AC-7 to AC-10, AC-13)
-  - [ ] Web: notice plus card, "esperando valores", resend rule, "Esperada", table "—" (0011 AC-2, AC-5, AC-8, AC-11, AC-16)
+- [ ] Build partial readings: `/develop partial readings` (spec 0011; built, only the live voice check with `voice_probe.py` is left, build plan step 7)
+  - [x] The clean rule and targets: context with every trial's saved values, AC-12 clean rule, state reasons, no more `choose_trial` (0011 AC-1 to AC-3, AC-12, AC-15)
+  - [x] The split: `save_now`, one transaction, insert only writes, `confirm_change`, joined replies (0011 AC-4 to AC-6, AC-14)
+  - [x] Trials without values and undo: bare trial, remembered trial, another trial while a card waits, undo branches, superseded voice turns (0011 AC-7 to AC-10, AC-13)
+  - [x] Web: notice plus card, "esperando valores", resend rule, "Esperada", table "—" (0011 AC-2, AC-5, AC-8, AC-11, AC-16)
 - [ ] Verify it: `/check verify text capture and confirm card`
 - [ ] Test it: `/test text capture and confirm card`
 

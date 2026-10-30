@@ -55,7 +55,7 @@ describe("NotebookForm layout (AC-3, AC-4, AC-18)", () => {
     expect(field("Título")).toHaveValue("");
     expect(field(/Objetivo/)).toHaveValue("");
     expect(field("Nombre, variable 1")).toHaveValue("");
-    expect(field("Requerida, variable 1")).toBeChecked();
+    expect(field("Esperada, variable 1")).toBeChecked();
     expect(
       screen.getByRole("button", { name: "Quitar variable 1" }),
     ).toBeDisabled();

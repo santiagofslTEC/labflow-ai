@@ -68,8 +68,8 @@ describe("VariablesDialog (spec 0008)", () => {
     expect(within(dialog).getByText("3 variables")).toBeInTheDocument();
     const rows = within(dialog).getAllByRole("row").slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      "Temperatura°C20 a 100Requerida6 valores",
-      "Duraciónmin≥ 0Requerida2 valores",
+      "Temperatura°C20 a 100Esperada6 valores",
+      "Duraciónmin≥ 0Esperada2 valores",
       "pH——Opcional0 valores",
     ]);
     expect(await axe(baseElement)).toHaveNoViolations();

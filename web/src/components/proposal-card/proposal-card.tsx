@@ -70,8 +70,9 @@ function ProposalCard({
   const saving = state.kind === "saving";
   const missing = values.find((value) => value.value === null);
   const confirmable = canConfirm ?? (!missing && !values.some(needsCheck));
-  // A correction is never flagged per value: choosing "Corregir" was its extra step.
-  const flagged = isFlagged(values) && state.kind !== "correction";
+  // The API flags only values that fill an empty slot; a value that replaces a
+  // saved one asks "¿Cambio…?" instead (spec 0011, AC-6).
+  const flagged = isFlagged(values);
   const toCheck = values.some(needsCheck);
   const label = saveLabel(values, trialNumber, state.kind === "correction");
 
@@ -333,7 +334,11 @@ function Prompt({
       </p>
     );
   if (state.kind === "correction")
-    return <p className="font-medium">{copy.promptCorrection(trialNumber)}</p>;
+    return (
+      <p className="font-medium">
+        {state.question ?? copy.promptCorrection(trialNumber)}
+      </p>
+    );
   if (state.kind === "needs_clarification")
     return (
       <p className="flex items-start gap-2 font-medium">

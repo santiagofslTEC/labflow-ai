@@ -70,8 +70,8 @@ describe("NotebookView (spec 0005, AC-10, AC-11)", () => {
     const variables = screen.getByRole("region", { name: "Variables" });
     const rows = within(variables).getAllByRole("row").slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      "Temperatura°C20 a 100Requerida",
-      "Duraciónmin≥ 0Requerida",
+      "Temperatura°C20 a 100Esperada",
+      "Duraciónmin≥ 0Esperada",
       "pH——Opcional",
     ]);
 

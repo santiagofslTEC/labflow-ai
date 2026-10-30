@@ -22,6 +22,7 @@ from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
+from sqlmodel import Session
 
 from app.ai.deps import ProviderFactoryDep
 from app.ai.provider import LLMProvider
@@ -35,7 +36,7 @@ from app.repositories import proposals
 from app.routers.capture import TEXT_MAX
 from app.services.replies import Reason, auto_saved_aloud, reply_text
 from app.services.results import ExperimentNotFound, NotPending, TrialNotInExperiment
-from app.services.turns import LLMUnavailable, Superseded, TurnResponse, handle_utterance
+from app.services.turns import Handled, LLMUnavailable, Superseded, run_turn
 from app.voice import elevenlabs, sse
 from app.voice.session import SIGNED_URL_LIFE_S, VoiceClaims, read_voice_token, sign_voice_token
 from app.voice.sessions import (
@@ -165,16 +166,15 @@ async def _run_turn(
 ) -> Spoken:
     """One voice turn through the same pipeline as typing (AC-3). Any failure speaks the AC-12
     message and is not cached, so saying it again runs a new turn. `older` is the run this one
-    superseded after it wrote: its auto save is taken back first (AC-14)."""
+    superseded after it wrote: it is taken back in full first (spec 0011, AC-13)."""
     if older is not None:
         await asyncio.wait({older.task})
         before = older.task
-        ok = not before.cancelled() and before.exception() is None
-        if ok and (proposal_id := before.result().auto_saved) is not None:
+        if not before.cancelled() and before.exception() is None:
             with open_session() as db:
-                await run_in_threadpool(proposals.take_back, db, proposal_id)
+                await run_in_threadpool(_take_back_run, db, before.result())
     with open_session() as db:
-        result = await handle_utterance(
+        result = await run_turn(
             db,
             provider,
             claims.experiment_id,
@@ -184,16 +184,30 @@ async def _run_turn(
             flags.may_write,
         )
     match result:
-        case TurnResponse(saved=saved) if saved is not None and saved.auto:
-            values = [(v.value, v.unit) for v in saved.values]
-            aloud = auto_saved_aloud(saved.trial_number, values)
-            return Spoken(aloud, auto_saved=saved.proposal_id)
-        case TurnResponse(reply=reply):
-            return Spoken(reply.text if reply else "")
+        case Handled(response=response, started=started):
+            saved, reply = response.saved, response.reply
+            auto_saved = saved.proposal_id if saved is not None and saved.auto else None
+            if saved is not None and reply is not None and reply.reason == Reason.AUTO_SAVED:
+                aloud = auto_saved_aloud(
+                    saved.trial_number, [(v.value, v.unit) for v in saved.values]
+                )
+                return Spoken(aloud, auto_saved=auto_saved, started=started)
+            # A card left waiting: the full joined reply (spec 0011, AC-13).
+            text = reply.text if reply else ""
+            return Spoken(text, auto_saved=auto_saved, started=started)
         case Superseded():
             return Spoken("")
         case LLMUnavailable() | ExperimentNotFound() | NotPending() | TrialNotInExperiment():
             return Spoken(BRAIN_FAILED, keep=False)
+
+
+def _take_back_run(db: Session, spoken: Spoken) -> None:
+    """Undo an older run's auto save (dropping its values), then discard a card or empty
+    selection it started that is still pending (spec 0011, AC-13)."""
+    if spoken.auto_saved is not None:
+        proposals.take_back(db, spoken.auto_saved)
+    if spoken.started is not None:
+        proposals.discard(db, spoken.started)  # not pending any more: a typed error, ignored
 
 
 def _start_run(

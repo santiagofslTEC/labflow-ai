@@ -1,20 +1,21 @@
 """The card as the API returns it (spec 0006, `ProposalView`), built from saved state only,
 so a reload shows the card where it was (AC-17). Pure."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 
 from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import Source
 from app.services.card_state import (
     CardInfo,
+    Slots,
     VariableInfo,
     by_id,
     can_confirm,
     card_reason,
 )
 from app.services.flags import FlagReason, flag_text, flags, interpreted
-from app.services.replies import Reason, reply_text
+from app.services.replies import Change, Reason, change_question, reply_text
 
 
 class _View(BaseModel):
@@ -36,7 +37,7 @@ class ValueView(_View):
     name: str
     unit: str | None
     value: float | None  # None: nothing said yet for this variable
-    previous: float | None  # the saved value in a correction, else None
+    previous: float | None  # the value saved on the card's trial, else None
     said_text: str | None  # the user's own words; None for a hand edit
     interpreted: bool
     flags: list[FlagView]
@@ -78,27 +79,44 @@ def reply_for(
     return Reply(reason=reason, text=reply_text(reason, [v.name for v in named], n, unit, said))
 
 
+def changes_of(rows: Sequence[ValueView]) -> tuple[Change, ...]:
+    """The saved values a card would replace, read from its rows (spec 0011, AC-4)."""
+    return tuple(
+        Change(row.name, row.previous, row.value, row.unit)
+        for row in rows
+        if row.previous is not None and row.value is not None
+    )
+
+
+def question_of(view: "ProposalView", name_trial: bool = True) -> str:
+    """The card's question; `name_trial=False` leaves the trial out of "¿Cambio…?" for a
+    reply that already named it (spec 0011, AC-5)."""
+    if view.question.reason != Reason.CONFIRM_CHANGE or name_trial:
+        return view.question.text
+    return change_question(changes_of(view.values), None)
+
+
 def proposal_view(
     card: CardInfo,
     variables: Sequence[VariableInfo],
-    trial_numbers: Mapping[int, int],
-    previous: Mapping[int, float],
+    slots: Slots,
     phrase: str,
     source: Source,
 ) -> ProposalView:
+    """`slots` are the values saved on the card's trial: they show as `previous`, and a
+    value that replaces one is never flagged (spec 0011, AC-6)."""
     assert card.id is not None  # only saved cards are shown
-    correction = card.target_trial_id is not None
     rows: list[ValueView] = []
     for variable in sorted(variables, key=lambda v: v.position):
         value = card.value_of(variable.id)
-        reasons = () if value is None or correction else flags(value, variable)
+        reasons = () if value is None or variable.id in slots else flags(value, variable)
         rows.append(
             ValueView(
                 variable_id=variable.id,
                 name=variable.name,
                 unit=variable.unit,
                 value=None if value is None else value.value,
-                previous=previous.get(variable.id) if correction else None,
+                previous=slots.get(variable.id),
                 said_text=None if value is None else value.said_text,
                 interpreted=value is not None and interpreted(value.said_text, variable),
                 flags=[
@@ -109,7 +127,13 @@ def proposal_view(
                 checked=value is not None and value.checked,
             )
         )
-    reason, ids = card_reason(card, variables, trial_numbers)
+    reason, ids = card_reason(card, variables, slots)
+    question = reply_for(reason, ids, variables, card.trial_number)
+    if reason == Reason.CONFIRM_CHANGE:
+        changes = changes_of([row for row in rows if row.variable_id in ids])
+        question = Reply(
+            reason=reason, text=reply_text(reason, n=card.trial_number, changes=changes)
+        )
     return ProposalView(
         id=card.id,
         trial_number=card.trial_number,
@@ -118,6 +142,6 @@ def proposal_view(
         phrase=phrase,
         source=source,
         flagged=any(row.flags for row in rows),
-        question=reply_for(reason, ids, variables, card.trial_number),
-        can_confirm=can_confirm(card, variables, trial_numbers),
+        question=question,
+        can_confirm=can_confirm(card, variables, slots),
     )

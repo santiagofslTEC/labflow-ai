@@ -8,7 +8,14 @@ from sqlmodel import Session, col, select
 from app.models import Experiment, Measurement, Proposal, ProposalValue, Trial, Turn, Variable
 from app.models.enums import ProposalStatus, Role, Source
 from app.repositories import proposals, turns
-from app.services.card_state import CardInfo, RememberedTrial, ValueInfo, VariableInfo
+from app.services.card_state import (
+    CardInfo,
+    RememberedTrial,
+    Slots,
+    ValueInfo,
+    VariableInfo,
+    slots_of,
+)
 from app.services.proposal_view import ProposalView, SavedValue, proposal_view
 from app.services.replies import Reason
 from app.services.results import ExperimentNotFound
@@ -113,10 +120,21 @@ def _remembered(session: Session, experiment_id: int) -> RememberedTrial | None:
     trial = session.get(Trial, trial_id) if trial_id is not None else None
     if trial is None or trial.id is None:
         return None
-    filled = session.exec(
-        select(col(Measurement.variable_id)).where(Measurement.trial_id == trial.id)
+    return RememberedTrial(trial_id=trial.id, number=trial.number)
+
+
+def saved_slots(session: Session, experiment_id: int) -> Mapping[int, Slots]:
+    """Every trial's saved values, by trial number (spec 0011, Value sourcing): one query,
+    since notebooks are small."""
+    rows = session.exec(
+        select(col(Trial.number), col(Measurement.variable_id), col(Measurement.value))
+        .join(Measurement, col(Measurement.trial_id) == col(Trial.id))
+        .where(Trial.experiment_id == experiment_id)
     ).all()
-    return RememberedTrial(trial_id=trial.id, number=trial.number, filled=frozenset(filled))
+    saved: dict[int, dict[int, float]] = {}
+    for number, variable_id, value in rows:
+        saved.setdefault(number, {})[variable_id] = value
+    return saved
 
 
 def trial_number_of(session: Session, trial_id: int) -> int:
@@ -155,18 +173,8 @@ def load_context(session: Session, experiment_id: int) -> TurnContext | Experime
         context=experiment.context,
         last_question=_last_question(recent),
         remembered=_remembered(session, experiment_id),
+        saved=saved_slots(session, experiment_id),
     )
-
-
-def _previous(session: Session, target_trial_id: int | None) -> Mapping[int, float]:
-    if target_trial_id is None:
-        return {}
-    rows = session.exec(
-        select(col(Measurement.variable_id), col(Measurement.value)).where(
-            Measurement.trial_id == target_trial_id
-        )
-    ).all()
-    return dict(rows)
 
 
 def _phrase(session: Session, experiment_id: int, card: CardInfo) -> tuple[str, Source]:
@@ -194,8 +202,7 @@ def view_of(session: Session, experiment_id: int) -> ProposalView | None:
     return proposal_view(
         card,
         _variables(session, experiment_id),
-        trial_numbers(session, experiment_id),
-        _previous(session, card.target_trial_id),
+        slots_of(card, saved_slots(session, experiment_id)),
         phrase,
         source,
     )

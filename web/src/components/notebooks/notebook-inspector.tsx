@@ -215,7 +215,7 @@ function NotebookInspector({
                   {formatRange(variable.min_value, variable.max_value)}
                 </TableCell>
                 <TableCell className="text-ink-muted">
-                  {variable.required ? "Requerida" : "Opcional"}
+                  {variable.required ? "Esperada" : "Opcional"}
                 </TableCell>
               </TableRow>
             ))}
