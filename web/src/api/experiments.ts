@@ -12,6 +12,7 @@ import type { components } from "./schema";
 export type ExperimentSummary = components["schemas"]["ExperimentSummary"];
 export type ExperimentDetail = components["schemas"]["ExperimentDetail"];
 export type TrialsView = components["schemas"]["TrialsView"];
+export type ResultsView = components["schemas"]["ResultsView"];
 export type VariableIn = components["schemas"]["VariableIn"];
 export type VariablesDeleted = components["schemas"]["VariablesDeleted"];
 export type VariableDetail = components["schemas"]["VariableDetail"];
@@ -25,6 +26,7 @@ export const experimentKeys = {
   detail: (id: number) => ["experiments", id] as const,
   // Under `all`, so the save invalidation refreshes it (spec 0007, AC-4).
   trials: (id: number) => ["experiments", id, "trials"] as const,
+  results: (id: number) => ["experiments", id, "results"] as const,
 };
 
 // What went wrong, in the terms the screens care about. `invalid` carries the
@@ -137,6 +139,14 @@ export const deleteVariables = (
     api.POST("/api/experiments/{experiment_id}/variables/delete", {
       params: { path: { experiment_id: experimentId } },
       body: { variable_ids: [...variableIds] },
+    }),
+  );
+
+// Count, min, max, and mean per variable, worked out by the API (spec 0009).
+export const getResults = (id: number): Promise<ApiResult<ResultsView>> =>
+  settle(() =>
+    api.GET("/api/experiments/{experiment_id}/results", {
+      params: { path: { experiment_id: id } },
     }),
   );
 
