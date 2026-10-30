@@ -329,13 +329,18 @@ function TrialsTable({
 }) {
   return (
     <>
-      <div className="overflow-x-auto">
+      {/* It scrolls sideways inside its box, never the page; the fade says
+          there is more (spec 0010, AC-5). */}
+      <div className="relative max-lg:after:pointer-events-none max-lg:after:absolute max-lg:after:inset-y-0 max-lg:after:right-0 max-lg:after:w-6 max-lg:after:bg-linear-to-l max-lg:after:from-surface max-lg:after:content-['']">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>#</TableHead>
+              <TableHead className={STICKY_FIRST}>#</TableHead>
               {variables.map((variable) => (
-                <TableHead key={variable.id} className="text-right">
+                <TableHead
+                  key={variable.id}
+                  className="min-w-24 text-right whitespace-nowrap"
+                >
                   {variable.name}
                   {variable.unit ? (
                     <span className="font-mono"> ({variable.unit})</span>
@@ -358,7 +363,12 @@ function TrialsTable({
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-mono text-ink tabular-nums">
+                  <TableCell
+                    className={cn(
+                      "font-mono text-ink tabular-nums",
+                      STICKY_FIRST,
+                    )}
+                  >
                     {formatNumber(row.number)}
                   </TableCell>
                   {row.values.map((value, i) => (
@@ -427,6 +437,9 @@ export const exportLabel = (trials: TrialsPanel): string =>
     : trials.kind === "error"
       ? "Exportar CSV (no disponible)"
       : "Exportar CSV";
+
+// The trial number stays in view while the values scroll.
+const STICKY_FIRST = "sticky left-0 z-10 bg-surface";
 
 const quickActionClass =
   "flex h-11 w-full items-center gap-3 rounded-control border border-line bg-surface px-3 text-left text-sm text-ink shadow-control focus-ring transition-colors hover:bg-sunken";

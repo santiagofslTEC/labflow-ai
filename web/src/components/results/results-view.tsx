@@ -295,10 +295,10 @@ function VariablePicker({
   readonly onChange: (id: number) => void;
 }) {
   return (
-    <div className="flex min-w-48 flex-col gap-1">
+    <div className="flex w-full flex-col gap-1 lg:w-auto lg:min-w-48">
       <span className="text-xs text-ink-muted">{label}</span>
       <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-        <SelectTrigger aria-label={label}>
+        <SelectTrigger aria-label={label} className="max-lg:w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -321,13 +321,13 @@ function DirectionPicker({
   readonly onChange: (dir: Direction) => void;
 }) {
   return (
-    <div className="flex min-w-48 flex-col gap-1">
+    <div className="flex w-full flex-col gap-1 lg:w-auto lg:min-w-48">
       <span className="text-xs text-ink-muted">Criterio</span>
       <Select
         value={value}
         onValueChange={(v) => onChange(v === "min" ? "min" : "max")}
       >
-        <SelectTrigger aria-label="Criterio">
+        <SelectTrigger aria-label="Criterio" className="max-lg:w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

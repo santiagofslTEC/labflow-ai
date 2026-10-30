@@ -529,7 +529,7 @@ function NotebookForm() {
                     </div>
                   </div>
                 ) : null}
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <div className="flex flex-col-reverse gap-3 max-lg:sticky max-lg:bottom-[var(--tabbar-height)] max-lg:z-20 max-lg:-mx-4 max-lg:border-t max-lg:border-line max-lg:bg-surface/95 max-lg:px-4 max-lg:py-3 max-lg:backdrop-blur-md sm:flex-row sm:justify-end">
                   <Button
                     variant="ghost"
                     size="lg"

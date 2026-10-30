@@ -76,3 +76,9 @@ describe("TopBar (spec 0010, AC-1)", () => {
     expect(screen.getByRole("link", { name: "LabFlow" })).toBeInTheDocument();
   });
 });
+
+describe("TopBar on Nuevo", () => {
+  it("shows no back arrow, since Nuevo is a tab", () => {
+    expect(backFor("/cuadernos/nuevo")).toBeNull();
+  });
+});

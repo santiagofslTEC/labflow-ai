@@ -261,10 +261,12 @@ function VariablesDialog({
                     </TableHead>
                   ) : null}
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Unidad</TableHead>
-                  <TableHead>Rango</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Valores</TableHead>
+                  <TableHead className="max-lg:hidden">Unidad</TableHead>
+                  <TableHead className="max-lg:hidden">Rango</TableHead>
+                  <TableHead className="max-lg:hidden">Tipo</TableHead>
+                  <TableHead className="text-right max-lg:hidden">
+                    Valores
+                  </TableHead>
                   {editable ? (
                     <TableHead>
                       <span className="sr-only">Acciones</span>
@@ -349,25 +351,33 @@ function VariableRow({
   return (
     <TableRow data-state={checked ? "selected" : undefined}>
       {editable ? (
-        <TableCell>
+        <TableCell className="max-lg:w-11">
           <input
             type="checkbox"
             aria-label={`Seleccionar ${variable.name}`}
             checked={checked}
             onChange={(event) => onCheck(event.target.checked)}
-            className="size-5 cursor-pointer rounded accent-ink focus-ring"
+            className="size-5 cursor-pointer rounded accent-ink focus-ring max-lg:size-6"
           />
         </TableCell>
       ) : null}
-      <TableCell className="font-medium text-ink">{variable.name}</TableCell>
-      <TableCell className="font-mono">{variable.unit ?? "—"}</TableCell>
-      <TableCell className="font-mono tabular-nums">
+      <TableCell className="font-medium text-ink max-lg:whitespace-normal">
+        {variable.name}
+        {/* The phone folds the other columns under the name (spec 0010, AC-4). */}
+        <span className="block pt-0.5 text-xs font-normal text-ink-muted lg:hidden">
+          {phoneDetails(variable, values)}
+        </span>
+      </TableCell>
+      <TableCell className="font-mono max-lg:hidden">
+        {variable.unit ?? "—"}
+      </TableCell>
+      <TableCell className="font-mono tabular-nums max-lg:hidden">
         {formatRange(variable.min_value, variable.max_value)}
       </TableCell>
-      <TableCell className="text-ink-muted">
+      <TableCell className="text-ink-muted max-lg:hidden">
         {variable.required ? "Requerida" : "Opcional"}
       </TableCell>
-      <TableCell className="text-right font-mono text-ink tabular-nums">
+      <TableCell className="text-right font-mono text-ink tabular-nums max-lg:hidden">
         {values === null ? "—" : valueCount(values)}
       </TableCell>
       {editable ? (
@@ -375,6 +385,7 @@ function VariableRow({
           <Button
             variant="ghost"
             size="icon"
+            className="max-lg:size-12"
             aria-label={`Editar ${variable.name}`}
             onClick={onEdit}
           >
@@ -385,6 +396,20 @@ function VariableRow({
     </TableRow>
   );
 }
+
+// "°C · 20 a 100 · Requerida · 6 valores": the row's other columns, in one line.
+const phoneDetails = (
+  variable: VariableDetail,
+  values: number | null,
+): string =>
+  [
+    variable.unit ?? "Sin unidad",
+    variable.min_value === null && variable.max_value === null
+      ? "Sin rango"
+      : formatRange(variable.min_value, variable.max_value),
+    variable.required ? "Requerida" : "Opcional",
+    ...(values === null ? [] : [valueCount(values)]),
+  ].join(" · ");
 
 // One variable's form in place of its row (AC-2, AC-3, AC-4).
 function FormRow({
