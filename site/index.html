@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LabFlow · El cuaderno de laboratorio que escucha</title>
+    <meta
+      name="description"
+      content="Dicta tus mediciones con las manos ocupadas. LabFlow las convierte en una tabla, una gráfica y respuestas sobre tus datos, sin inventar un solo número."
+    />
+    <meta name="theme-color" content="#FAF9F7" />
+    <meta property="og:title" content="LabFlow · El cuaderno de laboratorio que escucha" />
+    <meta
+      property="og:description"
+      content="Dicta una medición. LabFlow la guarda, la grafica y nunca inventa un número."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+
+    <header class="nav">
+      <div class="nav-inner">
+        <a class="brand" href="#" aria-label="LabFlow, inicio">
+          <img src="logo.svg" alt="" width="28" height="28" />
+          <span>LabFlow</span>
+        </a>
+        <nav aria-label="Secciones">
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="#confianza">Confianza</a>
+          <a href="#para-quien">Para quién</a>
+          <a href="#preguntas">Preguntas</a>
+        </nav>
+        <a class="btn btn-ink btn-sm" href="https://labflow-ai-nine.vercel.app">Empezar</a>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <!-- Hero -->
+      <section class="hero">
+        <div class="wrap hero-copy">
+          <p class="pill"><span class="dot"></span>Piloto abierto · TEC × Uniandes</p>
+          <h1>El cuaderno de laboratorio<br />que escucha.</h1>
+          <p class="lede">
+            Dicta tus mediciones con las manos ocupadas. LabFlow las convierte en una tabla, una
+            gráfica y respuestas sobre tus datos, sin inventar un solo número.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-brand" href="https://labflow-ai-nine.vercel.app">
+              Empezar
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+            </a>
+            <a class="btn btn-line" href="#como-funciona">Ver cómo funciona</a>
+          </div>
+          <p class="fine">En el navegador, en la computadora y en el celular. Sin instalar nada.</p>
+        </div>
+
+        <div class="wrap">
+          <div
+            class="demo"
+            role="img"
+            aria-label="Demostración: alguien dicta 'Ensayo cuatro: cincuenta grados, quince minutos, rendimiento setenta y tres por ciento'. LabFlow muestra lo que entendió, agrega la fila a la tabla y el punto a la gráfica."
+          >
+            <div class="demo-bar" aria-hidden="true">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="demo-title">Síntesis de aspirina · Práctica 4</span>
+              <span class="demo-status"><span class="dot"></span>Escuchando</span>
+            </div>
+            <div class="demo-body" aria-hidden="true">
+              <div class="demo-voice">
+                <div class="mic">
+                  <span class="mic-btn">
+                    <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+                  </span>
+                  <span class="levels"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                </div>
+                <p class="said-label">Dijiste</p>
+                <p class="transcript" id="transcript"></p>
+                <p class="said-label">LabFlow entendió</p>
+                <ul class="chips" id="chips">
+                  <li><span class="from">cincuenta grados</span><span class="to">50 °C</span></li>
+                  <li><span class="from">quince minutos</span><span class="to">15 min</span></li>
+                  <li><span class="from">setenta y tres por ciento</span><span class="to">73 %</span></li>
+                </ul>
+              </div>
+              <div class="demo-data">
+                <table class="sheet">
+                  <thead>
+                    <tr><th>Ensayo</th><th>Temperatura</th><th>Tiempo</th><th>Rendimiento</th></tr>
+                  </thead>
+                  <tbody id="rows">
+                    <tr><td>1</td><td>30 °C</td><td>15 min</td><td>52 %</td></tr>
+                    <tr><td>2</td><td>40 °C</td><td>15 min</td><td>61 %</td></tr>
+                    <tr><td>3</td><td>45 °C</td><td>15 min</td><td>66 %</td></tr>
+                    <tr class="new-row" id="new-row"><td>4</td><td>50 °C</td><td>15 min</td><td>73 %</td></tr>
+                  </tbody>
+                </table>
+                <figure class="chart">
+                  <figcaption>Rendimiento contra temperatura</figcaption>
+                  <svg viewBox="0 0 480 170" id="chart">
+                    <g class="grid">
+                      <line x1="40" y1="15" x2="460" y2="15" />
+                      <line x1="40" y1="56.7" x2="460" y2="56.7" />
+                      <line x1="40" y1="98.3" x2="460" y2="98.3" />
+                      <line x1="40" y1="140" x2="460" y2="140" />
+                    </g>
+                    <g class="ticks">
+                      <text x="32" y="18" text-anchor="end">80 %</text>
+                      <text x="32" y="143" text-anchor="end">45 %</text>
+                      <text x="110" y="160" text-anchor="middle">30</text>
+                      <text x="250" y="160" text-anchor="middle">40</text>
+                      <text x="390" y="160" text-anchor="middle">50 °C</text>
+                    </g>
+                    <polyline class="line" points="110,115 250,82.9 320,65" />
+                    <line class="line line-new" id="line-new" x1="320" y1="65" x2="390" y2="40" />
+                    <circle class="pt" cx="110" cy="115" r="4.5" />
+                    <circle class="pt" cx="250" cy="82.9" r="4.5" />
+                    <circle class="pt" cx="320" cy="65" r="4.5" />
+                    <circle class="pt pt-new" id="pt-new" cx="390" cy="40" r="6" />
+                  </svg>
+                </figure>
+              </div>
+            </div>
+            <div class="toast" id="toast" aria-hidden="true">
+              <svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" /></svg>
+              Ensayo 4 guardado
+              <span class="undo">Deshacer</span>
+            </div>
+          </div>
+          <p class="demo-note">Datos de ejemplo.</p>
+        </div>
+      </section>
+
+      <!-- Problem -->
+      <section class="section" id="problema">
+        <div class="wrap split">
+          <div class="reveal">
+            <p class="eyebrow">El problema</p>
+            <h2>Medir y anotar compiten por las mismas manos.</h2>
+            <p class="body">
+              En una práctica tienes guantes puestos, un reactivo en la mano o un equipo que vigilar.
+              Anotar un valor significa detenerte o confiar en la memoria. Los datos terminan
+              repartidos entre cuadernos, hojas sueltas y celulares, y después hay que pasarlos a una
+              hoja de cálculo.
+            </p>
+          </div>
+          <ol class="problems">
+            <li class="reveal">
+              <span class="mono big">46 → 64</span>
+              <div>
+                <h3>Errores al transcribir</h3>
+                <p>Un número que se copia mal al pasar del cuaderno a Excel, y nadie lo nota hasta el informe.</p>
+              </div>
+            </li>
+            <li class="reveal">
+              <span class="mono big">— °C</span>
+              <div>
+                <h3>Datos incompletos</h3>
+                <p>La unidad o la variable que nadie anotó, descubierta cuando el experimento ya terminó.</p>
+              </div>
+            </li>
+            <li class="reveal">
+              <span class="mono big">× 2</span>
+              <div>
+                <h3>Trabajo repetido</h3>
+                <p>Escribir todo en la hoja y otra vez en la computadora, para luego armar tablas y gráficas a mano.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section class="section section-sunken" id="como-funciona">
+        <div class="wrap">
+          <div class="section-head reveal">
+            <p class="eyebrow">Cómo funciona</p>
+            <h2>De la voz a la tabla en cuatro pasos.</h2>
+          </div>
+          <div class="steps">
+            <div class="steps-list">
+              <article class="step" data-step="0">
+                <span class="step-n mono">01</span>
+                <h3>Prepara el experimento</h3>
+                <p>Crea el experimento y define sus variables con unidades: temperatura en °C, tiempo en minutos, rendimiento en %. LabFlow ya sabe qué esperar.</p>
+                <div class="step-visual">
+                  <div class="panel">
+                    <p class="panel-title">Variables</p>
+                    <ul class="vars">
+                      <li><span>Temperatura</span><span class="mono muted">°C</span></li>
+                      <li><span>Tiempo</span><span class="mono muted">min</span></li>
+                      <li><span>Rendimiento</span><span class="mono muted">%</span></li>
+                      <li class="add">+ Agregar variable</li>
+                    </ul>
+                  </div>
+                </div>
+              </article>
+              <article class="step" data-step="1">
+                <span class="step-n mono">02</span>
+                <h3>Habla con las manos ocupadas</h3>
+                <p>Mantén presionado el micrófono y di el ensayo como se lo dirías a un compañero. Si prefieres, escríbelo. Los números pueden ir en palabras o en cifras.</p>
+                <div class="step-visual">
+                  <div class="panel panel-center">
+                    <span class="mic-xl">
+                      <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+                    </span>
+                    <p class="muted">Mantén presionado para hablar</p>
+                    <p class="quote">“Ensayo cinco, cincuenta y cinco grados…”</p>
+                  </div>
+                </div>
+              </article>
+              <article class="step" data-step="2">
+                <span class="step-n mono">03</span>
+                <h3>Revisa solo lo dudoso</h3>
+                <p>Una lectura clara se guarda sola, con opción de deshacer. Si algo no cuadra, LabFlow te muestra lo que dijiste junto a lo que entendió y te pide decidir.</p>
+                <div class="step-visual">
+                  <div class="panel">
+                    <p class="flag">Revisa este valor</p>
+                    <p class="said"><span class="muted">Dijiste</span> “quinientos grados”</p>
+                    <p class="read"><span class="muted">Entendí</span> <strong class="mono">500 °C</strong></p>
+                    <p class="why">Muy por encima de tus ensayos anteriores (30 a 50 °C).</p>
+                    <div class="panel-actions">
+                      <span class="btn btn-line btn-sm">Guardar 500 °C</span>
+                      <span class="btn btn-ink btn-sm">Decirlo de nuevo</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+              <article class="step" data-step="3">
+                <span class="step-n mono">04</span>
+                <h3>Entiende tus datos</h3>
+                <p>Pide la gráfica o pregunta en voz alta. El código hace las cuentas y la IA solo las explica. Exporta a CSV cuando toque escribir el informe.</p>
+                <div class="step-visual">
+                  <div class="panel">
+                    <p class="bubble bubble-me">¿Cuál fue el mayor rendimiento?</p>
+                    <p class="bubble">El mayor fue <strong class="mono">73 %</strong>, en el ensayo 4 a 50 °C.</p>
+                    <p class="muted small">Calculado sobre 4 ensayos guardados.</p>
+                  </div>
+                </div>
+              </article>
+            </div>
+            <div class="steps-stage" aria-hidden="true"><div class="stage" id="stage"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trust -->
+      <section class="section" id="confianza">
+        <div class="wrap">
+          <div class="section-head reveal">
+            <p class="eyebrow">Confianza</p>
+            <h2>Ningún número inventado.</h2>
+            <p class="body">
+              En un laboratorio, un dato equivocado vale menos que un dato faltante. LabFlow está
+              construido alrededor de eso: la IA entiende la frase, pero el código comprueba cada
+              número.
+            </p>
+          </div>
+
+          <div class="provenance reveal">
+            <table class="sheet sheet-lg">
+              <thead><tr><th>Ensayo</th><th>Temperatura</th><th>Rendimiento</th></tr></thead>
+              <tbody>
+                <tr><td>3</td><td>45 °C</td><td>66 %</td></tr>
+                <tr><td>4</td><td>50 °C</td><td><span class="cell-focus">73 %</span></td></tr>
+              </tbody>
+            </table>
+            <div class="popover">
+              <p>Dijiste <strong>“setenta y tres por ciento”</strong> a las 14:02.</p>
+              <p class="muted">LabFlow leyó 73 %. Guardado sin cambios por Ana.</p>
+            </div>
+          </div>
+
+          <div class="cols">
+            <div class="col reveal">
+              <h3>Cada número tiene origen</h3>
+              <p>Toca un valor y ves de dónde salió: la frase original, la hora y quién lo guardó.</p>
+            </div>
+            <div class="col reveal">
+              <h3>El código revisa, no tú</h3>
+              <p>Se comprueba que cada número aparezca en lo que dijiste, que la unidad sea la correcta y que el valor esté en rango.</p>
+            </div>
+            <div class="col reveal">
+              <h3>La IA no hace cuentas</h3>
+              <p>Promedios, máximos y gráficas se calculan con código a partir de tus datos guardados.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Audience -->
+      <section class="section section-sunken" id="para-quien">
+        <div class="wrap">
+          <div class="section-head reveal">
+            <p class="eyebrow">Para quién</p>
+            <h2>Hecho para quien está en la mesa de trabajo.</h2>
+          </div>
+          <div class="cols">
+            <div class="col reveal">
+              <h3>Estudiantes de laboratorio</h3>
+              <p>Prácticas de ingeniería química en grupo. Sales de la sesión con la tabla y las gráficas listas para el informe.</p>
+            </div>
+            <div class="col reveal">
+              <h3>Auxiliares de investigación</h3>
+              <p>Series de ensayos repetidos durante semanas, con un historial ordenado en un solo lugar.</p>
+            </div>
+            <div class="col reveal">
+              <h3>Profesores</h3>
+              <p>Registros completos y verificables: cada valor dice cuándo se dictó y cómo se entendió.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section" id="preguntas">
+        <div class="wrap faq-wrap">
+          <div class="reveal">
+            <p class="eyebrow">Preguntas</p>
+            <h2>Lo que suelen preguntar.</h2>
+          </div>
+          <div class="faq">
+            <details>
+              <summary>¿Tengo que instalar algo?</summary>
+              <p>No. LabFlow se abre en el navegador. En el celular puedes agregarlo a la pantalla de inicio y se comporta como una app.</p>
+            </details>
+            <details>
+              <summary>¿Cómo entro?</summary>
+              <p>LabFlow está en piloto. Entras con un código de acceso personal que te da tu equipo o tu profesor.</p>
+            </details>
+            <details>
+              <summary>¿Qué pasa si entiende mal?</summary>
+              <p>Guarda lo que dijiste, no lo que adivina. Si algo no se entendió, te pregunta. Y cualquier lectura se puede deshacer o corregir.</p>
+            </details>
+            <details>
+              <summary>¿En qué idioma funciona?</summary>
+              <p>En español. Entiende números dichos con palabras (“setenta y tres”) o con cifras, y unidades como grados, minutos o por ciento.</p>
+            </details>
+            <details>
+              <summary>¿Qué IA usa?</summary>
+              <p>ElevenLabs Scribe para pasar tu voz a texto y un modelo de lenguaje (Ollama Cloud, con Claude de respaldo) para entender la frase. Los números siempre se comprueban con código.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- Closing CTA -->
+      <section class="closing">
+        <div class="wrap closing-inner reveal">
+          <img src="favicon.svg" alt="" width="56" height="56" />
+          <h2>Deja el bolígrafo.<br />Empieza a dictar.</h2>
+          <p>Tu próxima práctica, con la tabla lista antes de quitarte los guantes.</p>
+          <a class="btn btn-paper" href="https://labflow-ai-nine.vercel.app">
+            Empezar
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <a class="brand" href="#" aria-label="LabFlow, inicio">
+          <img src="logo.svg" alt="" width="24" height="24" />
+          <span>LabFlow</span>
+        </a>
+        <p class="muted">El cuaderno de laboratorio que escucha. Hecho por estudiantes de TEC × Uniandes, 2026.</p>
+        <nav aria-label="Enlaces">
+          <a href="https://labflow-ai-nine.vercel.app">Abrir la app</a>
+          <a href="https://github.com/santiagofslTEC/labflow-ai">GitHub</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

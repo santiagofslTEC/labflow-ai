@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- LabFlow mark: a conical flask whose liquid is a voice waveform. -->
+  <path d="M12 3.5h8M13.25 3.5v8.25L6.4 24.1a2.6 2.6 0 0 0 2.27 3.9h14.66a2.6 2.6 0 0 0 2.27-3.9L18.75 11.75V3.5" stroke="#1B2331" stroke-width="2.2"/>
+  <path d="M11.6 20.6v2.4M14.2 18.6v6.4M16.8 16.6v10.4M19.4 18.9v5.8M22 20.8v2" stroke="#17734A" stroke-width="2.2"/>
+</svg>
