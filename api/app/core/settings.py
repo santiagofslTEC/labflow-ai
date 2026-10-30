@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     setup_claude_timeout_s: float = Field(default=25, gt=0)
     setup_max_tokens: int = Field(default=6000, gt=0)
 
+    # Voice (spec 0007). Optional: without them the session route answers 503 voice_unavailable
+    # and typing keeps working. VOICE_LLM_URL is read only by scripts/sync_agent.py.
+    elevenlabs_api_key: str | None = None
+    elevenlabs_agent_id: str | None = None
+    voice_llm_secret: str | None = Field(default=None, min_length=32)
+    voice_llm_url: str | None = None
+
     @model_validator(mode="after")
     def _check_ai_keys(self) -> "Settings":
         """In prod both keys are required and the scripted provider is refused (AC-15)."""

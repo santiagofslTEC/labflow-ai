@@ -1,0 +1,49 @@
+{
+  "name": "LabFlow captura",
+  "conversation_config": {
+    "agent": {
+      "first_message": "Te escucho. Dicta el ensayo.",
+      "language": "es",
+      "disable_first_message_interruptions": false,
+      "prompt": {
+        "prompt": "LabFlow escribe cada respuesta en su servidor. Este texto no se usa.",
+        "llm": "custom-llm",
+        "custom_llm": {
+          "model_id": "labflow-capture",
+          "api_type": "chat_completions"
+        }
+      }
+    },
+    "tts": {
+      "model_id": "eleven_flash_v2_5",
+      "voice_id": "EXAVITQu4vr4xnSDxMaL"
+    },
+    "asr": {
+      "quality": "high",
+      "keywords": ["ensayo", "rendimiento", "temperatura", "duración", "coma", "grados", "deshacer"]
+    },
+    "turn": {
+      "turn_eagerness": "patient",
+      "turn_timeout": 10,
+      "silence_end_call_timeout": -1
+    },
+    "conversation": {
+      "max_duration_seconds": 600
+    }
+  },
+  "platform_settings": {
+    "auth": {
+      "enable_auth": true
+    },
+    "overrides": {
+      "custom_llm_extra_body": true
+    },
+    "privacy": {
+      "record_voice": false,
+      "retention_days": 0,
+      "delete_transcript_and_pii": true,
+      "delete_audio": true,
+      "zero_retention_mode": false
+    }
+  }
+}

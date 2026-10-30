@@ -1046,6 +1046,78 @@
           }
         }
       }
+    },
+    "/api/voice/session": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Start Session",
+        "description": "A signed URL for the private agent plus our token for this holder and notebook (AC-1).",
+        "operationId": "start_session_api_voice_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid access session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "experiment_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "voice_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2251,6 +2323,50 @@
           "position"
         ],
         "title": "VariableDetail"
+      },
+      "VoiceSession": {
+        "properties": {
+          "sid": {
+            "type": "string",
+            "title": "Sid"
+          },
+          "signed_url": {
+            "type": "string",
+            "title": "Signed Url"
+          },
+          "session_token": {
+            "type": "string",
+            "title": "Session Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sid",
+          "signed_url",
+          "session_token",
+          "expires_at"
+        ],
+        "title": "VoiceSession"
+      },
+      "VoiceSessionRequest": {
+        "properties": {
+          "experiment_id": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Experiment Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_id"
+        ],
+        "title": "VoiceSessionRequest"
       }
     }
   }

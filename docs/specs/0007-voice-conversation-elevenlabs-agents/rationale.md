@@ -60,6 +60,17 @@ The engineer chose "save clean readings at once" for voice ahead of the spec 000
 
 **Cross check (2026-10-29).** A read only review on another model raised 22 gaps (turn finished signal, auto save inside the plan with a race check, undo locking and chaining, a code word match instead of a model tool for "deshacer", system tools, the first message, token transport, replay keys and in flight waits, session caps and revocation, testable restatements of the criteria) and 5 soundness notes. All were applied to `index.md`.
 
+**Task 1 findings (2026-10-29).** A real Spanish call on the dev agent, through the `localhost.run` tunnel, with the probe endpoint echoing "Te oí: …":
+- (a) The last `user` message is the raw transcript, and the whole history comes along (roles `system, assistant, user, assistant, user`). Request keys: `elevenlabs_extra_body`, `max_tokens`, `messages`, `model`, `stream` (true), `stream_options`, `temperature`.
+- (b) `customLlmExtraBody` in `startSession` reaches us as `elevenlabs_extra_body.session_token`, and the token verifies. No fallback needed.
+- (e) Setting names, read back with `sync_agent.py --show`: `prompt.custom_llm` (`url`, `model_id`, `api_key.secret_id`, `api_type`), `prompt.built_in_tools` (all null), `turn.turn_eagerness`, `turn.turn_timeout`, `turn.silence_end_call_timeout`, `platform_settings.privacy`, `platform_settings.overrides.custom_llm_extra_body`, `platform_settings.auth.enable_auth`. The agent's `client_events` include `user_transcript` and `agent_response`, so the browser gets both texts.
+- The Custom LLM `url` is a base: ElevenLabs appended `/chat/completions` and got 404s until `LLM_PATH` became `/api/voice/llm`.
+- `zero_retention_mode` needs `retention_days` -1 and is refused with a Custom LLM. The other privacy settings keep AC-15.
+- Speech to text was accurate on whole numbers and units ("temperatura subió a 50 grados y el rendimiento ahora es 20 %"). The first reply text arrived 0.1 to 0.7 s after the user text in the browser (echo only, no model).
+- **Partial turns.** In one long turn ElevenLabs called us three times with a growing sentence, even with `speculative_turn` false, and spoke only the last reply. The original replay key (with the sentence hash) treated each version as a new turn, so a complete early version could auto save. The engineer chose "newest wins" (AC-14): the turn key drops the hash, a newer version cancels an older one before it writes, and undoes it if it already saved. Rejected: a settle delay on every turn (adds about 0.8 s to each turn and still misses long pauses), and never auto saving by voice (gives up AC-5).
+- Dev tunnel: `cloudflared` quick tunnels are reset by the Uniandes network; `localhost.run` worked but dropped twice and changed its URL, which silently broke the agent until a resync.
+- Open: (c) decimal dictation and (d) hold to talk release timing.
+
 LangGraph does not fit capture: spec 0001 kept code in charge of state and the save rule, and capture is one decision per sentence. It does fit a multi step "questions about the data" agent (feature 10), which is where the engineer wants it; that gets its own spec.
 
 ## References

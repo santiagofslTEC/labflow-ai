@@ -12,7 +12,7 @@ from app.core.errors import ApiError, handle_api_error, handle_validation_error
 from app.core.gate import AttemptLog, require_access
 from app.core.instruction_reads import InstructionReads
 from app.core.settings import get_settings
-from app.routers import access, capture, experiments, health
+from app.routers import access, capture, experiments, health, voice
 
 
 @asynccontextmanager
@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     get_engine().dispose()
 
 
-# require_access guards every route; only /api/health and /api/access stay open.
+# require_access guards every route except OPEN_PATHS (health, access, the voice Custom LLM).
 # FastAPI's built in docs skip app dependencies, so they are off here and
 # registered below as ordinary routes, which puts them behind the gate too.
 app = FastAPI(
@@ -63,3 +63,4 @@ app.include_router(health.router)
 app.include_router(access.router)
 app.include_router(experiments.router)
 app.include_router(capture.router)
+app.include_router(voice.router)
