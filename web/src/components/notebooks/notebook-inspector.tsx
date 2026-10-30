@@ -339,7 +339,7 @@ function TrialsTable({
               {variables.map((variable) => (
                 <TableHead
                   key={variable.id}
-                  className="min-w-24 text-right whitespace-nowrap"
+                  className="text-right max-lg:min-w-24 max-lg:whitespace-nowrap"
                 >
                   {variable.name}
                   {variable.unit ? (
@@ -439,7 +439,8 @@ export const exportLabel = (trials: TrialsPanel): string =>
       : "Exportar CSV";
 
 // The trial number stays in view while the values scroll.
-const STICKY_FIRST = "sticky left-0 z-10 bg-surface";
+const STICKY_FIRST =
+  "max-lg:sticky max-lg:left-0 max-lg:z-10 max-lg:bg-surface";
 
 const quickActionClass =
   "flex h-11 w-full items-center gap-3 rounded-control border border-line bg-surface px-3 text-left text-sm text-ink shadow-control focus-ring transition-colors hover:bg-sunken";
