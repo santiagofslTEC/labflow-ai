@@ -53,8 +53,8 @@ from app.voice.sessions import (
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
 LLM_ROUTE = "/api/voice/llm/chat/completions"
-FILLER = "Mm, "
-FILLER_AFTER_S = 1.5
+# A whole sentence, so text to speech speaks it before the reply arrives (AC-22).
+FILLER = "A ver. "
 BRAIN_FAILED = "No pude procesarlo. Repítelo o escríbelo."
 
 log = logging.getLogger(__name__)
@@ -255,13 +255,15 @@ async def _spoken(outcome: Spoken | asyncio.Task[Spoken]) -> Spoken:
     return await asyncio.shield(outcome) if isinstance(outcome, asyncio.Task) else outcome
 
 
-async def _stream(outcome: Spoken | asyncio.Task[Spoken]) -> AsyncIterator[str]:
+async def _stream(
+    outcome: Spoken | asyncio.Task[Spoken], filler_after_s: float
+) -> AsyncIterator[str]:
     completion_id = f"chatcmpl-{secrets.token_hex(8)}"
     created = int(time.time())
     if isinstance(outcome, asyncio.Task):
-        done, _ = await asyncio.wait({outcome}, timeout=FILLER_AFTER_S)
+        done, _ = await asyncio.wait({outcome}, timeout=filler_after_s)
         if not done:
-            yield sse.chunk(completion_id, created, FILLER)  # spoken, never stored (AC-4)
+            yield sse.chunk(completion_id, created, FILLER)  # spoken, never stored (AC-22)
     spoken = await _spoken(outcome)
     if spoken.text:
         yield sse.chunk(completion_id, created, spoken.text)
@@ -305,4 +307,6 @@ async def custom_llm(
         return JSONResponse(
             sse.completion(f"chatcmpl-{secrets.token_hex(8)}", int(time.time()), spoken.text)
         )
-    return StreamingResponse(_stream(outcome), media_type="text/event-stream")
+    return StreamingResponse(
+        _stream(outcome, settings.voice_filler_after_s), media_type="text/event-stream"
+    )

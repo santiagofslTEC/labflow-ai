@@ -23,12 +23,22 @@
       "keywords": ["ensayo", "rendimiento", "temperatura", "duración", "coma", "grados", "deshacer"]
     },
     "turn": {
-      "turn_eagerness": "patient",
+      "turn_eagerness": "normal",
       "turn_timeout": 10,
-      "silence_end_call_timeout": -1
+      "silence_end_call_timeout": -1,
+      "speculative_turn": true
     },
     "conversation": {
-      "max_duration_seconds": 600
+      "max_duration_seconds": 600,
+      "client_events": [
+        "audio",
+        "interruption",
+        "agent_response",
+        "user_transcript",
+        "agent_response_correction",
+        "agent_tool_response",
+        "tentative_user_transcript"
+      ]
     }
   },
   "platform_settings": {

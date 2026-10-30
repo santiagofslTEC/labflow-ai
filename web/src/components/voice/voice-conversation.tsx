@@ -37,7 +37,10 @@ function Conversation({
 }: VoiceConversationProps) {
   const voice = useVoiceSession(experimentId);
   const { state } = voice;
-  const live = state.kind === "listening" || state.kind === "speaking";
+  const live =
+    state.kind === "listening" ||
+    state.kind === "thinking" ||
+    state.kind === "speaking";
   const liveRef = useRef<HTMLDivElement>(null);
 
   // One polite region for session states; the final user text is said once.
@@ -174,6 +177,8 @@ const hint = (state: VoiceState): string => {
       return voiceCopy.starting;
     case "listening":
       return voiceCopy.listening;
+    case "thinking":
+      return voiceCopy.thinking;
     case "speaking":
       return voiceCopy.speaking;
   }
@@ -185,6 +190,8 @@ const announcement = (state: VoiceState, heard: string | null): string => {
       return voiceCopy.starting;
     case "listening":
       return heard ?? voiceCopy.listening;
+    case "thinking":
+      return voiceCopy.thinking;
     case "speaking":
       return voiceCopy.speaking;
     case "idle":

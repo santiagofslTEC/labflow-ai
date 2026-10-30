@@ -38,6 +38,11 @@ class FallbackProvider:
         self._setup_hedge_s = setup_hedge_s
         self._setup_deadline_s = setup_deadline_s
 
+    @property
+    def hedge_s(self) -> float:
+        """When Claude starts on a capture turn (voice uses a shorter one, spec 0007 AC-23)."""
+        return self._hedge_s
+
     async def decide(self, context: TurnContext, utterance: str) -> Outcome:
         return await self._within(
             lambda provider: provider.decide(context, utterance), self._hedge_s, self._deadline_s
